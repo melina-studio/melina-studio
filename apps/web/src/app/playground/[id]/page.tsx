@@ -1,28 +1,13 @@
 // app/playground/[id]/page.tsx
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import {
-  Eraser,
-  Image,
-  Menu,
-  Minus,
-  Square,
-  StepBack,
-  TypeOutline,
-} from "lucide-react";
-import { Layer, Stage } from "react-konva";
+import { Download, Menu, StepBack } from "lucide-react";
 import { KonvaEventObject } from "konva/lib/Node";
 import { useRef, useState, useEffect } from "react";
-import {
-  LockKeyholeOpen,
-  Hand,
-  PencilLine,
-  Circle,
-  MoveUpRight,
-} from "lucide-react";
-import DotGrid from "@/components/DotGrid";
+
 import { DotBackground } from "@/components/ui/aceternity/DotBackground";
 import { ACTION_BUTTONS, ACTIONS } from "@/lib/konavaTypes";
+import KonvaCanvas from "@/components/custom/KonvaCanvas";
 
 export default function BoardPage() {
   const router = useRouter();
@@ -49,18 +34,6 @@ export default function BoardPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handlePointerDown = (e: KonvaEventObject<PointerEvent>) => {
-    console.log("pointer down", e);
-  };
-
-  const handlePointerMove = (e: KonvaEventObject<PointerEvent>) => {
-    console.log("pointer move");
-  };
-
-  const handlePointerUp = (e: KonvaEventObject<PointerEvent>) => {
-    console.log("pointer up");
-  };
-
   const resetActionClick = () => {
     setActiveTool(ACTIONS.SELECT);
   };
@@ -68,6 +41,16 @@ export default function BoardPage() {
   const toolbarToggle = () => {
     setOpen((v) => !v);
     resetActionClick();
+  };
+
+  const exportImage = () => {
+    const image = (stageRef.current as any).toDataURL();
+    if (image) {
+      const a = document.createElement("a");
+      a.href = image;
+      a.download = "image.png";
+      a.click();
+    }
   };
 
   return (
@@ -125,18 +108,21 @@ export default function BoardPage() {
             </button>
           ))}
         </div>
+        <div
+          className={`border-b border-gray-300  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+        ></div>
+        <div
+          className={`
+          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
+          ${open ? "hover:bg-[#cce0ff]" : "hidden"} 
+        `}
+          onClick={exportImage}
+        >
+          <Download width={16} height={16} />
+        </div>
       </div>
-      {/* canvas */}
-      <Stage
-        ref={stageRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      >
-        <Layer></Layer>
-      </Stage>
+      {/* konva canvas */}
+      <KonvaCanvas canvasRef={stageRef} activeTool={activeTool} />
     </div>
   );
 }
