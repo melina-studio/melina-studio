@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Stage, Layer, Rect, Circle, Line, Transformer } from "react-konva";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { v4 as uuidv4 } from "uuid";
+import { useTheme } from "next-themes";
 
 type Shape =
   | {
@@ -89,10 +90,13 @@ function KonvaCanvas({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const trRef = useRef<any>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     setDimensions({ width: window.innerWidth, height: window.innerHeight });
   }, []);
+
+  const strokeColor = theme === "dark" ? "#fff" : "#111";
 
   // transformer selection
   const bindTransformer = useCallback((node: any) => {
@@ -114,7 +118,7 @@ function KonvaCanvas({
           id: uuidv4(),
           type: "pencil",
           points: [pos.x, pos.y],
-          stroke: "#111",
+          stroke: strokeColor,
           strokeWidth: 2,
         },
       ]);
@@ -129,7 +133,7 @@ function KonvaCanvas({
           y: pos.y,
           w: 0,
           h: 0,
-          stroke: "#111",
+          stroke: strokeColor,
           strokeWidth: 2,
         },
       ]);
@@ -143,7 +147,8 @@ function KonvaCanvas({
           x: pos.x,
           y: pos.y,
           r: 0,
-          fill: "black",
+          stroke: strokeColor,
+          strokeWidth: 2,
         },
       ]);
     } else if (activeTool === ACTIONS.ARROW) {
@@ -156,7 +161,7 @@ function KonvaCanvas({
           id: uuidv4(),
           type: "line",
           points: [pos.x, pos.y],
-          stroke: "black",
+          stroke: strokeColor,
           strokeWidth: 2,
         },
       ]);
@@ -172,7 +177,7 @@ function KonvaCanvas({
           y: pos.y,
           fontSize: 16,
           fontFamily: "Arial",
-          fill: "black",
+          fill: strokeColor,
         },
       ]);
     } else if (activeTool === ACTIONS.IMAGE) {
@@ -197,7 +202,7 @@ function KonvaCanvas({
           id: uuidv4(),
           type: "eraser",
           points: [pos.x, pos.y],
-          stroke: "black",
+          stroke: strokeColor,
           strokeWidth: 2,
         },
       ]);
@@ -305,7 +310,7 @@ function KonvaCanvas({
                   width={s.w}
                   height={s.h}
                   fill={s.fill}
-                  stroke="#111"
+                  stroke={strokeColor}
                   cornerRadius={8}
                   draggable
                   onDragEnd={(e) =>
@@ -325,7 +330,7 @@ function KonvaCanvas({
                   y={s.y}
                   radius={s.r}
                   fill={s.fill}
-                  stroke="#111"
+                  stroke={strokeColor}
                   draggable
                   onDragEnd={(e) =>
                     onDragMove(s.id, e.target.x(), e.target.y())
@@ -339,7 +344,7 @@ function KonvaCanvas({
                 key={s.id}
                 id={s.id}
                 points={(s as any).points}
-                stroke={(s as any).stroke || "#111"}
+                stroke={(s as any).stroke || strokeColor}
                 strokeWidth={(s as any).strokeWidth || 2}
                 tension={0}
                 lineCap="round"

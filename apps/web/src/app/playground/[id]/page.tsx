@@ -65,11 +65,11 @@ export default function BoardPage() {
         <h4 className=" font-semibold">Board ID: {id}</h4>
       </div>
       {/* controls */}
-      <div className=" flex flex-col  bg-white fixed top-0 left-7 top-1/2 -translate-y-1/2 h-min p-1 rounded-md shadow-lg z-2 border border-gray-100">
+      <div className="flex flex-col bg-white dark:bg-[#323332] fixed top-0 left-7 top-1/2 -translate-y-1/2 h-min p-1 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] z-2 border border-gray-100 dark:border-gray-700">
         <div
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
-          ${open ? "hover:bg-[#cce0ff]" : "bg-[#9AC2FEFF]"} 
+          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "bg-[#9AC2FEFF] dark:bg-[#000000]"} 
         `}
           onClick={toolbarToggle}
           aria-expanded={open}
@@ -85,7 +85,7 @@ export default function BoardPage() {
           />
         </div>
         <div
-          className={`border-b border-gray-300  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
         ></div>
         <div
           className={`
@@ -98,8 +98,8 @@ export default function BoardPage() {
               key={button.value}
               className={`
               cursor-pointer p-2 rounded-md
-              hover:bg-[#cce0ff] transition-colors
-            ${activeTool === button.value ? "bg-[#9AC2FEFF]" : "bg-transparent"}
+              hover:bg-[#cce0ff] dark:hover:bg-[#000000] transition-colors
+            ${activeTool === button.value ? "bg-[#9AC2FEFF] dark:bg-[#000000]" : "bg-transparent "}
             `}
               aria-label={button.label}
               onClick={() => setActiveTool(button.value)}
@@ -109,12 +109,12 @@ export default function BoardPage() {
           ))}
         </div>
         <div
-          className={`border-b border-gray-300  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
         ></div>
         <div
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
-          ${open ? "hover:bg-[#cce0ff]" : "hidden"} 
+          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
         `}
           onClick={exportImage}
         >

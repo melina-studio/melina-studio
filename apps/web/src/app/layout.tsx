@@ -34,20 +34,12 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
           <DevtoolsProvider>
-            <ConvexClientProvider>
-              {/* <SidebarProvider className="p-2"> */}
-              {/* <AppSidebar /> */}
-              {/* <main> */}
-              {/* <SidebarTrigger /> */}
-              {children}
-              {/* </main> */}
-              {/* </SidebarProvider> */}
-            </ConvexClientProvider>
+            <ConvexClientProvider>{children}</ConvexClientProvider>
           </DevtoolsProvider>
         </ThemeProvider>
       </body>
