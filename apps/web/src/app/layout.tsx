@@ -5,7 +5,7 @@ import { ConvexClientProvider } from "@/providers/ConvexClientProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { DevtoolsProvider } from "@/providers/DevtoolsProvider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppSidebar } from "@/components/custom/AppSidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,11 +41,11 @@ export default function RootLayout({
           <DevtoolsProvider>
             <ConvexClientProvider>
               {/* <SidebarProvider className="p-2"> */}
-                {/* <AppSidebar /> */}
-                {/* <main> */}
-                  {/* <SidebarTrigger /> */}
-                  {children}
-                {/* </main> */}
+              {/* <AppSidebar /> */}
+              {/* <main> */}
+              {/* <SidebarTrigger /> */}
+              {children}
+              {/* </main> */}
               {/* </SidebarProvider> */}
             </ConvexClientProvider>
           </DevtoolsProvider>
