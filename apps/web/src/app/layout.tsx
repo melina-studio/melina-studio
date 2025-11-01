@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/providers/ConvexClientProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { DevtoolsProvider } from "@/providers/DevtoolsProvider";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,11 +28,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <DevtoolsProvider>
+            <ConvexClientProvider>
+              {/* <SidebarProvider className="p-2"> */}
+                {/* <AppSidebar /> */}
+                {/* <main> */}
+                  {/* <SidebarTrigger /> */}
+                  {children}
+                {/* </main> */}
+              {/* </SidebarProvider> */}
+            </ConvexClientProvider>
+          </DevtoolsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
