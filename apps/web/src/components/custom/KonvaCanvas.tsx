@@ -213,16 +213,14 @@ function KonvaCanvas({
     } else if (activeTool === ACTIONS.ERASER) {
       setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
-      setShapes([
-        ...shapes,
-        {
-          id: uuidv4(),
-          type: "eraser",
-          points: [pos.x, pos.y],
-          stroke: strokeColor,
-          strokeWidth: 2,
-        },
-      ]);
+
+      // immediate hit-test & remove if pointer starts on a shape
+      const hit = stage.getIntersection(pos);
+      if (hit && hit.id()) {
+        // remove the underlying shape (guard: don't remove transformer or UI)
+        removeShapeById(hit.id());
+      }
+      return;
     }
   };
 
@@ -243,6 +241,30 @@ function KonvaCanvas({
         endY: pos.y,
       });
       return;
+    }
+
+    if (activeTool === ACTIONS.ERASER && isDrawing) {
+      // append the eraser visual stroke to the last shape (optional)
+      setShapes((arr) => {
+        const last = arr[arr.length - 1];
+        if (!last || last.type !== "eraser") return arr;
+        const newPoints = last.points.concat([pos.x, pos.y]);
+        return [...arr.slice(0, -1), { ...last, points: newPoints }];
+      });
+
+      // hit-test shapes under the pointer and remove them
+      const hit = stage.getIntersection(pos);
+      if (hit && hit.id()) {
+        // avoid removing transformer nodes or helper nodes - ensure hit.id is from your shape model
+        const hitId = hit.id();
+        // optional: filter out the eraser stroke's own id if it's on stage
+        if (hitId && shapes.some((s) => s.id === hitId)) {
+          // remove shape without pushing history for each tiny hit
+          setShapes((arr) => arr.filter((s) => s.id !== hitId));
+          // you can choose to push a single history snapshot on pointerUp
+        }
+      }
+      return; // done for eraser
     }
 
     setShapes((arr) => {
@@ -384,6 +406,13 @@ function KonvaCanvas({
       // Save final selection box for button positioning
       setFinalSelectionBox(selectionBox);
       setSelectionBox(null);
+      setIsDrawing(false);
+      return;
+    }
+
+    if (activeTool === ACTIONS.ERASER) {
+      // finalize and push history once (if you removed shapes by updating present without history)
+      setShapesWithHistory(shapes, { pushHistory: true });
       setIsDrawing(false);
       return;
     }
@@ -900,6 +929,14 @@ function KonvaCanvas({
     return { x: screenX, y: screenY };
   };
 
+  // helper: remove a shape by id
+  const removeShapeById = (id: string) => {
+    setShapesWithHistory(
+      shapes.filter((s) => s.id !== id),
+      { pushHistory: true }
+    );
+  };
+
   return (
     <div className="relative">
       {/* canvas */}
@@ -956,7 +993,7 @@ function KonvaCanvas({
                     ) {
                       setStageCursor("grab");
                       setIsDraggingStage(false);
-                    } else setStageCursor("pointer");
+                    }
                   }}
                   onMouseLeave={() => {
                     if (!isDraggingShape && !isDraggingStage) {
@@ -1000,7 +1037,6 @@ function KonvaCanvas({
                       !isDraggingShape
                     )
                       setStageCursor("grab");
-                    else setStageCursor("pointer");
                   }}
                   onMouseLeave={() => {
                     if (!isDraggingShape && !isDraggingStage)
@@ -1036,7 +1072,6 @@ function KonvaCanvas({
                   // hover over shapes: pointer or grab
                   if (activeTool === ACTIONS.SELECT && !isDraggingShape)
                     setStageCursor("grab");
-                  else setStageCursor("pointer");
                 }}
                 onMouseLeave={() => {
                   if (!isDraggingShape && !isDraggingStage)

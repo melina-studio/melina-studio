@@ -164,6 +164,6 @@ export const TOOL_CURSOR = {
   [ACTIONS.RECTANGLE]: "crosshair",
   [ACTIONS.ARROW]: "pointer", // clickable/select
   [ACTIONS.LINE]: "crosshair",
-  [ACTIONS.ERASER]: "url(/cursors/eraser.png), auto", // custom image, fallback `auto`
+  [ACTIONS.ERASER]: "url(/icons/eraser.svg) 4 4, auto", // custom image, fallback `auto`
   default: "default",
 };
