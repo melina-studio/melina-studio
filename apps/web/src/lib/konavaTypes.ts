@@ -24,6 +24,13 @@ export const ACTIONS = {
   ERASER: "ERASER",
 };
 
+// types
+export type History = {
+  past: Shape[][];
+  present: Shape[]; // current shapes
+  future: Shape[][];
+};
+
 export const ACTION_BUTTONS = [
   {
     icon: Hand,

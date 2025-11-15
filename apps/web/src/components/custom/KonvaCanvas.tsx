@@ -12,19 +12,27 @@ import { Download, FileDown } from "lucide-react";
 
 type ShapeType = Shape["type"];
 
+// clamp helper
+const clamp = (v: any, a: any, b: any) => Math.max(a, Math.min(b, v));
+
 function KonvaCanvas({
   activeTool,
   canvasRef,
   handleActiveTool,
+  setShapesWithHistory,
+  shapes: externalShapes,
 }: {
   activeTool: any;
   canvasRef: any;
   handleActiveTool: any;
+  setShapesWithHistory: any;
+  shapes: Shape[];
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [shapes, setShapes] = useState<Shape[]>(externalShapes);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [shapesBeforeDrawing, setShapesBeforeDrawing] = useState<Shape[]>([]);
   const [isDraggingStage, setIsDraggingStage] = useState(false);
   const [isDraggingShape, setIsDraggingShape] = useState(false);
   const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
@@ -47,12 +55,18 @@ function KonvaCanvas({
 
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
   const strokeColor = theme === "dark" ? "#fff" : "#111";
-  // clamp helper
-  const clamp = (v: any, a: any, b: any) => Math.max(a, Math.min(b, v));
 
   useEffect(() => {
     setDimensions({ width: window.innerWidth, height: window.innerHeight });
   }, []);
+
+  // Sync local shapes state with external shapes (from history)
+  // Only sync when NOT drawing to avoid interrupting active drawing
+  useEffect(() => {
+    if (!isDrawing) {
+      setShapes(externalShapes);
+    }
+  }, [externalShapes, isDrawing]);
 
   // transformer selection - supports multiple nodes
   const bindTransformer = useCallback((nodes: any[]) => {
@@ -96,57 +110,59 @@ function KonvaCanvas({
       setFinalSelectionBox(null);
     } else if (activeTool === ACTIONS.PENCIL) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
-      setShapes([
-        ...shapes,
-        {
-          id: newId,
-          type: "pencil",
-          points: [pos.x, pos.y],
-          stroke: strokeColor,
-          strokeWidth: 2,
-        },
-      ]);
+      const pencilShape: Shape = {
+        id: newId,
+        type: "pencil",
+        points: [pos.x, pos.y],
+        stroke: strokeColor,
+        strokeWidth: 2,
+      };
+      setShapes([...shapes, pencilShape]);
+      setShapesWithHistory([...shapes, pencilShape], { pushHistory: false });
     } else if (activeTool === ACTIONS.RECTANGLE) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
-      setShapes([
-        ...shapes,
-        {
-          id: newId,
-          type: "rect",
-          x: pos.x,
-          y: pos.y,
-          w: 0,
-          h: 0,
-          stroke: strokeColor,
-          strokeWidth: 2,
-        },
-      ]);
+      const rectangleShape: Shape = {
+        id: newId,
+        type: "rect",
+        x: pos.x,
+        y: pos.y,
+        w: 0,
+        h: 0,
+        stroke: strokeColor,
+        strokeWidth: 2,
+      };
+      setShapes([...shapes, rectangleShape]);
+      setShapesWithHistory([...shapes, rectangleShape], { pushHistory: false });
     } else if (activeTool === ACTIONS.CIRCLE) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
-      setShapes([
-        ...shapes,
-        {
-          id: newId,
-          type: "circle",
-          x: pos.x,
-          y: pos.y,
-          r: 0,
-          stroke: strokeColor,
-          strokeWidth: 2,
-        },
-      ]);
+      const circleShape: Shape = {
+        id: newId,
+        type: "circle",
+        x: pos.x,
+        y: pos.y,
+        r: 0,
+        stroke: strokeColor,
+        strokeWidth: 2,
+      };
+      setShapes([...shapes, circleShape]);
+      setShapesWithHistory([...shapes, circleShape], { pushHistory: false });
     } else if (activeTool === ACTIONS.ARROW) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
     } else if (activeTool === ACTIONS.LINE) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
       setShapes([
@@ -161,6 +177,7 @@ function KonvaCanvas({
       ]);
     } else if (activeTool === ACTIONS.TEXT) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
       setShapes([
@@ -178,6 +195,7 @@ function KonvaCanvas({
       ]);
     } else if (activeTool === ACTIONS.IMAGE) {
       const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
       setShapes([
@@ -193,6 +211,7 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.ERASER) {
+      setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setShapes([
         ...shapes,
@@ -248,6 +267,42 @@ function KonvaCanvas({
       }
       return arr;
     });
+
+    // Update current shapes *without* pushing a history snapshot (live update)
+    setShapesWithHistory(
+      ((prev) => {
+        const arr = prev; // prev is the current shapes array when using closure style
+        const last = arr[arr.length - 1];
+        if (!last) return arr;
+
+        if (last.type === "pencil") {
+          const newPoints = (last.points || []).concat([pos.x, pos.y]);
+          return [...arr.slice(0, -1), { ...last, points: newPoints }];
+        }
+        if (last.type === "rect") {
+          return [
+            ...arr.slice(0, -1),
+            { ...last, w: pos.x - last.x, h: pos.y - last.y },
+          ];
+        }
+        if (last.type === "circle") {
+          const dx = pos.x - last.x;
+          const dy = pos.y - last.y;
+          const r = Math.hypot(dx, dy);
+          return [...arr.slice(0, -1), { ...last, r }];
+        }
+        if (
+          last.type === "line" ||
+          last.type === "arrow" ||
+          last.type === "eraser"
+        ) {
+          const newPoints = (last.points || []).concat([pos.x, pos.y]);
+          return [...arr.slice(0, -1), { ...last, points: newPoints }];
+        }
+        return arr;
+      })(shapes),
+      { pushHistory: false }
+    );
   };
 
   // Helper function to check if a shape intersects with selection box
@@ -334,10 +389,22 @@ function KonvaCanvas({
     }
 
     console.log("pointer up");
-    if (lastCreatedId) {
-      setSelectedIds([lastCreatedId]);
-      setLastCreatedId(null);
+    // If we were drawing something, finalize it and PUSH a history snapshot
+    if (isDrawing) {
+      // Push the state BEFORE drawing started to history, and set present to current shapes
+      // This ensures undo goes back to the state before we started drawing
+      setShapesWithHistory(shapes, {
+        pushHistory: true,
+        stateToPush: shapesBeforeDrawing,
+      });
+
+      // if you track the id of the shape you just created (lastCreatedId), select it
+      if (lastCreatedId) {
+        setSelectedIds([lastCreatedId]);
+        setLastCreatedId(null);
+      }
     }
+
     setIsDrawing(false);
   };
 
@@ -357,9 +424,10 @@ function KonvaCanvas({
       const dx = x - shapeX;
       const dy = y - shapeY;
 
+      let updated;
       // If multiple shapes are selected, move all of them
       if (selectedIds.length > 1 && selectedIds.includes(id)) {
-        return arr.map((s) => {
+        updated = arr.map((s) => {
           if (selectedIds.includes(s.id) && "x" in s && "y" in s) {
             // For the dragged shape, use the new position directly
             if (s.id === id) {
@@ -370,10 +438,13 @@ function KonvaCanvas({
           }
           return s;
         });
+      } else {
+        // Single shape drag
+        updated = arr.map((s) => (s.id === id ? { ...s, x, y } : s));
       }
 
-      // Single shape drag
-      return arr.map((s) => (s.id === id ? { ...s, x, y } : s));
+      setShapesWithHistory(updated, { pushHistory: true });
+      return updated;
     });
   };
 
@@ -382,8 +453,8 @@ function KonvaCanvas({
     const scaleY = node.scaleY();
     node.scaleX(1);
     node.scaleY(1);
-    setShapes((arr) =>
-      arr.map((s) =>
+    setShapes((arr) => {
+      const updated = arr.map((s) =>
         s.id === id
           ? {
               ...s,
@@ -393,8 +464,10 @@ function KonvaCanvas({
               h: Math.max(5, (s as any).h! * scaleY),
             }
           : s
-      )
-    );
+      );
+      setShapesWithHistory(updated, { pushHistory: true });
+      return updated;
+    });
   };
 
   // helper function to edit cursor

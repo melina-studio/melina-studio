@@ -1,13 +1,24 @@
 // app/playground/[id]/page.tsx
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { Download, Menu, StepBack } from "lucide-react";
+import { Download, Menu, Redo, StepBack, Undo } from "lucide-react";
 import { KonvaEventObject } from "konva/lib/Node";
 import { useRef, useState, useEffect } from "react";
 
 import { DotBackground } from "@/components/ui/aceternity/DotBackground";
-import { ACTION_BUTTONS, ACTIONS } from "@/lib/konavaTypes";
+import { ACTION_BUTTONS, ACTIONS, Shape } from "@/lib/konavaTypes";
 import KonvaCanvas from "@/components/custom/KonvaCanvas";
+import { HISTORY_LIMIT } from "@/lib/constants";
+
+// types
+type History = {
+  past: Shape[][];
+  present: Shape[]; // current shapes
+  future: Shape[][];
+};
+
+// helpers
+const cloneShapes = (s: Shape[]) => JSON.parse(JSON.stringify(s)); // simple deep copy
 
 export default function BoardPage() {
   const router = useRouter();
@@ -18,7 +29,15 @@ export default function BoardPage() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [activeTool, setActiveTool] = useState<string>(ACTIONS.SELECT);
 
+  // replace your shapes state with history state
+  const [history, setHistory] = useState<History>({
+    past: [],
+    present: [],
+    future: [],
+  });
+
   const handleBack = () => router.back();
+  const present_shapes = history.present;
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,6 +76,76 @@ export default function BoardPage() {
       a.download = "image.png";
       a.click();
     }
+  };
+
+  const setShapesWithHistory = (
+    newShapes: Shape[],
+    opts?: { pushHistory?: boolean; stateToPush?: Shape[] }
+  ) => {
+    // default: pushHistory false (for live updates)
+    const pushHistory = opts?.pushHistory ?? false;
+    const stateToPush = opts?.stateToPush;
+
+    setHistory((cur) => {
+      if (!pushHistory) {
+        // update present only (no history change)
+        return { ...cur, present: newShapes };
+      }
+      // push snapshot to past, clear future
+      // Use provided stateToPush, or fall back to current present
+      const stateToPushToHistory =
+        stateToPush !== undefined
+          ? cloneShapes(stateToPush)
+          : cur.past.length === 0 && cur.present.length === 0
+            ? []
+            : cloneShapes(cur.present);
+
+      const nextPast = [...cur.past, stateToPushToHistory].slice(
+        -HISTORY_LIMIT
+      );
+      return {
+        past: nextPast,
+        present: cloneShapes(newShapes),
+        future: [],
+      };
+    });
+  };
+
+  // undo / redo handlers
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
+
+  const undo = () => {
+    setHistory((cur) => {
+      if (cur.past.length === 0) return cur;
+      const previous = cur.past[cur.past.length - 1];
+      const newPast = cur.past.slice(0, -1);
+      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(
+        0,
+        HISTORY_LIMIT
+      );
+      return {
+        past: newPast,
+        present: cloneShapes(previous),
+        future: newFuture,
+      };
+    });
+  };
+
+  const redo = () => {
+    setHistory((cur) => {
+      if (cur.future.length === 0) return cur;
+      const nextState = cur.future[0];
+      const newFuture = cur.future.slice(1);
+      const newPast = [...cur.past, cloneShapes(cur.present)].slice(
+        -HISTORY_LIMIT
+      );
+      return {
+        past: newPast,
+        present: cloneShapes(nextState),
+        future: newFuture,
+      };
+    });
   };
 
   return (
@@ -117,13 +206,39 @@ export default function BoardPage() {
         <div
           className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
         ></div>
+        {/* undo button */}
+        <button
+          disabled={!canUndo}
+          onClick={undo}
+          className={`
+          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
+          ${!canUndo ? "opacity-20 cursor-not-allowed" : "opacity-100"}
+          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
+        `}
+        >
+          <Undo width={16} height={16} />
+        </button>
+        {/* redo button */}
+        <button
+          disabled={!canRedo}
+          onClick={redo}
+          className={`
+          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
+          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
+          ${!canRedo ? "opacity-20 cursor-not-allowed" : "opacity-100"}
+        `}
+        >
+          <Redo width={16} height={16} />
+        </button>
         <div
           className={`
-          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
+          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
           ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
+          
         `}
           onClick={exportImage}
         >
+          {/* download button */}
           <Download width={16} height={16} />
         </div>
       </div>
@@ -132,6 +247,8 @@ export default function BoardPage() {
         canvasRef={stageRef}
         activeTool={activeTool}
         handleActiveTool={handleActiveTool}
+        setShapesWithHistory={setShapesWithHistory}
+        shapes={present_shapes}
       />
     </div>
   );
