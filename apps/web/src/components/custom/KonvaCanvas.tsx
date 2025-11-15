@@ -89,14 +89,29 @@ function KonvaCanvas({
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isDraggingStage, setIsDraggingStage] = useState(false);
+  const [isDraggingShape, setIsDraggingShape] = useState(false);
+
   const trRef = useRef<any>(null);
   const { theme } = useTheme();
+
+  const TOOL_CURSOR = {
+    [ACTIONS.PENCIL]: "crosshair",
+    [ACTIONS.SELECT]: "grab", // use 'grab' (or 'grabbing' while dragging)
+    [ACTIONS.CIRCLE]: "crosshair", // there's no 'circle' cursor — use crosshair or custom
+    [ACTIONS.RECTANGLE]: "crosshair",
+    [ACTIONS.ARROW]: "pointer", // clickable/select
+    [ACTIONS.LINE]: "crosshair",
+    [ACTIONS.ERASER]: "url(/cursors/eraser.png), auto", // custom image, fallback `auto`
+    default: "default",
+  };
+
+  const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
+  const strokeColor = theme === "dark" ? "#fff" : "#111";
 
   useEffect(() => {
     setDimensions({ width: window.innerWidth, height: window.innerHeight });
   }, []);
-
-  const strokeColor = theme === "dark" ? "#fff" : "#111";
 
   // transformer selection
   const bindTransformer = useCallback((node: any) => {
@@ -106,11 +121,29 @@ function KonvaCanvas({
     }
   }, []);
 
+  // Convert the pointer to stage-local coords (works with stage translate/scale)
+  const getRelativePointerPosition = (stage: any) => {
+    const pos = stage.getPointerPosition();
+    if (!pos) return null;
+    // copy the absolute transform, invert it, and apply to point
+    const transform = stage.getAbsoluteTransform().copy();
+    transform.invert();
+    return transform.point(pos);
+  };
+
   const handlePointerDown = (e: any) => {
-    const pos = e.target.getStage().getPointerPosition();
+    const stage = e.target.getStage();
+    const pos = getRelativePointerPosition(stage);
     if (!pos) return;
 
-    if (activeTool === ACTIONS.PENCIL) {
+    // If user clicked on the stage background (not on a shape)
+    const clickedOnEmpty = e.target === stage;
+
+    if (activeTool == ACTIONS.SELECT && clickedOnEmpty) {
+      setIsDraggingStage(true);
+      setStageCursor("grabbing");
+      stage.draggable(true);
+    } else if (activeTool === ACTIONS.PENCIL) {
       setIsDrawing(true);
       setShapes([
         ...shapes,
@@ -210,9 +243,12 @@ function KonvaCanvas({
   };
 
   const handlePointerMove = (e: any) => {
+    // if stage is dragging we don't want to draw; let Konva move the stage
+    if (isDraggingStage) return;
+
     if (!isDrawing) return;
     const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
+    const pos = getRelativePointerPosition(stage);
     if (!pos) return;
 
     setShapes((arr) => {
@@ -240,6 +276,13 @@ function KonvaCanvas({
   };
 
   const handlePointerUp = (e: any) => {
+    const stage = e.target.getStage();
+    if (isDraggingStage) {
+      setIsDraggingStage(false);
+      stage.draggable(false);
+      if (activeTool === ACTIONS.SELECT) setStageCursor("grab");
+      else setStageCursor(cursor);
+    }
     console.log("pointer up");
     setIsDrawing(false);
   };
@@ -269,29 +312,47 @@ function KonvaCanvas({
     );
   };
 
+  // helper function to edit cursor
+  const setStageCursor = (c: any) => {
+    const stage = canvasRef?.current;
+    if (!stage) return;
+    const container = stage.container();
+    container.style.cursor = c;
+  };
+
+  // keep updating the cursor
+  useEffect(() => {
+    setStageCursor(cursor);
+    return () => {
+      const stage = canvasRef?.current;
+      if (stage) stage.container().style.cursor = "";
+    };
+  }, [cursor, canvasRef]);
+
+  // shape drag handler
+  const onShapeDragStart = (e: any, id: any) => {
+    setIsDraggingShape(true);
+    setStageCursor("grabbing");
+    setSelectedId(id);
+  };
+
+  // shape drag eng
+  const onShapeDragEnd = (e: any, id: any) => {
+    setIsDraggingShape(false);
+    // update shape position
+    const node = e.target;
+    onDragMove(id, node.x(), node.y());
+    // restore stage cursor to grab if SELECT tool and not panning
+    if (activeTool === ACTIONS.SELECT && !isDraggingStage)
+      setStageCursor("grab");
+    else setStageCursor(cursor);
+  };
+
   return (
     <div>
       {/* canvas */}
       <Stage
         ref={canvasRef}
-        style={{
-          cursor:
-            activeTool === ACTIONS.PENCIL
-              ? "crosshair"
-              : activeTool === ACTIONS.SELECT
-                ? "default"
-                : activeTool === ACTIONS.CIRCLE
-                  ? "circle"
-                  : activeTool === ACTIONS.RECTANGLE
-                    ? "rectangle"
-                    : activeTool === ACTIONS.ARROW
-                      ? "arrow"
-                      : activeTool === ACTIONS.LINE
-                        ? "line"
-                        : activeTool === ACTIONS.ERASER
-                          ? "eraser"
-                          : "default",
-        }}
         width={dimensions.width}
         height={dimensions.height}
         onPointerDown={handlePointerDown}
@@ -312,13 +373,24 @@ function KonvaCanvas({
                   fill={s.fill}
                   stroke={strokeColor}
                   cornerRadius={8}
-                  draggable
-                  onDragEnd={(e) =>
-                    onDragMove(s.id, e.target.x(), e.target.y())
-                  }
-                  onClick={() => setSelectedId(s.id)}
+                  draggable={activeTool === ACTIONS.SELECT}
+                  onDragStart={(e) => onShapeDragStart(e, s.id)}
+                  onDragEnd={(e) => onShapeDragEnd(e, s.id)}
+                  // onClick={() => setSelectedId(s.id)}
                   onTransformEnd={(e) => onRectTransform(e.target, s.id)}
                   ref={selectedId === s.id ? bindTransformer : undefined}
+                  onMouseEnter={() => {
+                    // hover over shapes: pointer or grab
+                    if (activeTool === ACTIONS.SELECT && !isDraggingShape) {
+                      setStageCursor("grab");
+                      setIsDraggingStage(false);
+                    } else setStageCursor("pointer");
+                  }}
+                  onMouseLeave={() => {
+                    if (!isDraggingShape && !isDraggingStage) {
+                      setStageCursor(cursor);
+                    }
+                  }}
                 />
               );
             if (s.type === "circle")
@@ -331,12 +403,21 @@ function KonvaCanvas({
                   radius={s.r}
                   fill={s.fill}
                   stroke={strokeColor}
-                  draggable
-                  onDragEnd={(e) =>
-                    onDragMove(s.id, e.target.x(), e.target.y())
-                  }
+                  draggable={activeTool === ACTIONS.SELECT}
+                  onDragStart={(e) => onShapeDragStart(e, s.id)}
+                  onDragEnd={(e) => onShapeDragEnd(e, s.id)}
                   onClick={() => setSelectedId(s.id)}
                   ref={selectedId === s.id ? bindTransformer : undefined}
+                  onMouseEnter={() => {
+                    // hover over shapes: pointer or grab
+                    if (activeTool === ACTIONS.SELECT && !isDraggingShape)
+                      setStageCursor("grab");
+                    else setStageCursor("pointer");
+                  }}
+                  onMouseLeave={() => {
+                    if (!isDraggingShape && !isDraggingStage)
+                      setStageCursor(cursor);
+                  }}
                 />
               );
             return (
@@ -349,7 +430,21 @@ function KonvaCanvas({
                 tension={0}
                 lineCap="round"
                 lineJoin="round"
+                draggable={activeTool === ACTIONS.SELECT}
+                onDragStart={(e) => onShapeDragStart(e, s.id)}
+                onDragEnd={(e) => onShapeDragEnd(e, s.id)}
                 onClick={() => setSelectedId(s.id)}
+                ref={selectedId === s.id ? bindTransformer : undefined}
+                onMouseEnter={() => {
+                  // hover over shapes: pointer or grab
+                  if (activeTool === ACTIONS.SELECT && !isDraggingShape)
+                    setStageCursor("grab");
+                  else setStageCursor("pointer");
+                }}
+                onMouseLeave={() => {
+                  if (!isDraggingShape && !isDraggingStage)
+                    setStageCursor(cursor);
+                }}
               />
             );
           })}
