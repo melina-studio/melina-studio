@@ -50,16 +50,16 @@ export const ACTION_BUTTONS = [
     label: "Rectangle",
     value: ACTIONS.RECTANGLE,
   },
-  {
-    icon: MoveUpRight,
-    label: "Arrow",
-    value: ACTIONS.ARROW,
-  },
-  {
-    icon: Minus,
-    label: "Line",
-    value: ACTIONS.LINE,
-  },
+  // {
+  //   icon: MoveUpRight,
+  //   label: "Arrow",
+  //   value: ACTIONS.ARROW,
+  // },
+  // {
+  //   icon: Minus,
+  //   label: "Line",
+  //   value: ACTIONS.LINE,
+  // },
   {
     icon: TypeOutline,
     label: "Text",
