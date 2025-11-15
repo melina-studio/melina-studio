@@ -8,10 +8,12 @@ import {
   Square,
   TypeOutline,
   Image,
+  Scan,
 } from "lucide-react";
 
 export const ACTIONS = {
   SELECT: "SELECT",
+  MARQUEE_SELECT: "MARQUEE_SELECT",
   PENCIL: "PENCIL",
   CIRCLE: "CIRCLE",
   RECTANGLE: "RECTANGLE",
@@ -27,6 +29,11 @@ export const ACTION_BUTTONS = [
     icon: Hand,
     label: "Select",
     value: ACTIONS.SELECT,
+  },
+  {
+    icon: Scan,
+    label: "Marquee Select",
+    value: ACTIONS.MARQUEE_SELECT,
   },
   {
     icon: PencilLine,
@@ -145,6 +152,7 @@ export type Shape =
 export const TOOL_CURSOR = {
   [ACTIONS.PENCIL]: "crosshair",
   [ACTIONS.SELECT]: "grab", // use 'grab' (or 'grabbing' while dragging)
+  [ACTIONS.MARQUEE_SELECT]: "crosshair",
   [ACTIONS.CIRCLE]: "crosshair", // there's no 'circle' cursor — use crosshair or custom
   [ACTIONS.RECTANGLE]: "crosshair",
   [ACTIONS.ARROW]: "pointer", // clickable/select
