@@ -1,89 +1,24 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Stage, Layer, Rect, Circle, Line, Transformer } from "react-konva";
-import { ACTIONS } from "@/lib/konavaTypes";
+import { ACTIONS, Shape, TOOL_CURSOR } from "@/lib/konavaTypes";
 import { v4 as uuidv4 } from "uuid";
+import {
+  STAGE_MAX_SCALE,
+  STAGE_MIN_SCALE,
+  STAGE_DEFAULT_SCALE,
+} from "@/lib/constants";
 import { useTheme } from "next-themes";
-
-type Shape =
-  | {
-      id: string;
-      type: "rect";
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      fill?: string;
-      stroke?: string;
-      strokeWidth?: number;
-    }
-  | {
-      id: string;
-      type: "circle";
-      x: number;
-      y: number;
-      r: number;
-      fill?: string;
-      stroke?: string;
-      strokeWidth?: number;
-      cornerRadius?: number;
-    }
-  | {
-      id: string;
-      type: "pencil";
-      points: number[];
-      stroke?: string;
-      strokeWidth?: number;
-      tension?: number;
-    }
-  | {
-      id: string;
-      type: "arrow";
-      points: number[];
-      stroke?: string;
-      strokeWidth?: number;
-    }
-  | {
-      id: string;
-      type: "line";
-      points: number[];
-      stroke?: string;
-      strokeWidth?: number;
-    }
-  | {
-      id: string;
-      type: "text";
-      text: string;
-      x: number;
-      y: number;
-      fontSize?: number;
-      fontFamily?: string;
-      fill?: string;
-    }
-  | {
-      id: string;
-      type: "image";
-      src: string;
-      x: number;
-      y: number;
-      width?: number;
-      height?: number;
-    }
-  | {
-      id: string;
-      type: "eraser";
-      points: number[];
-      stroke?: string;
-      strokeWidth?: number;
-    };
 
 type ShapeType = Shape["type"];
 
 function KonvaCanvas({
   activeTool,
   canvasRef,
+  handleActiveTool,
 }: {
   activeTool: any;
   canvasRef: any;
+  handleActiveTool: any;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [shapes, setShapes] = useState<Shape[]>([]);
@@ -91,23 +26,15 @@ function KonvaCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDraggingStage, setIsDraggingStage] = useState(false);
   const [isDraggingShape, setIsDraggingShape] = useState(false);
+  const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
 
   const trRef = useRef<any>(null);
   const { theme } = useTheme();
 
-  const TOOL_CURSOR = {
-    [ACTIONS.PENCIL]: "crosshair",
-    [ACTIONS.SELECT]: "grab", // use 'grab' (or 'grabbing' while dragging)
-    [ACTIONS.CIRCLE]: "crosshair", // there's no 'circle' cursor — use crosshair or custom
-    [ACTIONS.RECTANGLE]: "crosshair",
-    [ACTIONS.ARROW]: "pointer", // clickable/select
-    [ACTIONS.LINE]: "crosshair",
-    [ACTIONS.ERASER]: "url(/cursors/eraser.png), auto", // custom image, fallback `auto`
-    default: "default",
-  };
-
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
   const strokeColor = theme === "dark" ? "#fff" : "#111";
+  // clamp helper
+  const clamp = (v: any, a: any, b: any) => Math.max(a, Math.min(b, v));
 
   useEffect(() => {
     setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -144,11 +71,13 @@ function KonvaCanvas({
       setStageCursor("grabbing");
       stage.draggable(true);
     } else if (activeTool === ACTIONS.PENCIL) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "pencil",
           points: [pos.x, pos.y],
           stroke: strokeColor,
@@ -156,11 +85,13 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.RECTANGLE) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "rect",
           x: pos.x,
           y: pos.y,
@@ -171,11 +102,13 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.CIRCLE) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "circle",
           x: pos.x,
           y: pos.y,
@@ -185,13 +118,17 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.ARROW) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
     } else if (activeTool === ACTIONS.LINE) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "line",
           points: [pos.x, pos.y],
           stroke: strokeColor,
@@ -199,11 +136,13 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.TEXT) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "text",
           text: "Hello",
           x: pos.x,
@@ -214,11 +153,13 @@ function KonvaCanvas({
         },
       ]);
     } else if (activeTool === ACTIONS.IMAGE) {
+      const newId = uuidv4();
       setIsDrawing(true);
+      setLastCreatedId(newId);
       setShapes([
         ...shapes,
         {
-          id: uuidv4(),
+          id: newId,
           type: "image",
           src: "https://via.placeholder.com/150",
           x: pos.x,
@@ -284,6 +225,8 @@ function KonvaCanvas({
       else setStageCursor(cursor);
     }
     console.log("pointer up");
+    if (lastCreatedId) setSelectedId(lastCreatedId);
+    setLastCreatedId(null);
     setIsDrawing(false);
   };
 
@@ -331,6 +274,7 @@ function KonvaCanvas({
 
   // shape drag handler
   const onShapeDragStart = (e: any, id: any) => {
+    console.log("shape drag started");
     setIsDraggingShape(true);
     setStageCursor("grabbing");
     setSelectedId(id);
@@ -346,6 +290,104 @@ function KonvaCanvas({
     if (activeTool === ACTIONS.SELECT && !isDraggingStage)
       setStageCursor("grab");
     else setStageCursor(cursor);
+    console.log("Shape drag ended");
+  };
+
+  // zoom around pointer: stage = Konva.Stage instance, pointer = container coords
+  const zoomStage = (stage: any, pointer: any, scaleBy: any) => {
+    const oldScale = stage.scaleX();
+    const newScale = clamp(
+      oldScale * scaleBy,
+      STAGE_MIN_SCALE,
+      STAGE_MAX_SCALE
+    );
+
+    // mouse position relative to the stage container (pixels)
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+
+    // set new scale
+    stage.scale({ x: newScale, y: newScale });
+
+    // adjust stage position so the pointer remains pointing to same stage point
+    const newPos = {
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    };
+    stage.position(newPos);
+    stage.batchDraw();
+  };
+
+  const handleWheel = (e: any) => {
+    const evt = e.evt;
+
+    // IMPORTANT: Only treat wheel as pinch when ctrlKey is true (common for touchpad pinch)
+    // This prevents two-finger horizontal/vertical scrolling from zooming.
+    if (!evt.ctrlKey) {
+      // allow page or stage scroll/pan to continue
+      return;
+    }
+
+    evt.preventDefault(); // when pinch detected, prevent page zoom/scroll
+
+    const stage = canvasRef.current;
+    // pointer position in container coords (fallback to client coords)
+    const pointer = stage.getPointerPosition() || {
+      x: evt.clientX,
+      y: evt.clientY,
+    };
+
+    if (!pointer) return;
+    // how fast to zoom
+    const zoomIntensity = 1.05;
+    const scaleBy = e.evt.deltaY > 0 ? 1 / zoomIntensity : zoomIntensity;
+
+    zoomStage(stage, pointer, scaleBy);
+  };
+
+  const pinchRef = useRef({ lastDist: 0 });
+
+  const getDistance = (p1: any, p2: any) => {
+    const dx = p1.clientX - p2.clientX;
+    const dy = p1.clientY - p2.clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const handleTouchStart = (e: any) => {
+    if (e.evt.touches && e.evt.touches.length === 2) {
+      pinchRef.current.lastDist = getDistance(
+        e.evt.touches[0],
+        e.evt.touches[1]
+      );
+    }
+  };
+
+  const handleTouchMove = (e: any) => {
+    if (!e.evt.touches || e.evt.touches.length !== 2) return;
+    const dist = getDistance(e.evt.touches[0], e.evt.touches[1]);
+    const stage = canvasRef.current;
+    if (!stage) return;
+    if (!pinchRef.current.lastDist) {
+      pinchRef.current.lastDist = dist;
+      return;
+    }
+    const scaleBy = dist / pinchRef.current.lastDist;
+    // compute center point between two touches for zoom center
+    const touchCenter = {
+      x: (e.evt.touches[0].clientX + e.evt.touches[1].clientX) / 2,
+      y: (e.evt.touches[0].clientY + e.evt.touches[1].clientY) / 2,
+    };
+    // Convert screen coords to stage container coords: if stage is in top-left (0,0) this is fine.
+    // If your stage container isn't at (0,0) you may want to transform touchCenter by container offset.
+    // But using stage.getPointerPosition() isn't possible here; we use client coords as pointer.
+    zoomStage(stage, touchCenter, scaleBy);
+    pinchRef.current.lastDist = dist;
+  };
+
+  const handleTouchEnd = () => {
+    pinchRef.current.lastDist = 0;
   };
 
   return (
@@ -353,11 +395,15 @@ function KonvaCanvas({
       {/* canvas */}
       <Stage
         ref={canvasRef}
+        onWheel={handleWheel}
         width={dimensions.width}
         height={dimensions.height}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <Layer>
           {shapes.map((s) => {

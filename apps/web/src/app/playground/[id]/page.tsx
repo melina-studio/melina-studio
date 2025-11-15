@@ -38,6 +38,12 @@ export default function BoardPage() {
     setActiveTool(ACTIONS.SELECT);
   };
 
+  function handleActiveTool(toolName: string) {
+    if (toolName in ACTIONS) {
+      setActiveTool(toolName);
+    }
+  }
+
   const toolbarToggle = () => {
     setOpen((v) => !v);
     resetActionClick();
@@ -122,7 +128,11 @@ export default function BoardPage() {
         </div>
       </div>
       {/* konva canvas */}
-      <KonvaCanvas canvasRef={stageRef} activeTool={activeTool} />
+      <KonvaCanvas
+        canvasRef={stageRef}
+        activeTool={activeTool}
+        handleActiveTool={handleActiveTool}
+      />
     </div>
   );
 }
