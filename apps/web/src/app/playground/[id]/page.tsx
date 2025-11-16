@@ -73,9 +73,7 @@ export default function BoardPage() {
   }
 
   function handleActiveColor(colorName: string) {
-    if (colorName in COLORS) {
-      setActiveColor(colorName);
-    }
+    setActiveColor(colorName);
   }
 
   const toolbarToggle = () => {
