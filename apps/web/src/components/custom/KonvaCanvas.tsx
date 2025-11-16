@@ -15,14 +15,14 @@ const clamp = (v: any, a: any, b: any) => Math.max(a, Math.min(b, v));
 function KonvaCanvas({
   activeTool,
   canvasRef,
-  handleActiveTool,
   setShapesWithHistory,
+  strokeColor,
   shapes: externalShapes,
 }: {
   activeTool: any;
   canvasRef: any;
-  handleActiveTool: any;
   setShapesWithHistory: any;
+  strokeColor: string;
   shapes: Shape[];
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -52,7 +52,6 @@ function KonvaCanvas({
   const pinchRef = useRef({ lastDist: 0 });
 
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
-  const strokeColor = theme === 'dark' ? '#fff' : '#111';
 
   useEffect(() => {
     setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -1095,25 +1094,25 @@ function KonvaCanvas({
           </button>
           {/* export image */}
           <button onClick={exportSelectedShapesImage} className="cursor-pointer mb-2" title="Export as Image">
-            <Download width={16} height={16} />
+            <Download width={16} height={16} color="black" />
           </button>
           {/* export json */}
           <button onClick={exportSelectedShapesJSON} className="cursor-pointer mb-2" title="Export as JSON">
-            <FileDown width={16} height={16} />
+            <FileDown width={16} height={16} color="black" />
           </button>
         </div>
       )}
 
       {/* zoom controls */}
-      <div className="fixed bottom-5 left-5 z-10 flex bg-gray-100 rounded-md p-2 items-center">
+      <div className="fixed bottom-5 left-5 z-10 flex bg-gray-100 dark:bg-[#323332] rounded-md p-2 items-center">
         <button
           onClick={zoomIn}
           disabled={scale >= STAGE_MAX_SCALE - 0.001}
           className="cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4"
         >
-          <Plus width={16} height={16} />
+          <Plus width={16} height={16} color={theme === 'dark' ? '#fff' : '#111'} />
         </button>
-        <div className="text-sm" style={{ minWidth: 32, textAlign: 'center', fontWeight: 600 }}>
+        <div className="text-sm dark:text-white" style={{ minWidth: 32, textAlign: 'center', fontWeight: 600 }}>
           {Math.round(scale * 100)}%
         </div>
         <button
@@ -1121,7 +1120,7 @@ function KonvaCanvas({
           disabled={scale <= STAGE_MIN_SCALE + 0.001}
           className="cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4"
         >
-          <Minus width={16} height={16} />
+          <Minus width={16} height={16} color={theme === 'dark' ? '#fff' : '#111'} />
         </button>
       </div>
     </div>
