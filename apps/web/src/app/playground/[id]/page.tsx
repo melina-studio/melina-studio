@@ -1,14 +1,15 @@
 // app/playground/[id]/page.tsx
-'use client';
-import { useParams, useRouter } from 'next/navigation';
-import { Download, Menu, Redo, StepBack, Undo } from 'lucide-react';
-import { KonvaEventObject } from 'konva/lib/Node';
-import { useRef, useState, useEffect, act } from 'react';
-import { useTheme } from 'next-themes';
-import { DotBackground } from '@/components/ui/aceternity/DotBackground';
-import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from '@/lib/konavaTypes';
-import KonvaCanvas from '@/components/custom/KonvaCanvas';
-import { HISTORY_LIMIT } from '@/lib/constants';
+"use client";
+import { useParams, useRouter } from "next/navigation";
+import { Download, Menu, Redo, StepBack, Undo } from "lucide-react";
+import { KonvaEventObject } from "konva/lib/Node";
+import { useRef, useState, useEffect, act } from "react";
+import { useTheme } from "next-themes";
+import { DotBackground } from "@/components/ui/aceternity/DotBackground";
+import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from "@/lib/konavaTypes";
+import KonvaCanvas from "@/components/custom/KonvaCanvas";
+import { HISTORY_LIMIT } from "@/lib/constants";
+import ToolControls from "@/components/custom/ToolControls";
 
 // types
 type History = {
@@ -31,7 +32,7 @@ export default function BoardPage() {
   const { theme } = useTheme();
 
   // stroke color
-  const currentColor = theme === 'dark' ? '#fff' : '#111';
+  const currentColor = theme === "dark" ? "#fff" : "#111";
   const [activeColor, setActiveColor] = useState<string>(currentColor);
 
   // replace your shapes state with history state
@@ -56,9 +57,9 @@ export default function BoardPage() {
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const resetActionClick = () => {
@@ -71,27 +72,36 @@ export default function BoardPage() {
     }
   }
 
+  function handleActiveColor(colorName: string) {
+    if (colorName in COLORS) {
+      setActiveColor(colorName);
+    }
+  }
+
   const toolbarToggle = () => {
-    setOpen(v => !v);
+    setOpen((v) => !v);
     resetActionClick();
   };
 
   const exportImage = () => {
     const image = (stageRef.current as any).toDataURL();
     if (image) {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = image;
-      a.download = 'image.png';
+      a.download = "image.png";
       a.click();
     }
   };
 
-  const setShapesWithHistory = (newShapes: Shape[], opts?: { pushHistory?: boolean; stateToPush?: Shape[] }) => {
+  const setShapesWithHistory = (
+    newShapes: Shape[],
+    opts?: { pushHistory?: boolean; stateToPush?: Shape[] }
+  ) => {
     // default: pushHistory false (for live updates)
     const pushHistory = opts?.pushHistory ?? false;
     const stateToPush = opts?.stateToPush;
 
-    setHistory(cur => {
+    setHistory((cur) => {
       if (!pushHistory) {
         // update present only (no history change)
         return { ...cur, present: newShapes };
@@ -105,7 +115,9 @@ export default function BoardPage() {
             ? []
             : cloneShapes(cur.present);
 
-      const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
+      const nextPast = [...cur.past, stateToPushToHistory].slice(
+        -HISTORY_LIMIT
+      );
       return {
         past: nextPast,
         present: cloneShapes(newShapes),
@@ -115,11 +127,14 @@ export default function BoardPage() {
   };
 
   const undo = () => {
-    setHistory(cur => {
+    setHistory((cur) => {
       if (cur.past.length === 0) return cur;
       const previous = cur.past[cur.past.length - 1];
       const newPast = cur.past.slice(0, -1);
-      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(0, HISTORY_LIMIT);
+      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(
+        0,
+        HISTORY_LIMIT
+      );
       return {
         past: newPast,
         present: cloneShapes(previous),
@@ -129,11 +144,13 @@ export default function BoardPage() {
   };
 
   const redo = () => {
-    setHistory(cur => {
+    setHistory((cur) => {
       if (cur.future.length === 0) return cur;
       const nextState = cur.future[0];
       const newFuture = cur.future.slice(1);
-      const newPast = [...cur.past, cloneShapes(cur.present)].slice(-HISTORY_LIMIT);
+      const newPast = [...cur.past, cloneShapes(cur.present)].slice(
+        -HISTORY_LIMIT
+      );
       return {
         past: newPast,
         present: cloneShapes(nextState),
@@ -154,110 +171,19 @@ export default function BoardPage() {
         <h4 className=" font-semibold">Board ID: {id}</h4>
       </div>
       {/* controls */}
-      <div className="fixed left-7 top-1/2 -translate-y-1/2 flex gap-4 z-2 max-h-[80vh]">
-        <div className="flex flex-col bg-white dark:bg-[#323332] h-min p-1 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] border border-gray-100 dark:border-gray-700 max-h-full overflow-y-auto">
-          <div
-            className={`
-          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
-          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'bg-[#9AC2FEFF] dark:bg-[#000000]'} 
-        `}
-            onClick={toolbarToggle}
-            aria-expanded={open}
-            aria-label="Toggle toolbar"
-          >
-            <Menu
-              width={16}
-              height={16}
-              className={`
-            transition-transform duration-300 ease-in-out
-            ${open ? 'rotate-0' : 'rotate-90'}
-          `}
-            />
-          </div>
-          <div
-            className={`border-b border-gray-300 dark:border-gray-700  ${!open ? 'opacity-0 ' : 'opacity-100 mt-2 mb-2 '}`}
-          ></div>
-          <div
-            className={`
-          grid gap-2 overflow-hidden transition-all duration-500 ease-in-out
-          ${open ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}
-        `}
-          >
-            {ACTION_BUTTONS.map(button => (
-              <button
-                key={button.value}
-                className={`
-              cursor-pointer p-2 rounded-md
-              hover:bg-[#cce0ff] dark:hover:bg-[#000000] transition-colors
-            ${activeTool === button.value ? 'bg-[#9AC2FEFF] dark:bg-[#000000]' : 'bg-transparent '}
-            `}
-                aria-label={button.label}
-                onClick={() => setActiveTool(button.value)}
-              >
-                <button.icon width={18} height={18} />
-              </button>
-            ))}
-          </div>
-          <div
-            className={`border-b border-gray-300 dark:border-gray-700  ${!open ? 'opacity-0 ' : 'opacity-100 mt-2 mb-2 '}`}
-          ></div>
-          {/* undo button */}
-          <button
-            disabled={!canUndo}
-            onClick={undo}
-            className={`
-          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${!canUndo ? 'opacity-20 cursor-not-allowed' : 'opacity-100'}
-          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
-        `}
-          >
-            <Undo width={16} height={16} />
-          </button>
-          {/* redo button */}
-          <button
-            disabled={!canRedo}
-            onClick={redo}
-            className={`
-          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
-          ${!canRedo ? 'opacity-20 cursor-not-allowed' : 'opacity-100'}
-        `}
-          >
-            <Redo width={16} height={16} />
-          </button>
-          <div
-            className={`
-          cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
-          
-        `}
-            onClick={exportImage}
-          >
-            {/* download button */}
-            <Download width={16} height={16} />
-          </div>
-        </div>
-        {/* color fills list */}
-        {activeTool === ACTIONS.COLOR && (
-          <div className="flex flex-col bg-white dark:bg-[#323332] h-min p-4 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] border border-gray-100 dark:border-gray-700 max-h-full overflow-y-auto">
-            <p className="text-sm font-semibold mb-3">Colors</p>
-            <div className="grid grid-cols-3 gap-2">
-              {COLORS.map((color: any) => (
-                <div
-                  key={color.color}
-                  style={{ backgroundColor: color.color }}
-                  className={`w-8 h-8 rounded cursor-pointer hover:scale-110 transition-transform ${color.color === '#ffffff' ? 'border border-gray-300 dark:border-gray-600' : ''}`}
-                  title={color.color}
-                  onClick={() => {
-                    setActiveColor(color.color);
-                    setActiveTool(ACTIONS.PENCIL);
-                  }}
-                ></div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+
+      <ToolControls
+        toolbarToggle={toolbarToggle}
+        activeTool={activeTool}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        open={open}
+        handleActiveTool={handleActiveTool}
+        handleActiveColor={handleActiveColor}
+        handleUndo={undo}
+        handleRedo={redo}
+        handleImageExport={exportImage}
+      />
 
       {/* konva canvas */}
       <KonvaCanvas
