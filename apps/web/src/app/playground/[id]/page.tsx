@@ -1,14 +1,14 @@
 // app/playground/[id]/page.tsx
-"use client";
-import { useParams, useRouter } from "next/navigation";
-import { Download, Menu, Redo, StepBack, Undo } from "lucide-react";
-import { KonvaEventObject } from "konva/lib/Node";
-import { useRef, useState, useEffect } from "react";
+'use client';
+import { useParams, useRouter } from 'next/navigation';
+import { Download, Menu, Redo, StepBack, Undo } from 'lucide-react';
+import { KonvaEventObject } from 'konva/lib/Node';
+import { useRef, useState, useEffect } from 'react';
 
-import { DotBackground } from "@/components/ui/aceternity/DotBackground";
-import { ACTION_BUTTONS, ACTIONS, Shape } from "@/lib/konavaTypes";
-import KonvaCanvas from "@/components/custom/KonvaCanvas";
-import { HISTORY_LIMIT } from "@/lib/constants";
+import { DotBackground } from '@/components/ui/aceternity/DotBackground';
+import { ACTION_BUTTONS, ACTIONS, Shape } from '@/lib/konavaTypes';
+import KonvaCanvas from '@/components/custom/KonvaCanvas';
+import { HISTORY_LIMIT } from '@/lib/constants';
 
 // types
 type History = {
@@ -38,6 +38,9 @@ export default function BoardPage() {
 
   const handleBack = () => router.back();
   const present_shapes = history.present;
+  // undo / redo handlers
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
 
   useEffect(() => {
     const handleResize = () => {
@@ -48,9 +51,9 @@ export default function BoardPage() {
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
-    return () => window.removeEventListener("resize", handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const resetActionClick = () => {
@@ -64,29 +67,26 @@ export default function BoardPage() {
   }
 
   const toolbarToggle = () => {
-    setOpen((v) => !v);
+    setOpen(v => !v);
     resetActionClick();
   };
 
   const exportImage = () => {
     const image = (stageRef.current as any).toDataURL();
     if (image) {
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = image;
-      a.download = "image.png";
+      a.download = 'image.png';
       a.click();
     }
   };
 
-  const setShapesWithHistory = (
-    newShapes: Shape[],
-    opts?: { pushHistory?: boolean; stateToPush?: Shape[] }
-  ) => {
+  const setShapesWithHistory = (newShapes: Shape[], opts?: { pushHistory?: boolean; stateToPush?: Shape[] }) => {
     // default: pushHistory false (for live updates)
     const pushHistory = opts?.pushHistory ?? false;
     const stateToPush = opts?.stateToPush;
 
-    setHistory((cur) => {
+    setHistory(cur => {
       if (!pushHistory) {
         // update present only (no history change)
         return { ...cur, present: newShapes };
@@ -100,9 +100,7 @@ export default function BoardPage() {
             ? []
             : cloneShapes(cur.present);
 
-      const nextPast = [...cur.past, stateToPushToHistory].slice(
-        -HISTORY_LIMIT
-      );
+      const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
       return {
         past: nextPast,
         present: cloneShapes(newShapes),
@@ -111,19 +109,12 @@ export default function BoardPage() {
     });
   };
 
-  // undo / redo handlers
-  const canUndo = history.past.length > 0;
-  const canRedo = history.future.length > 0;
-
   const undo = () => {
-    setHistory((cur) => {
+    setHistory(cur => {
       if (cur.past.length === 0) return cur;
       const previous = cur.past[cur.past.length - 1];
       const newPast = cur.past.slice(0, -1);
-      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(
-        0,
-        HISTORY_LIMIT
-      );
+      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(0, HISTORY_LIMIT);
       return {
         past: newPast,
         present: cloneShapes(previous),
@@ -133,13 +124,11 @@ export default function BoardPage() {
   };
 
   const redo = () => {
-    setHistory((cur) => {
+    setHistory(cur => {
       if (cur.future.length === 0) return cur;
       const nextState = cur.future[0];
       const newFuture = cur.future.slice(1);
-      const newPast = [...cur.past, cloneShapes(cur.present)].slice(
-        -HISTORY_LIMIT
-      );
+      const newPast = [...cur.past, cloneShapes(cur.present)].slice(-HISTORY_LIMIT);
       return {
         past: newPast,
         present: cloneShapes(nextState),
@@ -164,7 +153,7 @@ export default function BoardPage() {
         <div
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
-          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "bg-[#9AC2FEFF] dark:bg-[#000000]"} 
+          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'bg-[#9AC2FEFF] dark:bg-[#000000]'} 
         `}
           onClick={toolbarToggle}
           aria-expanded={open}
@@ -175,26 +164,26 @@ export default function BoardPage() {
             height={16}
             className={`
             transition-transform duration-300 ease-in-out
-            ${open ? "rotate-0" : "rotate-90"}
+            ${open ? 'rotate-0' : 'rotate-90'}
           `}
           />
         </div>
         <div
-          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? 'opacity-0 ' : 'opacity-100 mt-2 mb-2 '}`}
         ></div>
         <div
           className={`
           grid gap-2 overflow-hidden transition-all duration-500 ease-in-out
-          ${open ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}
+          ${open ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}
         `}
         >
-          {ACTION_BUTTONS.map((button) => (
+          {ACTION_BUTTONS.map(button => (
             <button
               key={button.value}
               className={`
               cursor-pointer p-2 rounded-md
               hover:bg-[#cce0ff] dark:hover:bg-[#000000] transition-colors
-            ${activeTool === button.value ? "bg-[#9AC2FEFF] dark:bg-[#000000]" : "bg-transparent "}
+            ${activeTool === button.value ? 'bg-[#9AC2FEFF] dark:bg-[#000000]' : 'bg-transparent '}
             `}
               aria-label={button.label}
               onClick={() => setActiveTool(button.value)}
@@ -204,7 +193,7 @@ export default function BoardPage() {
           ))}
         </div>
         <div
-          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+          className={`border-b border-gray-300 dark:border-gray-700  ${!open ? 'opacity-0 ' : 'opacity-100 mt-2 mb-2 '}`}
         ></div>
         {/* undo button */}
         <button
@@ -212,8 +201,8 @@ export default function BoardPage() {
           onClick={undo}
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${!canUndo ? "opacity-20 cursor-not-allowed" : "opacity-100"}
-          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
+          ${!canUndo ? 'opacity-20 cursor-not-allowed' : 'opacity-100'}
+          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
         `}
         >
           <Undo width={16} height={16} />
@@ -224,8 +213,8 @@ export default function BoardPage() {
           onClick={redo}
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
-          ${!canRedo ? "opacity-20 cursor-not-allowed" : "opacity-100"}
+          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
+          ${!canRedo ? 'opacity-20 cursor-not-allowed' : 'opacity-100'}
         `}
         >
           <Redo width={16} height={16} />
@@ -233,7 +222,7 @@ export default function BoardPage() {
         <div
           className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4
-          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "hidden"} 
+          ${open ? 'hover:bg-[#cce0ff] dark:hover:bg-[#000000]' : 'hidden'} 
           
         `}
           onClick={exportImage}
