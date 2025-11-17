@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, use } from 'react';
 import { Stage, Layer, Rect, Circle, Line, Transformer } from 'react-konva';
 import { ACTIONS, Shape, TOOL_CURSOR } from '@/lib/konavaTypes';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,12 +18,14 @@ function KonvaCanvas({
   setShapesWithHistory,
   strokeColor,
   shapes: externalShapes,
+  handleSave,
 }: {
   activeTool: any;
   canvasRef: any;
   setShapesWithHistory: any;
   strokeColor: string;
   shapes: Shape[];
+  handleSave: any;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [shapes, setShapes] = useState<Shape[]>(externalShapes);
@@ -414,6 +416,7 @@ function KonvaCanvas({
     }
 
     setIsDrawing(false);
+    handleSave();
   };
 
   // move/resize handlers for Rect/Circle
@@ -1015,8 +1018,8 @@ function KonvaCanvas({
               );
             return (
               <Line
-                key={s.id}
-                id={s.id}
+                key={s?.id}
+                id={s?.id}
                 points={(s as any).points}
                 stroke={(s as any).stroke || strokeColor}
                 strokeWidth={(s as any).strokeWidth || 2}
