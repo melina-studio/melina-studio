@@ -21,3 +21,13 @@ export const saveBoardData = async (boardId: string, data: any) => {
     throw new Error(error?.error || 'Error saving board data');
   }
 };
+
+export const clearBoardData = async (boardId: string) => {
+  try {
+    const response = await axios.delete(`${BaseURL}/api/v1/boards/${boardId}/clear`);
+    return response.data;
+  } catch (error: any) {
+    console.log(error, 'Error clearing board data');
+    throw new Error(error?.error || 'Error clearing board data');
+  }
+};

@@ -10,7 +10,7 @@ import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from '@/lib/konavaTypes';
 import KonvaCanvas from '@/components/custom/KonvaCanvas';
 import { HISTORY_LIMIT } from '@/lib/constants';
 import ToolControls from '@/components/custom/ToolControls';
-import { saveBoardData, getBoardData } from '@/service/boardService';
+import { saveBoardData, getBoardData, clearBoardData } from '@/service/boardService';
 import { debounce } from '@/helpers/debounce';
 import { buildShapes } from '@/helpers/helpers';
 
@@ -47,7 +47,6 @@ export default function BoardPage() {
   });
 
   const handleBack = () => router.back();
-  // const [presentShapes, setPresentShapes] = useState<Shape[]>(history.present);
 
   const presentShapes = history.present;
   // undo / redo handlers
@@ -65,21 +64,29 @@ export default function BoardPage() {
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    // get board data on mount
-    // const fetchData = async () => {
-    //   try {
-    //     const fetchBoardData = await getBoardData(id);
-    //     const shapes = buildShapes(fetchBoardData.board);
-    //     setPresentShapes(shapes);
-    //   } catch (error) {
-    //     console.error('Failed fetching board data:', error);
-    //   }
-    // };
-
-    // fetchData();
-
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Fetch board data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const fetchBoardData = await getBoardData(id);
+        const shapes = buildShapes(fetchBoardData.board);
+
+        // Initialize history with fetched shapes
+        setHistory({
+          past: [],
+          present: shapes,
+          future: [],
+        });
+      } catch (error) {
+        console.error('Failed fetching board data:', error);
+      }
+    };
+
+    fetchData();
+  }, [id]);
 
   const resetActionClick = () => {
     setActiveTool(ACTIONS.SELECT);
@@ -192,6 +199,15 @@ export default function BoardPage() {
     }
   };
 
+  const handleClearBoard = async () => {
+    try {
+      await clearBoardData(id);
+      setShapesWithHistory([]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <div className="p-4 relative">
       <div className="fixed inset-0 -z-10">
@@ -210,8 +226,16 @@ export default function BoardPage() {
             </div>
           )}
         </div>
-        <div className="bg-[#111] text-white rounded-md px-4 py-2  cursor-pointer">
-          <div onClick={() => handleGetBoardState()}>Export json</div>
+        <div className="flex items-center gap-4">
+          <div className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer" onClick={handleClearBoard}>
+            Clear Board
+          </div>
+          <div
+            className="bg-[#111] text-white rounded-md px-4 py-2  cursor-pointer"
+            onClick={() => handleGetBoardState()}
+          >
+            Export json
+          </div>
         </div>
       </div>
       {/* controls */}
