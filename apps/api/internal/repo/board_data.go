@@ -7,6 +7,10 @@ import (
 
 	"gorm.io/gorm"
 
+	"encoding/json"
+	"errors"
+	"fmt"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -19,6 +23,7 @@ type BoardDataRepoInterface interface {
 	CreateBoardData(boardData *models.BoardData) error
 	SaveShapeData(boardId uuid.UUID, shapeData *models.Shape) error
 	GetBoardData(boardId uuid.UUID) ([]models.BoardData, error)
+	ClearBoardData(boardId uuid.UUID) error
 }
 
 // NewBoardDataRepository returns a new instance of BoardDataRepo
@@ -36,38 +41,57 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		return err
 	}
 
-	var jsonData datatypes.JSON
-	var dataMap map[string]interface{}
+	dataMap := make(map[string]interface{})
 
-	if shapeData.Type == "rect" {
-		dataMap = map[string]interface{}{
-			"x":           shapeData.X,
-			"y":           shapeData.Y,
-			"w":           shapeData.W,
-			"h":           shapeData.H,
-			"stroke":      shapeData.Stroke,
-			"fill":        shapeData.Fill,
-			"strokeWidth": shapeData.StrokeWidth,
-		}
-	} else if shapeData.Type == "circle" {
-		dataMap = map[string]interface{}{
-			"x":           shapeData.X,
-			"y":           shapeData.Y,
-			"r":           shapeData.R,
-			"stroke":      shapeData.Stroke,
-			"fill":        shapeData.Fill,
-			"strokeWidth": shapeData.StrokeWidth,
-		}
-	} else if shapeData.Type == "pencil" {
-		dataMap = map[string]interface{}{
-			"points": shapeData.Points,
+	addFloat := func(key string, v *float64) {
+		if v != nil {
+			dataMap[key] = *v
 		}
 	}
 
-	jsonData, err = datatypes.NewJSONType(dataMap).MarshalJSON()
+	addString := func(key string, v *string) {
+		if v != nil {
+			dataMap[key] = *v
+		}
+	}
+
+	switch shapeData.Type {
+	case "rect":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addFloat("w", shapeData.W)
+		addFloat("h", shapeData.H)
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "circle":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addFloat("r", shapeData.R)
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "pencil":
+		if shapeData.Points != nil {
+			// store slice, not pointer
+			dataMap["points"] = *shapeData.Points
+		}
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	default:
+		return fmt.Errorf("unsupported shape type: %s", shapeData.Type)
+	}
+
+	// Marshal to JSON bytes and wrap into datatypes.JSON
+	bytes, err := json.Marshal(dataMap)
 	if err != nil {
 		return err
 	}
+	jsonData := datatypes.JSON(bytes)
 
 	boardData := &models.BoardData{
 		UUID:      shapeUUID,
@@ -82,12 +106,15 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 	var existing models.BoardData
 	result := r.db.Where("uuid = ?", shapeUUID).First(&existing)
 
-	if result.Error == gorm.ErrRecordNotFound {
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// Create new
 		return r.db.Create(boardData).Error
 	} else if result.Error != nil {
 		return result.Error
 	}
+
+	// preserve original CreatedAt
+	boardData.CreatedAt = existing.CreatedAt
 
 	// Update existing
 	return r.db.Model(&existing).Updates(boardData).Error
@@ -97,4 +124,8 @@ func (r *BoardDataRepo) GetBoardData(boardId uuid.UUID) ([]models.BoardData, err
 	var boardData []models.BoardData
 	err := r.db.Where("board_id = ?", boardId).Find(&boardData).Error
 	return boardData, err
+}
+
+func (r *BoardDataRepo) ClearBoardData(boardId uuid.UUID) error {
+	return r.db.Where("board_id = ?", boardId).Delete(&models.BoardData{}).Error
 }

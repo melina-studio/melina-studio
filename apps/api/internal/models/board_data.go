@@ -25,15 +25,15 @@ type BoardData struct {
 }
 
 type Shape struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	X           float64   `json:"x"`
-	Y           float64   `json:"y"`
-	R           float64   `json:"r"`
-	W           float64   `json:"w"`
-	H           float64   `json:"h"`
-	Stroke      string    `json:"stroke"`
-	Fill        string    `json:"fill"`
-	StrokeWidth float64   `json:"strokeWidth"`
-	Points      []float64 `json:"points"`
+	ID          string     `json:"id"`
+	Type        string     `json:"type"`
+	X           *float64   `json:"x,omitempty"`
+	Y           *float64   `json:"y,omitempty"`
+	R           *float64   `json:"r,omitempty"`
+	W           *float64   `json:"w,omitempty"`
+	H           *float64   `json:"h,omitempty"`
+	Stroke      *string    `json:"stroke,omitempty"`
+	Fill        *string    `json:"fill,omitempty"`
+	StrokeWidth *float64   `json:"strokeWidth,omitempty"`
+	Points      *[]float64 `json:"points,omitempty"`
 }

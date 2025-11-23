@@ -118,6 +118,7 @@ func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
 	})
 }
 
+// function to get board by ID
 func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
@@ -137,5 +138,28 @@ func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"board": board,
+	})
+}
+
+// function to clear board
+func (h *BoardHandler) ClearBoard(c *fiber.Ctx) error {
+	boardIdStr := c.Params("boardId")
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid board ID",
+		})
+	}
+
+	err = h.boardDataRepo.ClearBoardData(boardId)
+	if err != nil {
+		log.Println(err, "Error clearing board")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to clear board",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Board cleared successfully",
 	})
 }
