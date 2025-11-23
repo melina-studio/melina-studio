@@ -5,8 +5,5 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router) {
-	registerHealth(r)
-	registerTodos(r)
-
 	registerBoard(r)
 }

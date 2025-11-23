@@ -44,7 +44,6 @@ func MigrateAllModels(run bool) error {
 	if run {
 		err := DB.AutoMigrate(
 			// define all models here
-			&models.Todo{},
 			&models.Board{},
 			&models.BoardData{},
 		)
