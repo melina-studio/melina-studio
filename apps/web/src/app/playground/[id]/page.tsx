@@ -47,7 +47,9 @@ export default function BoardPage() {
   });
 
   const handleBack = () => router.back();
-  const [presentShapes, setPresentShapes] = useState<Shape[]>(history.present);
+  // const [presentShapes, setPresentShapes] = useState<Shape[]>(history.present);
+
+  const presentShapes = history.present;
   // undo / redo handlers
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -64,17 +66,17 @@ export default function BoardPage() {
     window.addEventListener('resize', handleResize);
 
     // get board data on mount
-    const fetchData = async () => {
-      try {
-        const fetchBoardData = await getBoardData(id);
-        const shapes = buildShapes(fetchBoardData.board);
-        setPresentShapes(shapes);
-      } catch (error) {
-        console.error('Failed fetching board data:', error);
-      }
-    };
+    // const fetchData = async () => {
+    //   try {
+    //     const fetchBoardData = await getBoardData(id);
+    //     const shapes = buildShapes(fetchBoardData.board);
+    //     setPresentShapes(shapes);
+    //   } catch (error) {
+    //     console.error('Failed fetching board data:', error);
+    //   }
+    // };
 
-    fetchData();
+    // fetchData();
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -124,8 +126,8 @@ export default function BoardPage() {
         stateToPush !== undefined
           ? cloneShapes(stateToPush)
           : cur.past.length === 0 && cur.present.length === 0
-            ? []
-            : cloneShapes(cur.present);
+          ? []
+          : cloneShapes(cur.present);
 
       const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
       return {

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ConvexClientProvider } from "@/providers/ConvexClientProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { DevtoolsProvider } from "@/providers/DevtoolsProvider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -39,7 +38,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <DevtoolsProvider>
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            {children}
           </DevtoolsProvider>
         </ThemeProvider>
       </body>
