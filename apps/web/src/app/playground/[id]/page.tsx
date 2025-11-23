@@ -193,7 +193,6 @@ export default function BoardPage() {
       const { blob } = await exportCompositedImageWithBoth(stageRef, color);
 
       // Prepare FormData
-      console.log('Preparing FormData...', presentShapes.length);
       const fd = new FormData();
       if (presentShapes.length > 0) {
         fd.append('boardData', JSON.stringify(presentShapes));
@@ -202,15 +201,6 @@ export default function BoardPage() {
         await saveBoardData(id, fd);
 
         console.log('Board saved successfully');
-      }
-      // Debug: Log FormData contents
-      console.log('FormData entries:');
-      for (const [key, value] of fd.entries()) {
-        if (value instanceof Blob) {
-          console.log(key, ':', 'Blob', value.size, 'bytes', value.type);
-        } else {
-          console.log(key, ':', value);
-        }
       }
     } catch (error) {
       console.error('Save failed:', error);
