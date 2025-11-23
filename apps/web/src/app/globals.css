@@ -1,5 +1,7 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -119,4 +121,15 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@font-face {
+  font-family: 'Modern Negra';
+  src: url('/fonts/ModernNegra.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.font-modern-negra {
+  font-family: 'Modern Negra', sans-serif;
 }

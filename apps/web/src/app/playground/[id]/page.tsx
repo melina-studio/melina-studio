@@ -13,6 +13,7 @@ import ToolControls from '@/components/custom/ToolControls';
 import { saveBoardData, getBoardData, clearBoardData } from '@/service/boardService';
 import { useDebouncedCallback } from '@/helpers/debounce';
 import { buildShapes, exportCompositedImageWithBoth, getBoardStateSnapshot } from '@/helpers/helpers';
+import AIController from '@/components/custom/AIController';
 
 // types
 type History = {
@@ -34,6 +35,7 @@ export default function BoardPage() {
   const [activeTool, setActiveTool] = useState<string>(ACTIONS.SELECT);
   const { theme } = useTheme();
   const [saving, setSaving] = useState(false);
+  const [showAiController, setShowAiController] = useState(false);
 
   // stroke color
   const currentColor = theme === 'dark' ? '#fff' : '#111';
@@ -232,11 +234,11 @@ export default function BoardPage() {
   };
 
   return (
-    <div className="p-4 relative">
+    <div className="p-4 relative bg-transparent">
       <div className="fixed inset-0 -z-10">
         <DotBackground />
       </div>
-      <div className="flex items-center justify-between w-full px-4 py-2">
+      <div className="flex items-center justify-between w-full px-4 py-2 bg-transparent">
         <div className="flex gap-4 items-center z-2">
           <div onClick={handleBack}>
             <StepBack className="w-4 h-4 cursor-pointer" />
@@ -285,6 +287,23 @@ export default function BoardPage() {
         shapes={presentShapes}
         handleSave={handleSave}
       />
+
+      {/* ai controller */}
+      <div className="fixed top-[10vh] right-4 z-10 flex items-start gap-2 h-[85vh]">
+        {/* ai controller toggle icon */}
+        <div
+          className="bg-gray-100 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
+          onClick={() => setShowAiController(v => !v)}
+        >
+          <img src="/icons/ai_controller.png" alt="AIController" className="w-6 h-6" />
+        </div>
+        {/* ai controller */}
+        {showAiController && (
+          <div className="h-full">
+            <AIController />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
