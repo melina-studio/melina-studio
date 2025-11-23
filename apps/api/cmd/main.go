@@ -31,6 +31,7 @@ func main() {
 	// Register routes
 	routes.Register(app)
 
+	// libraries.Run()
 	// Start server
 	if err := api.StartServer(app); err != nil {
 		log.Fatal("Failed to start server:", err)

@@ -4,6 +4,9 @@ import (
 	"log"
 	"os"
 
+	"context"
+	gcp "melina-studio-backend/internal/libraries"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -24,6 +27,12 @@ func NewServer() *fiber.App {
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
+
+	ctx := context.Background()
+	_, err := gcp.NewClients(ctx)
+	if err != nil {
+		log.Fatalf("failed to init gcp clients: %v", err)
+	}
 
 	return app
 }
