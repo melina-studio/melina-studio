@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { Download, Loader, Menu, Redo, StepBack, Undo } from 'lucide-react';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { useRef, useState, useEffect, act } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import { DotBackground } from '@/components/ui/aceternity/DotBackground';
 import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from '@/lib/konavaTypes';
@@ -11,8 +11,8 @@ import KonvaCanvas from '@/components/custom/KonvaCanvas';
 import { HISTORY_LIMIT } from '@/lib/constants';
 import ToolControls from '@/components/custom/ToolControls';
 import { saveBoardData, getBoardData, clearBoardData } from '@/service/boardService';
-import { debounce } from '@/helpers/debounce';
-import { buildShapes } from '@/helpers/helpers';
+import { useDebouncedCallback } from '@/helpers/debounce';
+import { buildShapes, exportCompositedImageWithBoth, getBoardStateSnapshot } from '@/helpers/helpers';
 
 // types
 type History = {
@@ -107,11 +107,12 @@ export default function BoardPage() {
     resetActionClick();
   };
 
-  const exportImage = () => {
-    const image = (stageRef.current as any).toDataURL();
-    if (image) {
+  const exportImage = async () => {
+    const color = theme === 'dark' ? '#111' : '#fff';
+    const { dataURL } = await exportCompositedImageWithBoth(stageRef, color);
+    if (dataURL) {
       const a = document.createElement('a');
-      a.href = image;
+      a.href = dataURL;
       a.download = 'image.png';
       a.click();
     }
@@ -185,19 +186,51 @@ export default function BoardPage() {
     link.click();
   };
 
-  const handleSave = () => {
-    setSaving(true);
+  // Core save function that performs the actual save
+  const performSave = useCallback(async () => {
     try {
-      // saveBoardData(id, present_shapes);
-      debounce(saveBoardData, 2000)(id, { data: presentShapes });
+      const color = theme === 'dark' ? '#111' : '#fff';
+      const { blob } = await exportCompositedImageWithBoth(stageRef, color);
+
+      // Prepare FormData
+      console.log('Preparing FormData...', presentShapes.length);
+      const fd = new FormData();
+      if (presentShapes.length > 0) {
+        fd.append('boardData', JSON.stringify(presentShapes));
+        fd.append('image', blob, `board-${id}.png`);
+
+        await saveBoardData(id, fd);
+
+        console.log('Board saved successfully');
+      }
+      // Debug: Log FormData contents
+      console.log('FormData entries:');
+      for (const [key, value] of fd.entries()) {
+        if (value instanceof Blob) {
+          console.log(key, ':', 'Blob', value.size, 'bytes', value.type);
+        } else {
+          console.log(key, ':', value);
+        }
+      }
     } catch (error) {
-      console.log(error);
-    } finally {
-      setTimeout(() => {
-        setSaving(false);
-      }, 2000);
+      console.error('Save failed:', error);
+      throw error;
     }
-  };
+  }, [presentShapes, id]);
+
+  // Create debounced save using the custom hook
+  const debouncedSave = useDebouncedCallback(performSave, 2000, [performSave]);
+
+  // Public handleSave function
+  const handleSave = useCallback(() => {
+    setSaving(true);
+    debouncedSave();
+
+    // Hide saving indicator after delay
+    setTimeout(() => {
+      setSaving(false);
+    }, 2500);
+  }, [debouncedSave]);
 
   const handleClearBoard = async () => {
     try {
