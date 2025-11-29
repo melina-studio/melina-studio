@@ -45,7 +45,7 @@ type streamEvent struct {
 	} `json:"content"`
 }
 
-func callClaudeWithMessages(ctx context.Context, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
+func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // "us-east5"
 	modelID := os.Getenv("CLAUDE_VERTEX_MODEL")             // "claude-sonnet-4-5@20250929"
@@ -88,6 +88,11 @@ func callClaudeWithMessages(ctx context.Context, messages []Message, tools []map
 		"max_tokens":        1024,
 		"stream":            false,
 	}
+
+	if systemMessage != "" {
+		body["system"] = systemMessage
+	}
+
 	if len(tools) > 0 {
 		body["tools"] = tools
 	}
@@ -156,6 +161,7 @@ func callClaudeWithMessages(ctx context.Context, messages []Message, tools []map
 // StreamClaudeWithMessages streams Claude output and calls onTextChunk for each text delta.
 func StreamClaudeWithMessages(
 	ctx context.Context,
+	systemMessage string,
 	messages []Message,
 	tools []map[string]interface{},
 	onTextChunk func(chunk string) error,
@@ -201,6 +207,11 @@ func StreamClaudeWithMessages(
 		"max_tokens":        1024,
 		"stream":            true, // streaming flag
 	}
+
+	if systemMessage != "" {
+		body["system"] = systemMessage
+	}
+
 	if len(tools) > 0 {
 		body["tools"] = tools
 	}
@@ -268,7 +279,7 @@ func StreamClaudeWithMessages(
 }
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
-func ChatWithTools(ctx context.Context, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
+func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
 	const maxIterations = 8 // safety guard
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -276,7 +287,7 @@ func ChatWithTools(ctx context.Context, messages []Message, tools []map[string]i
 
 	var lastResp *ClaudeResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		cr, err := callClaudeWithMessages(ctx, workingMessages, tools)
+		cr, err := callClaudeWithMessages(ctx, systemMessage, workingMessages, tools)
 		if err != nil {
 			return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
 		}

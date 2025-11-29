@@ -13,7 +13,7 @@ const (
 )
 
 type Client interface {
-	Chat(ctx context.Context, messages []Message) (string, error)
+	Chat(ctx context.Context, systemMessage string, messages []Message) (string, error)
 }
 
 /*

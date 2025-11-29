@@ -16,7 +16,7 @@ func NewVertexAnthropicClient(tools []map[string]interface{}) *VertexAnthropicCl
 }
 
 // Chat returns a single string answer (convenience wrapper).
-func (c *VertexAnthropicClient) Chat(ctx context.Context, messages []Message) (string, error) {
+func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
 	// Convert llmMessage -> libraries.Message
 	msgs := make([]Message, 0, len(messages))
 	for _, m := range messages {
@@ -26,7 +26,7 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, messages []Message) (s
 		})
 	}
 
-	resp, err := ChatWithTools(ctx, msgs, c.Tools)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools)
 	if err != nil {
 		return "", err
 	}

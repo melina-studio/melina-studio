@@ -37,8 +37,11 @@ func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 	return &LangChainClient{llm: llm}, nil
 }
 
-func (c *LangChainClient) Chat(ctx context.Context, messages []Message) (string, error) {
+func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
 	msgContents := make([]llms.MessageContent, 0, len(messages))
+	if systemMessage != "" {
+		msgContents = append(msgContents, llms.TextParts(llms.ChatMessageTypeSystem, systemMessage))
+	}
 	for _, m := range messages {
 		// Convert content to string
 		contentStr, ok := m.Content.(string)

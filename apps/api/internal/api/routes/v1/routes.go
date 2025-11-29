@@ -6,4 +6,5 @@ import (
 
 func RegisterRoutes(r fiber.Router) {
 	registerBoard(r)
+	registerChat(r)
 }
