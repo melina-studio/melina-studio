@@ -1,33 +1,77 @@
 package llmHandlers
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type Provider string
 
 const (
-	ProviderVertexClaude Provider = "vertex_claude"
-	ProviderLangChain    Provider = "langchain" // openai / groq / llama etc.
+	ProviderLangChainOpenAI Provider = "openai"           // LangChainGo (OpenAI)
+	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
+	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
 )
 
 type Config struct {
 	Provider Provider
 
-	// LangChain config
-	LangChain LangChainConfig
+	// LangChain configs
+	Model   string
+	BaseURL string
+	APIKey  string
 
-	// Vertex Claude config
-	Vertex VertexAnthropicClient
+	// Anthropic configs
+	Tools []map[string]interface{}
 }
 
-func NewLLMClient(kind string) (Client, error) {
-	switch kind {
-	case "vertex_anthropic":
-		return NewVertexAnthropicClient(nil), nil
-	case "langchain":
-		return NewLangChainClient(LangChainConfig{Model: "gpt-4.1"})
+func New(cfg Config) (Client, error) {
+	switch cfg.Provider {
+
+	case ProviderLangChainOpenAI:
+		return NewLangChainClient(LangChainConfig{
+			Model:  cfg.Model,
+			APIKey: cfg.APIKey,
+		})
+
+	case ProviderLangChainGroq:
+		return NewLangChainClient(LangChainConfig{
+			Model:   cfg.Model,
+			BaseURL: cfg.BaseURL, // e.g. https://api.groq.com/openai/v1
+			APIKey:  cfg.APIKey,
+		})
+
+	case ProviderVertexAnthropic:
+		return NewVertexAnthropicClient(cfg.Tools), nil
+
 	default:
-		return nil, fmt.Errorf("unknown provider %s", kind)
+		return nil, fmt.Errorf("unknown LLM provider: %s", cfg.Provider)
 	}
 }
+
+/*
+
+cfg := llm.Config{
+    Provider: llm.ProviderVertexAnthropic,
+    Tools:    myToolsMeta,
+}
+
+client, _ := llm.New(cfg)
+
+for groq:
+cfg := llm.Config{
+    Provider: llm.ProviderLangChainGroq,
+    Model:    "llama-3.1-70b",
+    BaseURL:  "https://api.groq.com/openai/v1",
+    APIKey:   os.Getenv("GROQ_API_KEY"),
+}
+
+client, _ := llm.New(cfg)
+
+// for open ai:
+cfg := llm.Config{
+    Provider: llm.ProviderLangChainOpenAI,
+    Model:    "gpt-4.1",
+    APIKey:   os.Getenv("OPENAI_API_KEY"),
+}
+client, _ := llm.New(cfg)
+
+
+*/
