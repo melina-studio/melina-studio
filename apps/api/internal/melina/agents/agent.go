@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
+	"melina-studio-backend/internal/melina/prompts"
 	"os"
 )
 
@@ -58,7 +59,7 @@ func NewAgent(provider string) *Agent {
 
 func (a *Agent) ProcessRequest(ctx context.Context, message string) (string, error) {
 	// Build messages for the LLM
-	systemMessage := "You are a helpful AI assistant for a drawing board application."
+	systemMessage := prompts.MASTER_PROMPT
 	messages := []llmHandlers.Message{
 		{
 			Role:    "user",
