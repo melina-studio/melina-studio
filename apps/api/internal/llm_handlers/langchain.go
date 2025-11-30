@@ -43,12 +43,6 @@ func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messag
 		msgContents = append(msgContents, llms.TextParts(llms.ChatMessageTypeSystem, systemMessage))
 	}
 	for _, m := range messages {
-		// Convert content to string
-		contentStr, ok := m.Content.(string)
-		if !ok {
-			return "", fmt.Errorf("message content must be string for langchain")
-		}
-
 		var msgType llms.ChatMessageType
 		switch m.Role {
 		case "system":
@@ -61,7 +55,50 @@ func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messag
 			msgType = llms.ChatMessageTypeHuman
 		}
 
-		msgContents = append(msgContents, llms.TextParts(msgType, contentStr))
+		// Handle content - can be string or []map[string]interface{} (for images)
+		switch content := m.Content.(type) {
+		case string:
+			// Simple text message
+			msgContents = append(msgContents, llms.TextParts(msgType, content))
+			
+		case []map[string]interface{}:
+			// Multi-part content (text + images)
+			// Build parts array for multimodal content
+			parts := []llms.ContentPart{}
+			
+			for _, block := range content {
+				blockType, _ := block["type"].(string)
+				
+				switch blockType {
+				case "text":
+					if text, ok := block["text"].(string); ok {
+						parts = append(parts, llms.TextPart(text))
+					}
+					
+				case "image":
+					if source, ok := block["source"].(map[string]interface{}); ok {
+						mediaType, _ := source["media_type"].(string)
+						dataStr, _ := source["data"].(string)
+						
+						// Groq/OpenAI-compatible APIs expect image_url format with data URI
+						// Format: data:image/png;base64,{base64string}
+						dataURI := fmt.Sprintf("data:%s;base64,%s", mediaType, dataStr)
+						parts = append(parts, llms.ImageURLPart(dataURI))
+					}
+				}
+			}
+			
+			// Create MessageContent with all parts
+			if len(parts) > 0 {
+				msgContents = append(msgContents, llms.MessageContent{
+					Role:  msgType,
+					Parts: parts,
+				})
+			}
+			
+		default:
+			return "", fmt.Errorf("unsupported message content type for langchain: %T", m.Content)
+		}
 	}
 
 	resp, err := c.llm.GenerateContent(ctx, msgContents)

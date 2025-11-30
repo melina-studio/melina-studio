@@ -32,6 +32,15 @@ type ToolUse struct {
 }
 
 // Message represents a message in the conversation
+type Content struct {
+	Type  string
+	Text  string
+	Image struct {
+		MimeType string
+		Data     []byte
+	}
+}
+
 type Message struct {
 	Role    string
 	Content interface{} // can be string or []map[string]interface{}

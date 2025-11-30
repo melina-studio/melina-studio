@@ -2,6 +2,7 @@ package llmHandlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -46,6 +47,7 @@ func NewGenaiGeminiClient(ctx context.Context) (*GenaiGeminiClient, error) {
 }
 
 // convertMessagesToGenaiContent converts our Message format to genai.Content
+// Supports both text and image content
 func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content, error) {
 	systemParts := []string{}
 	contents := []*genai.Content{}
@@ -65,27 +67,63 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 			continue
 		}
 
-		// Convert content to text
-		var text string
-		switch c := m.Content.(type) {
-		case string:
-			text = c
-		default:
-			b, _ := json.Marshal(c)
-			text = string(b)
-		}
-
 		// Map role: "assistant" -> "model", "user" -> "user"
 		roleOut := "user"
 		if role == "assistant" || role == "model" {
 			roleOut = "model"
 		}
 
-		textPart := &genai.Part{Text: text}
-		contents = append(contents, &genai.Content{
-			Role:  roleOut,
-			Parts: []*genai.Part{textPart},
-		})
+		// Handle content - can be string or []map[string]interface{} (for images)
+		parts := []*genai.Part{}
+		
+		switch c := m.Content.(type) {
+		case string:
+			// Simple text message
+			parts = append(parts, &genai.Part{Text: c})
+			
+		case []map[string]interface{}:
+			// Multi-part content (text + images)
+			for _, block := range c {
+				blockType, _ := block["type"].(string)
+				
+				switch blockType {
+				case "text":
+					if text, ok := block["text"].(string); ok {
+						parts = append(parts, &genai.Part{Text: text})
+					}
+					
+				case "image":
+					if source, ok := block["source"].(map[string]interface{}); ok {
+						mediaType, _ := source["media_type"].(string)
+						dataStr, _ := source["data"].(string)
+						
+						// Decode base64 image data
+						imageData, err := base64.StdEncoding.DecodeString(dataStr)
+						if err == nil {
+							// Create image part for Gemini
+							parts = append(parts, &genai.Part{
+								InlineData: &genai.Blob{
+									MIMEType: mediaType,
+									Data:     imageData,
+								},
+							})
+						}
+					}
+				}
+			}
+			
+		default:
+			// Fallback: convert to JSON string
+			b, _ := json.Marshal(c)
+			parts = append(parts, &genai.Part{Text: string(b)})
+		}
+
+		if len(parts) > 0 {
+			contents = append(contents, &genai.Content{
+				Role:  roleOut,
+				Parts: parts,
+			})
+		}
 	}
 
 	systemText := strings.Join(systemParts, "\n")

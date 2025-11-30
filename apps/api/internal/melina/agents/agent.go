@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
+	"melina-studio-backend/internal/melina/helpers"
 	"melina-studio-backend/internal/melina/prompts"
 	"os"
+	"path/filepath"
 )
 
 type Agent struct {
@@ -57,13 +59,32 @@ func NewAgent(provider string) *Agent {
 	}
 }
 
-func (a *Agent) ProcessRequest(ctx context.Context, message string) (string, error) {
+// ProcessRequest processes a user message with optional board image
+// boardId can be empty string if no image should be included
+func (a *Agent) ProcessRequest(ctx context.Context, message string, boardId string) (string, error) {
 	// Build messages for the LLM
 	systemMessage := prompts.MASTER_PROMPT
+	
+	// Build user message content - may include image if boardId is provided
+	var userContent interface{} = message
+	
+	if boardId != "" {
+		// Try to load and encode the board image
+		imagePath := filepath.Join("temp", "images", fmt.Sprintf("%s.png", boardId))
+		imageData, err := os.ReadFile(imagePath)
+		if err == nil {
+			// Image file exists - format content based on provider
+			userContent = helpers.FormatMessageWithImage(message, imageData)
+		} else {
+			// Image not found - log but continue with text only
+			log.Printf("Warning: Board image not found at %s, continuing with text only: %v", imagePath, err)
+		}
+	}
+	
 	messages := []llmHandlers.Message{
 		{
 			Role:    "user",
-			Content: message,
+			Content: userContent,
 		},
 	}
 
@@ -75,3 +96,4 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string) (string, err
 
 	return response, nil
 }
+

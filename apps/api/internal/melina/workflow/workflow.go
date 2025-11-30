@@ -8,7 +8,8 @@ import (
 )
 
 func TriggerChatWorkflow(c *fiber.Ctx) error {
-	// boardId := c.Params("boardId")
+	// Extract boardId from route params
+	boardId := c.Params("boardId")
 
 	var dto struct {
 		Message string `json:"message"`
@@ -26,14 +27,14 @@ func TriggerChatWorkflow(c *fiber.Ctx) error {
 		})
 	}
 
-	// Default to vertex_anthropic if not specified
-	LLM := "vertex_gemini"
+	// Default to vertex_gemini if not specified
+	LLM := "groq"
 
 	// Create agent on-demand with specified LLM provider
 	agent := agents.NewAgent(LLM)
 
-	// Call the agent to process the message
-	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message)
+	// Call the agent to process the message with boardId (for image context)
+	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, boardId)
 	if err != nil {
 		log.Printf("Error processing request: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
