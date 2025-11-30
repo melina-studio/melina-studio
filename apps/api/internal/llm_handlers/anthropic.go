@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/models"
 	"net/http"
 	"os"
 	"strings"
@@ -42,7 +43,7 @@ type Content struct {
 }
 
 type Message struct {
-	Role    string
+	Role    models.Role
 	Content interface{} // can be string or []map[string]interface{}
 }
 

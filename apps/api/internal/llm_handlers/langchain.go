@@ -100,7 +100,7 @@ func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messag
 			return "", fmt.Errorf("unsupported message content type for langchain: %T", m.Content)
 		}
 	}
-
+	
 	resp, err := c.llm.GenerateContent(ctx, msgContents)
 	if err != nil {
 		return "", err

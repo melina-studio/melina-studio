@@ -7,6 +7,7 @@ import (
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
 	"melina-studio-backend/internal/melina/helpers"
 	"melina-studio-backend/internal/melina/prompts"
+	"melina-studio-backend/internal/models"
 	"os"
 	"path/filepath"
 )
@@ -61,7 +62,7 @@ func NewAgent(provider string) *Agent {
 
 // ProcessRequest processes a user message with optional board image
 // boardId can be empty string if no image should be included
-func (a *Agent) ProcessRequest(ctx context.Context, message string, boardId string) (string, error) {
+func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
 	// Build messages for the LLM
 	systemMessage := prompts.MASTER_PROMPT
 	
@@ -80,13 +81,18 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, boardId stri
 			log.Printf("Warning: Board image not found at %s, continuing with text only: %v", imagePath, err)
 		}
 	}
-	
-	messages := []llmHandlers.Message{
-		{
-			Role:    "user",
-			Content: userContent,
-		},
+
+	messages := []llmHandlers.Message{}
+
+	if len(chatHistory) >0 {
+		messages = append(messages, chatHistory...)
 	}
+
+	messages = append(messages, llmHandlers.Message{
+		Role:    models.RoleUser,
+		Content: userContent,
+	})
+
 
 	// Call the LLM
 	response, err := a.llmClient.Chat(ctx, systemMessage, messages)

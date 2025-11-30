@@ -51,8 +51,17 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	// Create agent on-demand with specified LLM provider
 	agent := agents.NewAgent(LLM)
 
+	// get chat history from the database
+	chatHistory, err := w.chatRepo.GetChatHistory(boardUUID, 20)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to get chat history: %v", err),
+		})
+	}
+
+
 	// Call the agent to process the message with boardId (for image context)
-	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, boardId)
+	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message , chatHistory, boardId)
 	if err != nil {
 		log.Printf("Error processing request: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

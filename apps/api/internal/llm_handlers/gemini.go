@@ -53,7 +53,7 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 	contents := []*genai.Content{}
 
 	for _, m := range messages {
-		role := strings.ToLower(strings.TrimSpace(m.Role))
+		role := strings.ToLower(strings.TrimSpace(string(m.Role)))
 
 		// Gather system parts separately
 		if role == "system" {

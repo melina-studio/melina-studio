@@ -2,6 +2,7 @@ package llmHandlers
 
 import (
 	"context"
+	"melina-studio-backend/internal/models"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 	msgs := make([]Message, 0, len(messages))
 	for _, m := range messages {
 		msgs = append(msgs, Message{
-			Role:    string(m.Role),
+			Role:    models.Role(m.Role),
 			Content: m.Content,
 		})
 	}

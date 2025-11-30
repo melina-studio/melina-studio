@@ -26,7 +26,7 @@ func (h *ChatHandler) GetChatsByBoardId(c *fiber.Ctx) error {
 		})
 	}
 
-	chats, err := h.chatRepo.GetChatsByBoardId(boardIdUUID)
+	chats, total, err := h.chatRepo.GetChatsByBoardId(boardIdUUID, 1, 20)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get chats",
@@ -34,5 +34,6 @@ func (h *ChatHandler) GetChatsByBoardId(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"chats": chats,
+		"total": total,
 	})
 }
