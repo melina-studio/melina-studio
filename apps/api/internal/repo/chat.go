@@ -15,7 +15,7 @@ type ChatRepo struct {
 
 type ChatRepoInterface interface {
 	CreateChat(chat *models.Chat) error
-	GetChatsByBoardId(boardId uuid.UUID , page int, pageSize int, fields ...string) ([]models.Chat, int64, error)
+	GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, fields ...string) ([]models.Chat, int64, error)
 	CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string) (uuid.UUID, uuid.UUID, error)
 	GetChatHistory(boardId uuid.UUID, size int) ([]llmHandlers.Message, error)
 	GetLatestChats(boardId uuid.UUID, limit int, fields ...string) ([]models.Chat, error)
@@ -63,7 +63,7 @@ func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, 
 	}
 
 	// optional: choose ordering (newest first)
-	if err := query.Order("created_at desc").
+	if err := query.Order("created_at asc").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&chats).Error; err != nil {
@@ -73,11 +73,10 @@ func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, 
 	return chats, total, nil
 }
 
-
 func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string) (uuid.UUID, uuid.UUID, error) {
 	humanMessageUUID := uuid.New()
 	aiMessageUUID := uuid.New()
-	
+
 	// Use a transaction to ensure both messages are created atomically
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Create human message
@@ -91,7 +90,7 @@ func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage st
 		}).Error; err != nil {
 			return err
 		}
-		
+
 		// Create AI message
 		if err := tx.Create(&models.Chat{
 			UUID:      aiMessageUUID,
@@ -103,13 +102,12 @@ func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage st
 		}).Error; err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
-	
+
 	return humanMessageUUID, aiMessageUUID, err
 }
-
 
 func (r *ChatRepo) GetLatestChats(boardId uuid.UUID, limit int, fields ...string) ([]models.Chat, error) {
 	var chats []models.Chat
@@ -132,13 +130,12 @@ func (r *ChatRepo) GetLatestChats(boardId uuid.UUID, limit int, fields ...string
 	return chats, err
 }
 
-
 func (r *ChatRepo) GetChatHistory(boardId uuid.UUID, size int) ([]llmHandlers.Message, error) {
 
-	chats, err := r.GetLatestChats(boardId , size, "role", "content" )
-		if err != nil {
-			return nil, err
-		}
+	chats, err := r.GetLatestChats(boardId, size, "role", "content")
+	if err != nil {
+		return nil, err
+	}
 
 	chatHistoryMessages := []llmHandlers.Message{}
 	for _, chat := range chats {
