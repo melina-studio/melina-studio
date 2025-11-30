@@ -46,6 +46,7 @@ func MigrateAllModels(run bool) error {
 			// define all models here
 			&models.Board{},
 			&models.BoardData{},
+			&models.Chat{},
 		)
 		if err != nil {
 			return fmt.Errorf("failed to migrate database: %w", err)
