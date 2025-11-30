@@ -1,32 +1,71 @@
-import { SendHorizontal } from 'lucide-react';
-import { useState } from 'react';
+import { Bot, SendHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import ChatMessage from './ChatMessage';
 import TypingLoader from './TypingLoader';
+import { sendMessage } from '@/service/chatService';
+import { v4 as uuidv4 } from 'uuid';
+import { useParams } from 'next/navigation';
 
 type Message = {
+  uuid: string;
   role: 'user' | 'assistant';
   content: string;
 };
 
+type AiMessageResponse = {
+  ai_message_id: string;
+  human_message_id: string;
+  message: string;
+};
+
 function AIController({ chatHistory }: { chatHistory: Message[] }) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [isMessageLoading, setIsMessageLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const params = useParams();
+  const boardId: any = params?.id;
+
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    const text = e.target.message.value.trim();
+    const text = textareaRef.current?.value.trim();
     if (!text) return;
+    if (textareaRef.current) {
+      textareaRef.current.value = '';
+      textareaRef.current.style.height = 'auto';
+    }
 
     // Add user message
-    setMessages(msgs => [...msgs, { role: 'user', content: text }]);
-    e.target.reset();
+    const humanMessageId = uuidv4();
+    setMessages(msgs => [...msgs, { uuid: humanMessageId, role: 'user', content: text }]);
+    setIsMessageLoading(true);
+    try {
+      const response: AiMessageResponse = await sendMessage(boardId, text);
+      // update the human message with the new human message id
+      setMessages(msgs =>
+        msgs.map(msg => (msg.uuid === humanMessageId ? { ...msg, uuid: response.human_message_id } : msg)),
+      );
+      // add the new ai message to the messages array
+      setMessages(msgs => [...msgs, { uuid: response.ai_message_id, role: 'assistant', content: response.message }]);
+    } catch (error) {
+      console.log(error);
+      setIsMessageLoading(false);
+      return;
+    }
+    setIsMessageLoading(false);
   };
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   return (
     <div
-      className="w-[450px] h-full p-4 rounded-xl shadow-2xl border overflow-y-auto flex flex-col backdrop-blur-xl"
+      className="w-[450px] h-full rounded-xl shadow-2xl border overflow-y-auto flex flex-col backdrop-blur-xl"
       style={{
         background: isDark ? 'rgba(50, 51, 50, 0.5)' : 'rgba(220, 220, 220, 0)',
         backdropFilter: 'saturate(180%) blur(12px)',
@@ -35,31 +74,47 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
       }}
     >
       <h3
-        className="text-lg text-center font-bold mb-4 sticky top-0 pb-2 border-b  bg-transparent"
+        className="text-lg p-4 text-center font-bold mb-4 sticky top-0 pb-2 border-b  bg-white/80 z-10"
         style={{
           fontFamily: '"DM Serif Text", serif',
         }}
       >
         Ask Melina
       </h3>
-      <div className="flex-1  relative">
+      <div className="flex-1 z-1 relative p-4">
         {/* Messages container */}
         <div className="flex flex-col overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2">
+            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
               Start a conversation with Melina
             </div>
           ) : (
-            messages.map((msg, i) => <ChatMessage key={i} role={msg.role} content={msg.content} />)
+            messages.map((msg, i) => (
+              <div key={i}>
+                <ChatMessage role={msg.role} content={msg.content} />
+              </div>
+            ))
           )}
-          <div className="inline-flex items-center px-3 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800">
-            <TypingLoader />
-          </div>
+          {/* 👇 Auto-scroll anchor */}
+          <div ref={bottomRef} />
         </div>
+        {/* bottom chat bubble loader */}
+        {isMessageLoading && (
+          <div className="flex justify-start gap-2  mb-4">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-300 dark:bg-gray-600">
+              <Bot className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+            </div>
+            <div className="inline-flex items-center px-3 py-2 rounded-xl bg-gray-200/80 text-gray-900 rounded-bl-sm dark:bg-gray-800">
+              <div>
+                <TypingLoader />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* text input */}
         <div
-          className="sticky bottom-0 left-0 right-0 items-center flex border p-2 rounded-lg backdrop-blur-md"
+          className="sticky bottom-4 left-0 right-0 flex items-end border p-2 rounded-lg backdrop-blur-md gap-2"
           style={{
             background: isDark ? 'rgba(50, 51, 50, 0.7)' : 'rgba(255, 255, 255, 0.7)',
             backdropFilter: 'saturate(180%) blur(10px)',
@@ -67,15 +122,27 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
             borderColor: isDark ? 'rgba(107, 114, 128, 0.5)' : 'rgba(229, 231, 235, 0.5)',
           }}
         >
-          <form onSubmit={handleSubmit} className="w-full">
-            <input
-              type="text"
+          <form onSubmit={handleSubmit} className="flex-1">
+            <textarea
+              ref={textareaRef}
               name="message"
               placeholder="Type your message here..."
-              className="w-full outline-none text-sm"
+              className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px]"
+              rows={1}
+              onInput={e => {
+                const el = e.target as HTMLTextAreaElement;
+                el.style.height = 'auto';
+                el.style.height = `${el.scrollHeight}px`;
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
             />
           </form>
-          <SendHorizontal className="w-6 h-6 cursor-pointer" color="gray" onClick={handleSubmit} />
+          <SendHorizontal className="w-6 h-6 cursor-pointer flex-shrink-0 mb-1" color="gray" onClick={handleSubmit} />
         </div>
       </div>
     </div>

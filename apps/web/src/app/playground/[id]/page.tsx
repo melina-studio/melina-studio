@@ -309,7 +309,7 @@ export default function BoardPage() {
           className="bg-gray-200 shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
           onClick={() => setShowAiController(v => !v)}
         >
-          <img src="/icons/ai_controller.png" alt="AIController" className="w-6 h-6" />
+          <img src="/icons/ai_controller.png" alt="AIController" className="w-5 h-5" />
         </div>
         {/* ai controller */}
         {showAiController && (

@@ -12,7 +12,7 @@ function ChatMessage({ role, content }: MessageProps) {
   const isHuman = role === 'user';
 
   return (
-    <div className={`flex ${isHuman ? 'justify-end' : 'justify-start mb-8 mt-2'} mb-1`}>
+    <div className={`flex ${isHuman ? 'justify-end' : 'justify-start mb-4 mt-2'} mb-1`}>
       <div className={`flex items-end gap-2 max-w-[85%] ${isHuman ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Avatar - only for AI */}
         {!isHuman && (
@@ -35,7 +35,7 @@ function ChatMessage({ role, content }: MessageProps) {
             WebkitBackdropFilter: 'blur(10px)',
           }}
         >
-          <pre className="text-sm leading-relaxed whitespace-pre-wrap">{content}</pre>
+          <pre className="text-xs leading-relaxed whitespace-pre-wrap">{content}</pre>
         </div>
       </div>
     </div>
