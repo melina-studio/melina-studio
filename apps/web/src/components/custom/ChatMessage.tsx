@@ -2,17 +2,17 @@ import { Bot } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 type MessageProps = {
-  role: 'human' | 'ai';
+  role: 'user' | 'assistant';
   content: string;
 };
 
 function ChatMessage({ role, content }: MessageProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const isHuman = role === 'human';
+  const isHuman = role === 'user';
 
   return (
-    <div className={`flex ${isHuman ? 'justify-end' : 'justify-start'} mb-3`}>
+    <div className={`flex ${isHuman ? 'justify-end' : 'justify-start mb-8 mt-2'} mb-1`}>
       <div className={`flex items-end gap-2 max-w-[85%] ${isHuman ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Avatar - only for AI */}
         {!isHuman && (
@@ -23,7 +23,7 @@ function ChatMessage({ role, content }: MessageProps) {
 
         {/* Message bubble */}
         <div
-          className={`px-4 py-2 rounded-2xl ${
+          className={`px-4 py-2 rounded-xl w-full ${
             isHuman
               ? 'text-white rounded-br-sm bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-900'
               : isDark
@@ -35,7 +35,7 @@ function ChatMessage({ role, content }: MessageProps) {
             WebkitBackdropFilter: 'blur(10px)',
           }}
         >
-          <p className="text-sm leading-relaxed">{content}</p>
+          <pre className="text-sm leading-relaxed whitespace-pre-wrap">{content}</pre>
         </div>
       </div>
     </div>

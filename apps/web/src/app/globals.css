@@ -133,3 +133,35 @@
 .font-modern-negra {
   font-family: 'Modern Negra', sans-serif;
 }
+
+/* typing animation */
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.4);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* make dot size & animation reusable — colors will come from Tailwind classes */
+.typing-dot {
+  width: 8px; /* 8px = tailwind w-2 */
+  height: 8px; /* 8px = tailwind h-2 */
+  border-radius: 9999px;
+  display: inline-block;
+  animation: typing 1.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* stagger helpers (easy to use classes) */
+.typing-delay-1 {
+  animation-delay: 0.15s;
+}
+.typing-delay-2 {
+  animation-delay: 0.3s;
+}

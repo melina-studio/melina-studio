@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const BaseURL = process.env.BACKEND_URL || 'http://localhost:8000';
+import { BaseURL } from '@/lib/constants';
 
 export const getBoardData = async (boardId: string) => {
   try {

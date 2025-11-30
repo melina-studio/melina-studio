@@ -14,12 +14,22 @@ import { saveBoardData, getBoardData, clearBoardData } from '@/service/boardServ
 import { useDebouncedCallback } from '@/helpers/debounce';
 import { buildShapes, exportCompositedImageWithBoth, getBoardStateSnapshot } from '@/helpers/helpers';
 import AIController from '@/components/custom/AIController';
+import { getChatHistory } from '@/service/chatService';
 
 // types
 type History = {
   past: Shape[][];
   present: Shape[]; // current shapes
   future: Shape[][];
+};
+
+type ChatMessage = {
+  uuid: string;
+  board_uuid: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  updated_at: string;
 };
 
 // helpers
@@ -36,6 +46,7 @@ export default function BoardPage() {
   const { theme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [showAiController, setShowAiController] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   // stroke color
   const currentColor = theme === 'dark' ? '#fff' : '#111';
@@ -55,6 +66,7 @@ export default function BoardPage() {
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
+  // handle board sizings
   useEffect(() => {
     const handleResize = () => {
       setDimensions({
@@ -75,6 +87,7 @@ export default function BoardPage() {
       try {
         const fetchBoardData = await getBoardData(id);
         const shapes = buildShapes(fetchBoardData.board);
+        const chatHistory = await getChatHistory(id);
 
         // Initialize history with fetched shapes
         setHistory({
@@ -82,6 +95,7 @@ export default function BoardPage() {
           present: shapes,
           future: [],
         });
+        setChatHistory(chatHistory?.chats);
       } catch (error) {
         console.error('Failed fetching board data:', error);
       }
@@ -292,7 +306,7 @@ export default function BoardPage() {
       <div className="fixed top-[10vh] right-4 z-10 flex items-start gap-2 h-[85vh]">
         {/* ai controller toggle icon */}
         <div
-          className="bg-gray-100 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
+          className="bg-gray-200 shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
           onClick={() => setShowAiController(v => !v)}
         >
           <img src="/icons/ai_controller.png" alt="AIController" className="w-6 h-6" />
@@ -300,7 +314,7 @@ export default function BoardPage() {
         {/* ai controller */}
         {showAiController && (
           <div className="h-full">
-            <AIController />
+            <AIController chatHistory={chatHistory} />
           </div>
         )}
       </div>

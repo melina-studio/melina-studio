@@ -2,14 +2,15 @@ import { SendHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import ChatMessage from './ChatMessage';
+import TypingLoader from './TypingLoader';
 
 type Message = {
-  role: 'human' | 'ai';
+  role: 'user' | 'assistant';
   content: string;
 };
 
-function AIController() {
-  const [messages, setMessages] = useState<Message[]>([]);
+function AIController({ chatHistory }: { chatHistory: Message[] }) {
+  const [messages, setMessages] = useState<Message[]>(chatHistory);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -19,13 +20,13 @@ function AIController() {
     if (!text) return;
 
     // Add user message
-    setMessages(msgs => [...msgs, { role: 'human', content: text }]);
+    setMessages(msgs => [...msgs, { role: 'user', content: text }]);
     e.target.reset();
   };
 
   return (
     <div
-      className="w-[320px] h-full p-4 rounded-xl shadow-2xl border overflow-y-auto flex flex-col backdrop-blur-xl"
+      className="w-[450px] h-full p-4 rounded-xl shadow-2xl border overflow-y-auto flex flex-col backdrop-blur-xl"
       style={{
         background: isDark ? 'rgba(50, 51, 50, 0.5)' : 'rgba(220, 220, 220, 0)',
         backdropFilter: 'saturate(180%) blur(12px)',
@@ -41,21 +42,24 @@ function AIController() {
       >
         Ask Melina
       </h3>
-      <div className="flex-1 overflow-y-auto relative pb-16">
+      <div className="flex-1  relative">
         {/* Messages container */}
-        <div className="flex flex-col">
+        <div className="flex flex-col overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-8">
+            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2">
               Start a conversation with Melina
             </div>
           ) : (
             messages.map((msg, i) => <ChatMessage key={i} role={msg.role} content={msg.content} />)
           )}
+          <div className="inline-flex items-center px-3 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800">
+            <TypingLoader />
+          </div>
         </div>
 
         {/* text input */}
         <div
-          className="absolute bottom-0 left-0 right-0 items-center flex border p-2 rounded-lg backdrop-blur-md"
+          className="sticky bottom-0 left-0 right-0 items-center flex border p-2 rounded-lg backdrop-blur-md"
           style={{
             background: isDark ? 'rgba(50, 51, 50, 0.7)' : 'rgba(255, 255, 255, 0.7)',
             backdropFilter: 'saturate(180%) blur(10px)',
