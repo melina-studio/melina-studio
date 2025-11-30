@@ -36,6 +36,11 @@ func NewAgent(provider string) *Agent {
 			Provider: llmHandlers.ProviderVertexAnthropic,
 			Tools:    nil,
 		}
+	case "vertex_gemini":
+		cfg = llmHandlers.Config{
+			Provider: llmHandlers.ProviderVertexGemini,
+			Tools:    nil,
+		}
 
 	default:
 		log.Fatalf("Unknown provider: %s. Valid options: openai, groq, vertex_anthropic", provider)

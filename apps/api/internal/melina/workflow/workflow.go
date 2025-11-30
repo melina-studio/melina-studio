@@ -27,7 +27,7 @@ func TriggerChatWorkflow(c *fiber.Ctx) error {
 	}
 
 	// Default to vertex_anthropic if not specified
-	LLM := "groq"
+	LLM := "vertex_gemini"
 
 	// Create agent on-demand with specified LLM provider
 	agent := agents.NewAgent(LLM)

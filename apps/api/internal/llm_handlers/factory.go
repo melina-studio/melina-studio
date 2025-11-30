@@ -1,6 +1,9 @@
 package llmHandlers
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type Provider string
 
@@ -8,6 +11,7 @@ const (
 	ProviderLangChainOpenAI Provider = "openai"           // LangChainGo (OpenAI)
 	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
 	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
+	ProviderVertexGemini    Provider = "vertex_gemini"
 )
 
 type Config struct {
@@ -40,6 +44,15 @@ func New(cfg Config) (Client, error) {
 
 	case ProviderVertexAnthropic:
 		return NewVertexAnthropicClient(cfg.Tools), nil
+
+	case ProviderVertexGemini:
+		// Create background context for client initialization
+		ctx := context.Background()
+		client, err := NewGenaiGeminiClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
 
 	default:
 		return nil, fmt.Errorf("unknown LLM provider: %s", cfg.Provider)
