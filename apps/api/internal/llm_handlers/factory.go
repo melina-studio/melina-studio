@@ -11,7 +11,7 @@ const (
 	ProviderLangChainOpenAI Provider = "openai"           // LangChainGo (OpenAI)
 	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
 	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
-	ProviderVertexGemini    Provider = "vertex_gemini"
+	ProviderGemini    Provider = "gemini"
 )
 
 type Config struct {
@@ -45,7 +45,7 @@ func New(cfg Config) (Client, error) {
 	case ProviderVertexAnthropic:
 		return NewVertexAnthropicClient(cfg.Tools), nil
 
-	case ProviderVertexGemini:
+	case ProviderGemini:
 		// Create background context for client initialization
 		ctx := context.Background()
 		client, err := NewGenaiGeminiClient(ctx)

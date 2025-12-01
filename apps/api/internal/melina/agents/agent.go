@@ -40,9 +40,9 @@ func NewAgent(provider string) *Agent {
 			Provider: llmHandlers.ProviderVertexAnthropic,
 			Tools:    nil,
 		}
-	case "vertex_gemini":
+	case "gemini":
 		cfg = llmHandlers.Config{
-			Provider: llmHandlers.ProviderVertexGemini,
+			Provider: llmHandlers.ProviderGemini,
 			Tools:    nil,
 		}
 
