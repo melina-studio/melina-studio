@@ -42,7 +42,21 @@ type ChatMessage = {
 };
 
 // helpers
-const cloneShapes = (s: Shape[]) => JSON.parse(JSON.stringify(s)); // simple deep copy
+const cloneShapes = (s: Shape[]): Shape[] => {
+  if (!s || !Array.isArray(s)) {
+    return [];
+  }
+  try {
+    const stringified = JSON.stringify(s);
+    if (!stringified) {
+      return [];
+    }
+    return JSON.parse(stringified);
+  } catch (error) {
+    console.error("Error cloning shapes:", error);
+    return [];
+  }
+};
 
 export default function BoardPage() {
   const router = useRouter();
@@ -222,40 +236,62 @@ export default function BoardPage() {
   };
 
   // Core save function that performs the actual save
-  const performSave = useCallback(async () => {
-    try {
-      const color = theme === "dark" ? "#111" : "#fff";
-      const { blob } = await exportCompositedImageWithBoth(stageRef, color);
+  // Accepts optional shapes parameter to avoid stale closure issues
+  const performSave = useCallback(
+    async (shapesOverride?: Shape[]) => {
+      setSaving(true);
 
-      // Prepare FormData
-      const fd = new FormData();
-      if (presentShapes.length > 0) {
-        fd.append("boardData", JSON.stringify(presentShapes));
-        fd.append("image", blob, `board-${id}.png`);
+      try {
+        const color = theme === "dark" ? "#111" : "#fff";
+        const { blob } = await exportCompositedImageWithBoth(stageRef, color);
 
-        await saveBoardData(id, fd);
+        // Use passed shapes or fall back to state
+        const shapesToUse = shapesOverride || presentShapes;
 
-        console.log("Board saved successfully");
+        // Prepare FormData
+        const fd = new FormData();
+        // Filter out text shapes with empty text before saving
+        const shapesToSave = shapesToUse.filter((shape) => {
+          if (shape.type === "text") {
+            return (shape as any).text && (shape as any).text.trim() !== "";
+          }
+          return true;
+        });
+
+        if (shapesToSave.length > 0) {
+          fd.append("boardData", JSON.stringify(shapesToSave));
+          fd.append("image", blob, `board-${id}.png`);
+
+          await saveBoardData(id, fd);
+
+          console.log("Board saved successfully");
+        }
+      } catch (error) {
+        console.error("Save failed:", error);
+        throw error;
+      } finally {
+        setSaving(false);
       }
-    } catch (error) {
-      console.error("Save failed:", error);
-      throw error;
-    }
-  }, [presentShapes, id, theme]);
+    },
+    [presentShapes, id, theme]
+  );
 
   // Create debounced save using the custom hook
   const debouncedSave = useDebouncedCallback(performSave, 2000, [performSave]);
 
-  // Public handleSave function
-  const handleSave = useCallback(() => {
-    setSaving(true);
-    debouncedSave();
-
-    // Hide saving indicator after delay
-    setTimeout(() => {
-      setSaving(false);
-    }, 2500);
-  }, [debouncedSave]);
+  // Public handleSave function - accepts optional shapes to pass directly
+  const handleSave = useCallback(
+    (shapesOverride?: Shape[]) => {
+      // If shapes are passed directly, save immediately (for text editing)
+      // Otherwise use debounced save (for drawing operations)
+      if (shapesOverride) {
+        performSave(shapesOverride);
+      } else {
+        debouncedSave();
+      }
+    },
+    [debouncedSave, performSave]
+  );
 
   const handleClearBoard = async () => {
     try {

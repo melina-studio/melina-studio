@@ -1,12 +1,25 @@
-import React, { useEffect, useRef, useState, useCallback, use } from 'react';
-import { Stage, Layer, Rect, Circle, Line, Transformer } from 'react-konva';
-import { ACTIONS, Shape, TOOL_CURSOR } from '@/lib/konavaTypes';
-import { v4 as uuidv4 } from 'uuid';
-import { STAGE_MAX_SCALE, STAGE_MIN_SCALE, STAGE_DEFAULT_SCALE } from '@/lib/constants';
-import { useTheme } from 'next-themes';
-import { Download, FileDown, Plus, Minus } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback, use } from "react";
+import {
+  Stage,
+  Layer,
+  Rect,
+  Circle,
+  Line,
+  Transformer,
+  Text,
+} from "react-konva";
+import { ACTIONS, Shape, TOOL_CURSOR } from "@/lib/konavaTypes";
+import { v4 as uuidv4 } from "uuid";
+import {
+  STAGE_MAX_SCALE,
+  STAGE_MIN_SCALE,
+  STAGE_DEFAULT_SCALE,
+} from "@/lib/constants";
+import { useTheme } from "next-themes";
+import { Download, FileDown, Plus, Minus } from "lucide-react";
+import Image from "next/image";
 
-type ShapeType = Shape['type'];
+type ShapeType = Shape["type"];
 const ZOOM_STEP = 0.1; // 10% increment
 
 // clamp helper
@@ -48,6 +61,13 @@ function KonvaCanvas({
     endX: number;
     endY: number;
   } | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [pendingTextEdit, setPendingTextEdit] = useState<{
+    id: string;
+    pos: { x: number; y: number };
+  } | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textEditingInitialRef = useRef<string | null>(null);
 
   const trRef = useRef<any>(null);
   const { theme } = useTheme();
@@ -73,6 +93,18 @@ function KonvaCanvas({
     // initialize scale from stage if available
     setScale(stage.scaleX() || STAGE_DEFAULT_SCALE);
   }, [canvasRef]);
+
+  // Open text editor when pending text edit is set
+  useEffect(() => {
+    if (pendingTextEdit) {
+      const shape = shapes.find((s) => s.id === pendingTextEdit.id);
+      if (shape) {
+        openTextEditor(pendingTextEdit.id, pendingTextEdit.pos);
+        setPendingTextEdit(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTextEdit, shapes]);
 
   // transformer selection - supports multiple nodes
   const bindTransformer = useCallback((nodes: any[]) => {
@@ -102,7 +134,7 @@ function KonvaCanvas({
 
     if (activeTool == ACTIONS.SELECT && clickedOnEmpty) {
       setIsDraggingStage(true);
-      setStageCursor('grabbing');
+      setStageCursor("grabbing");
       stage.draggable(true);
     } else if (activeTool === ACTIONS.MARQUEE_SELECT && clickedOnEmpty) {
       setIsDrawing(true);
@@ -121,7 +153,7 @@ function KonvaCanvas({
       setLastCreatedId(newId);
       const pencilShape: Shape = {
         id: newId,
-        type: 'pencil',
+        type: "pencil",
         points: [pos.x, pos.y],
         stroke: strokeColor,
         strokeWidth: 2,
@@ -135,7 +167,7 @@ function KonvaCanvas({
       setLastCreatedId(newId);
       const rectangleShape: Shape = {
         id: newId,
-        type: 'rect',
+        type: "rect",
         x: pos.x,
         y: pos.y,
         w: 0,
@@ -152,7 +184,7 @@ function KonvaCanvas({
       setLastCreatedId(newId);
       const circleShape: Shape = {
         id: newId,
-        type: 'circle',
+        type: "circle",
         x: pos.x,
         y: pos.y,
         r: 0,
@@ -175,7 +207,7 @@ function KonvaCanvas({
         ...shapes,
         {
           id: newId,
-          type: 'line',
+          type: "line",
           points: [pos.x, pos.y],
           stroke: strokeColor,
           strokeWidth: 2,
@@ -186,19 +218,23 @@ function KonvaCanvas({
       setShapesBeforeDrawing([...shapes]); // Save state before drawing
       setIsDrawing(true);
       setLastCreatedId(newId);
-      setShapes([
-        ...shapes,
-        {
-          id: newId,
-          type: 'text',
-          text: 'Hello',
-          x: pos.x,
-          y: pos.y,
-          fontSize: 16,
-          fontFamily: 'Arial',
-          fill: strokeColor,
-        },
-      ]);
+      const newShape: Shape = {
+        id: newId,
+        type: "text",
+        text: "",
+        x: pos.x,
+        y: pos.y,
+        fontSize: 18,
+        fontFamily: "Arial",
+        fill: strokeColor,
+      };
+      // Update local shapes state immediately so openTextEditor can find it
+      const updatedShapes = [...shapes, newShape];
+      setShapes(updatedShapes);
+      setShapesWithHistory(updatedShapes, { pushHistory: false });
+      setSelectedIds([newId]);
+      // Set pending text edit to open editor after state updates
+      setPendingTextEdit({ id: newId, pos });
     } else if (activeTool === ACTIONS.IMAGE) {
       const newId = uuidv4();
       setShapesBeforeDrawing([...shapes]); // Save state before drawing
@@ -208,8 +244,8 @@ function KonvaCanvas({
         ...shapes,
         {
           id: newId,
-          type: 'image',
-          src: 'https://via.placeholder.com/150',
+          type: "image",
+          src: "https://via.placeholder.com/150",
           x: pos.x,
           y: pos.y,
           width: 150,
@@ -228,6 +264,188 @@ function KonvaCanvas({
       }
       return;
     }
+  };
+
+  const openTextEditor = (id: string, stagePos: { x: number; y: number }) => {
+    const stage = canvasRef?.current;
+    if (!stage) return;
+
+    // get style values from shape for matching font etc
+    const shape = shapes.find((s) => s.id === id) as any;
+    if (!shape) return;
+
+    const fontSize = (shape?.fontSize ?? 18) * (1 / stage.scaleX()); // scale to screen px if stage scaled
+    const fontFamily = shape?.fontFamily ?? "Arial";
+    const fill = shape?.fill ?? "#111";
+
+    // Save the current state before editing (in case user cancels)
+    const stateBeforeEditing = [...shapes];
+
+    // Remove existing textarea if any
+    if (textAreaRef.current) {
+      try {
+        textAreaRef.current.remove();
+      } catch (e) {}
+      textAreaRef.current = null;
+    }
+
+    // create new textarea
+    const textarea = document.createElement("textarea");
+    textAreaRef.current = textarea;
+    document.body.appendChild(textarea);
+
+    // style it
+    const bgColor = "transparent";
+    const textColor = fill;
+    Object.assign(textarea.style, {
+      position: "fixed",
+      zIndex: "100000",
+      padding: "2px",
+      margin: "0",
+      border: "1px dashed rgba(100, 150, 255, 0.5)",
+      outline: "none",
+      resize: "none",
+      background: bgColor,
+      color: textColor,
+      fontSize: `${fontSize}px`,
+      fontFamily,
+      lineHeight: "1.2",
+      minWidth: "50px",
+      minHeight: "auto",
+      overflow: "hidden",
+      whiteSpace: "pre",
+      boxShadow: "none",
+    });
+    // accessibility
+    textarea.setAttribute("aria-label", "Edit text");
+
+    // place textarea at correct container coords (account for stage container offset)
+    const containerRect = stage.container().getBoundingClientRect();
+    const left = containerRect.left + (stagePos.x * stage.scaleX() + stage.x());
+    const top = containerRect.top + (stagePos.y * stage.scaleY() + stage.y());
+
+    textarea.style.left = `${left}px`;
+    textarea.style.top = `${top}px`;
+
+    // set initial value
+    const currentText = (shape && (shape as any).text) || "";
+    textarea.value = currentText;
+    textEditingInitialRef.current = currentText;
+
+    // Auto-resize textarea as user types
+    const autoResize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+      textarea.style.width = "auto";
+      const minWidth = 50;
+      const measuredWidth = Math.max(minWidth, textarea.scrollWidth + 4);
+      textarea.style.width = `${measuredWidth}px`;
+    };
+
+    textarea.addEventListener("input", autoResize);
+
+    // Initial resize
+    autoResize();
+
+    // Add a small delay before focusing to ensure DOM is ready
+    setTimeout(() => {
+      textarea.focus();
+      textarea.select();
+    }, 10);
+
+    setEditingTextId(id);
+
+    // handle keys & finish
+    const finish = (commit = true) => {
+      const val = textarea!.value;
+
+      // cleanup listeners
+      textarea!.removeEventListener("blur", onBlur);
+      textarea!.removeEventListener("keydown", onKeyDown);
+      textarea!.removeEventListener("input", autoResize);
+      // remove textarea from dom
+      try {
+        textarea!.remove();
+      } catch (e) {}
+      textAreaRef.current = null;
+      setEditingTextId(null);
+      setIsDrawing(false); // Reset drawing state
+
+      if (!commit) {
+        // if we created a brand new empty text, remove it
+        if (!val.trim()) {
+          // remove shape
+          const filtered = stateBeforeEditing.filter((s) => s.id !== id);
+          setShapes(filtered);
+
+          // Schedule history update for next tick
+          setTimeout(() => {
+            setShapesWithHistory(filtered, {
+              pushHistory: true,
+            });
+            handleSave(filtered);
+          }, 0);
+          return;
+        } else {
+          // else just discard changes
+          return;
+        }
+      }
+
+      // If text is empty, remove the shape
+      if (!val.trim()) {
+        const filtered = stateBeforeEditing.filter((s) => s.id !== id);
+        setShapes(filtered);
+
+        // Schedule history update for next tick
+        setTimeout(() => {
+          setShapesWithHistory(filtered, {
+            pushHistory: true,
+          });
+          handleSave(filtered);
+        }, 0);
+        return;
+      }
+
+      // commit value to shapes and push history
+      let finalShapes: Shape[] = [];
+
+      // Use functional setState to get the latest shapes
+      setShapes((latestShapes) => {
+        // Create updated shapes array with the new text
+        const updatedShapes = latestShapes.map((s) =>
+          s.id === id ? { ...s, text: val } : s
+        );
+
+        finalShapes = updatedShapes;
+        return updatedShapes;
+      });
+
+      // Schedule history update for next tick to avoid setState during render
+      setTimeout(() => {
+        // Update parent state with the correct updatedShapes
+        setShapesWithHistory(finalShapes, {
+          pushHistory: true,
+          stateToPush: stateBeforeEditing,
+        });
+
+        // Trigger save with the shapes passed directly (avoids stale closure)
+        handleSave(finalShapes);
+      }, 0);
+    };
+
+    const onBlur = () => finish(true);
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        finish(false);
+      } else if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        finish(true);
+      }
+    };
+
+    textarea.addEventListener("blur", onBlur);
+    textarea.addEventListener("keydown", onKeyDown);
   };
 
   const handlePointerMove = (e: any) => {
@@ -251,9 +469,9 @@ function KonvaCanvas({
 
     if (activeTool === ACTIONS.ERASER && isDrawing) {
       // append the eraser visual stroke to the last shape (optional)
-      setShapes(arr => {
+      setShapes((arr) => {
         const last = arr[arr.length - 1];
-        if (!last || last.type !== 'eraser') return arr;
+        if (!last || last.type !== "eraser") return arr;
         const newPoints = last.points.concat([pos.x, pos.y]);
         return [...arr.slice(0, -1), { ...last, points: newPoints }];
       });
@@ -264,27 +482,30 @@ function KonvaCanvas({
         // avoid removing transformer nodes or helper nodes - ensure hit.id is from your shape model
         const hitId = hit.id();
         // optional: filter out the eraser stroke's own id if it's on stage
-        if (hitId && shapes.some(s => s.id === hitId)) {
+        if (hitId && shapes.some((s) => s.id === hitId)) {
           // remove shape without pushing history for each tiny hit
-          setShapes(arr => arr.filter(s => s.id !== hitId));
+          setShapes((arr) => arr.filter((s) => s.id !== hitId));
           // you can choose to push a single history snapshot on pointerUp
         }
       }
       return; // done for eraser
     }
 
-    setShapes(arr => {
+    setShapes((arr) => {
       const last = arr[arr.length - 1];
       if (!last) return arr;
 
-      if (last.type === 'pencil') {
+      if (last.type === "pencil") {
         const newPoints = last.points.concat([pos.x, pos.y]);
         return [...arr.slice(0, -1), { ...last, points: newPoints }];
       }
-      if (last.type === 'rect') {
-        return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
+      if (last.type === "rect") {
+        return [
+          ...arr.slice(0, -1),
+          { ...last, w: pos.x - last.x, h: pos.y - last.y },
+        ];
       }
-      if (last.type === 'circle') {
+      if (last.type === "circle") {
         const dx = pos.x - last.x;
         const dy = pos.y - last.y;
         const r = Math.hypot(dx, dy);
@@ -295,31 +516,38 @@ function KonvaCanvas({
 
     // Update current shapes *without* pushing a history snapshot (live update)
     setShapesWithHistory(
-      (prev => {
+      ((prev) => {
         const arr = prev; // prev is the current shapes array when using closure style
         const last = arr[arr.length - 1];
         if (!last) return arr;
 
-        if (last.type === 'pencil') {
+        if (last.type === "pencil") {
           const newPoints = (last.points || []).concat([pos.x, pos.y]);
           return [...arr.slice(0, -1), { ...last, points: newPoints }];
         }
-        if (last.type === 'rect') {
-          return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
+        if (last.type === "rect") {
+          return [
+            ...arr.slice(0, -1),
+            { ...last, w: pos.x - last.x, h: pos.y - last.y },
+          ];
         }
-        if (last.type === 'circle') {
+        if (last.type === "circle") {
           const dx = pos.x - last.x;
           const dy = pos.y - last.y;
           const r = Math.hypot(dx, dy);
           return [...arr.slice(0, -1), { ...last, r }];
         }
-        if (last.type === 'line' || last.type === 'arrow' || last.type === 'eraser') {
+        if (
+          last.type === "line" ||
+          last.type === "arrow" ||
+          last.type === "eraser"
+        ) {
           const newPoints = (last.points || []).concat([pos.x, pos.y]);
           return [...arr.slice(0, -1), { ...last, points: newPoints }];
         }
         return arr;
       })(shapes),
-      { pushHistory: false },
+      { pushHistory: false }
     );
   };
 
@@ -331,24 +559,34 @@ function KonvaCanvas({
       startY: number;
       endX: number;
       endY: number;
-    },
+    }
   ): boolean => {
     const minX = Math.min(box.startX, box.endX);
     const maxX = Math.max(box.startX, box.endX);
     const minY = Math.min(box.startY, box.endY);
     const maxY = Math.max(box.startY, box.endY);
 
-    if (shape.type === 'rect') {
+    if (shape.type === "rect") {
       const shapeRight = shape.x + shape.w;
       const shapeBottom = shape.y + shape.h;
-      return shape.x >= minX && shape.y >= minY && shapeRight <= maxX && shapeBottom <= maxY;
-    } else if (shape.type === 'circle') {
+      return (
+        shape.x >= minX &&
+        shape.y >= minY &&
+        shapeRight <= maxX &&
+        shapeBottom <= maxY
+      );
+    } else if (shape.type === "circle") {
       const shapeRight = shape.x + shape.r * 2;
       const shapeBottom = shape.y + shape.r * 2;
       const shapeLeft = shape.x - shape.r * 2;
       const shapeTop = shape.y - shape.r * 2;
-      return shapeLeft >= minX && shapeTop >= minY && shapeRight <= maxX && shapeBottom <= maxY;
-    } else if (shape.type === 'line' || shape.type === 'pencil') {
+      return (
+        shapeLeft >= minX &&
+        shapeTop >= minY &&
+        shapeRight <= maxX &&
+        shapeBottom <= maxY
+      );
+    } else if (shape.type === "line" || shape.type === "pencil") {
       // Check if all points are within the selection box
       const points = (shape as any).points || [];
       for (let i = 0; i < points.length; i += 2) {
@@ -359,12 +597,17 @@ function KonvaCanvas({
         }
       }
       return points.length > 0;
-    } else if (shape.type === 'text' || shape.type === 'image') {
+    } else if (shape.type === "text" || shape.type === "image") {
       const shapeWidth = (shape as any).width || 100;
       const shapeHeight = (shape as any).height || 100;
       const shapeRight = shape.x + shapeWidth;
       const shapeBottom = shape.y + shapeHeight;
-      return shape.x >= minX && shape.y >= minY && shapeRight <= maxX && shapeBottom <= maxY;
+      return (
+        shape.x >= minX &&
+        shape.y >= minY &&
+        shapeRight <= maxX &&
+        shapeBottom <= maxY
+      );
     }
     return false;
   };
@@ -374,15 +617,15 @@ function KonvaCanvas({
     if (isDraggingStage) {
       setIsDraggingStage(false);
       stage.draggable(false);
-      if (activeTool === ACTIONS.SELECT) setStageCursor('grab');
+      if (activeTool === ACTIONS.SELECT) setStageCursor("grab");
       else setStageCursor(cursor);
     }
 
     // Handle marquee selection completion
     if (activeTool === ACTIONS.MARQUEE_SELECT && selectionBox) {
       const selectedShapeIds = shapes
-        .filter(shape => isShapeInSelectionBox(shape, selectionBox))
-        .map(shape => shape.id);
+        .filter((shape) => isShapeInSelectionBox(shape, selectionBox))
+        .map((shape) => shape.id);
       setSelectedIds(selectedShapeIds);
       // Save final selection box for button positioning
       setFinalSelectionBox(selectionBox);
@@ -398,7 +641,7 @@ function KonvaCanvas({
       return;
     }
 
-    console.log('pointer up');
+    console.log("pointer up");
     // If we were drawing something, finalize it and PUSH a history snapshot
     if (isDrawing) {
       // Push the state BEFORE drawing started to history, and set present to current shapes
@@ -421,12 +664,12 @@ function KonvaCanvas({
 
   // move/resize handlers for Rect/Circle
   const onDragMove = (id: string, x: number, y: number) => {
-    setShapes(arr => {
-      const shape = arr.find(s => s.id === id);
+    setShapes((arr) => {
+      const shape = arr.find((s) => s.id === id);
       if (!shape) return arr;
 
       // Only shapes with x and y properties can be dragged
-      if (!('x' in shape) || !('y' in shape)) return arr;
+      if (!("x" in shape) || !("y" in shape)) return arr;
 
       const shapeX = (shape as any).x;
       const shapeY = (shape as any).y;
@@ -438,8 +681,8 @@ function KonvaCanvas({
       let updated;
       // If multiple shapes are selected, move all of them
       if (selectedIds.length > 1 && selectedIds.includes(id)) {
-        updated = arr.map(s => {
-          if (selectedIds.includes(s.id) && 'x' in s && 'y' in s) {
+        updated = arr.map((s) => {
+          if (selectedIds.includes(s.id) && "x" in s && "y" in s) {
             // For the dragged shape, use the new position directly
             if (s.id === id) {
               return { ...s, x, y };
@@ -451,7 +694,7 @@ function KonvaCanvas({
         });
       } else {
         // Single shape drag
-        updated = arr.map(s => (s.id === id ? { ...s, x, y } : s));
+        updated = arr.map((s) => (s.id === id ? { ...s, x, y } : s));
       }
 
       setShapesWithHistory(updated, { pushHistory: true });
@@ -464,8 +707,8 @@ function KonvaCanvas({
     const scaleY = node.scaleY();
     node.scaleX(1);
     node.scaleY(1);
-    setShapes(arr => {
-      const updated = arr.map(s =>
+    setShapes((arr) => {
+      const updated = arr.map((s) =>
         s.id === id
           ? {
               ...s,
@@ -474,7 +717,7 @@ function KonvaCanvas({
               w: Math.max(5, (s as any).w! * scaleX),
               h: Math.max(5, (s as any).h! * scaleY),
             }
-          : s,
+          : s
       );
       setShapesWithHistory(updated, { pushHistory: true });
       return updated;
@@ -494,7 +737,7 @@ function KonvaCanvas({
     setStageCursor(cursor);
     return () => {
       const stage = canvasRef?.current;
-      if (stage) stage.container().style.cursor = '';
+      if (stage) stage.container().style.cursor = "";
     };
   }, [cursor, canvasRef]);
 
@@ -505,7 +748,9 @@ function KonvaCanvas({
     const stage = canvasRef?.current;
     if (!stage) return;
 
-    const nodes = selectedIds.map(id => stage.findOne(`#${id}`)).filter(node => node !== undefined);
+    const nodes = selectedIds
+      .map((id) => stage.findOne(`#${id}`))
+      .filter((node) => node !== undefined);
 
     if (nodes.length > 0) {
       bindTransformer(nodes);
@@ -514,9 +759,9 @@ function KonvaCanvas({
 
   // shape drag handler
   const onShapeDragStart = (e: any, id: any) => {
-    console.log('shape drag started');
+    console.log("shape drag started");
     setIsDraggingShape(true);
-    setStageCursor('grabbing');
+    setStageCursor("grabbing");
     if (!selectedIds.includes(id)) {
       setSelectedIds([id]);
     }
@@ -529,10 +774,14 @@ function KonvaCanvas({
     const node = e.target;
     onDragMove(id, node.x(), node.y());
     // restore stage cursor to grab if SELECT tool and not panning
-    if ((activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT) && !isDraggingStage)
-      setStageCursor('grab');
+    if (
+      (activeTool === ACTIONS.SELECT ||
+        activeTool === ACTIONS.MARQUEE_SELECT) &&
+      !isDraggingStage
+    )
+      setStageCursor("grab");
     else setStageCursor(cursor);
-    console.log('Shape drag ended');
+    console.log("Shape drag ended");
   };
 
   // zoom around pointer: stage = Konva.Stage instance, pointer = container coords
@@ -597,7 +846,10 @@ function KonvaCanvas({
 
   const handleTouchStart = (e: any) => {
     if (e.evt.touches && e.evt.touches.length === 2) {
-      pinchRef.current.lastDist = getDistance(e.evt.touches[0], e.evt.touches[1]);
+      pinchRef.current.lastDist = getDistance(
+        e.evt.touches[0],
+        e.evt.touches[1]
+      );
     }
   };
 
@@ -630,18 +882,18 @@ function KonvaCanvas({
 
   // Helper function to get selected shapes data
   const getSelectedShapes = () => {
-    return shapes.filter(shape => selectedIds.includes(shape.id));
+    return shapes.filter((shape) => selectedIds.includes(shape.id));
   };
 
   // export selected shapes as json
   const exportSelectedShapesJSON = () => {
     const selectedShapes = getSelectedShapes();
     const jsonString = JSON.stringify(selectedShapes, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
+    const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'selected-shapes.json';
+    a.download = "selected-shapes.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -654,7 +906,7 @@ function KonvaCanvas({
     const selectedShapes = getSelectedShapes();
 
     if (selectedShapes.length === 0) {
-      alert('No shapes selected!');
+      alert("No shapes selected!");
       return;
     }
 
@@ -666,16 +918,16 @@ function KonvaCanvas({
 
     let hasValidShape = false;
 
-    selectedShapes.forEach(shape => {
+    selectedShapes.forEach((shape) => {
       // Handle shapes with x, y, width, height (rect, circle, text, image)
-      if ('x' in shape && 'y' in shape) {
+      if ("x" in shape && "y" in shape) {
         const x = (shape as any).x;
         const y = (shape as any).y;
 
         let width = 0;
         let height = 0;
 
-        if (shape.type === 'rect') {
+        if (shape.type === "rect") {
           width = (shape as any).w || 0;
           height = (shape as any).h || 0;
           minX = Math.min(minX, x);
@@ -683,14 +935,14 @@ function KonvaCanvas({
           maxX = Math.max(maxX, x + width);
           maxY = Math.max(maxY, y + height);
           hasValidShape = true;
-        } else if (shape.type === 'circle') {
+        } else if (shape.type === "circle") {
           const radius = (shape as any).r || 0;
           minX = Math.min(minX, x - radius);
           minY = Math.min(minY, y - radius);
           maxX = Math.max(maxX, x + radius);
           maxY = Math.max(maxY, y + radius);
           hasValidShape = true;
-        } else if (shape.type === 'text' || shape.type === 'image') {
+        } else if (shape.type === "text" || shape.type === "image") {
           width = (shape as any).width || 100;
           height = (shape as any).height || 100;
           minX = Math.min(minX, x);
@@ -701,7 +953,11 @@ function KonvaCanvas({
         }
       }
       // Handle line/pencil shapes (they have points array)
-      else if (shape.type === 'line' || shape.type === 'pencil' || shape.type === 'eraser') {
+      else if (
+        shape.type === "line" ||
+        shape.type === "pencil" ||
+        shape.type === "eraser"
+      ) {
         const points = (shape as any).points || [];
         if (points.length >= 2) {
           for (let i = 0; i < points.length; i += 2) {
@@ -719,7 +975,7 @@ function KonvaCanvas({
 
     // Validate bounding box
     if (!hasValidShape || minX === Infinity || minY === Infinity) {
-      alert('Could not calculate bounding box for selected shapes!');
+      alert("Could not calculate bounding box for selected shapes!");
       return;
     }
 
@@ -728,7 +984,7 @@ function KonvaCanvas({
 
     // Ensure minimum size
     if (width <= 0 || height <= 0) {
-      alert('Selected shapes have invalid dimensions!');
+      alert("Selected shapes have invalid dimensions!");
       return;
     }
 
@@ -739,11 +995,11 @@ function KonvaCanvas({
 
     try {
       // Import Konva dynamically
-      const Konva = (await import('konva')).default;
+      const Konva = (await import("konva")).default;
 
       // Create a temporary stage (off-screen)
       const tempStage = new Konva.Stage({
-        container: document.createElement('div'),
+        container: document.createElement("div"),
         width: finalWidth,
         height: finalHeight,
       });
@@ -752,15 +1008,15 @@ function KonvaCanvas({
       tempStage.add(tempLayer);
 
       // Get stroke color from theme
-      const strokeColor = theme === 'dark' ? '#fff' : '#111';
+      const strokeColor = theme === "dark" ? "#fff" : "#111";
 
       // Render each selected shape on the temporary stage
-      selectedShapes.forEach(shape => {
+      selectedShapes.forEach((shape) => {
         // Calculate offset (move shapes so they start from padding, padding)
         const offsetX = -minX + padding;
         const offsetY = -minY + padding;
 
-        if (shape.type === 'rect') {
+        if (shape.type === "rect") {
           const rect = new Konva.Rect({
             x: (shape as any).x + offsetX,
             y: (shape as any).y + offsetY,
@@ -772,7 +1028,7 @@ function KonvaCanvas({
             cornerRadius: 8,
           });
           tempLayer.add(rect);
-        } else if (shape.type === 'circle') {
+        } else if (shape.type === "circle") {
           const circle = new Konva.Circle({
             x: (shape as any).x + offsetX,
             y: (shape as any).y + offsetY,
@@ -782,7 +1038,11 @@ function KonvaCanvas({
             strokeWidth: (shape as any).strokeWidth || 2,
           });
           tempLayer.add(circle);
-        } else if (shape.type === 'line' || shape.type === 'pencil' || shape.type === 'eraser') {
+        } else if (
+          shape.type === "line" ||
+          shape.type === "pencil" ||
+          shape.type === "eraser"
+        ) {
           const points = (shape as any).points || [];
           // Offset all points
           const offsetPoints = [];
@@ -795,24 +1055,24 @@ function KonvaCanvas({
             stroke: (shape as any).stroke || strokeColor,
             strokeWidth: (shape as any).strokeWidth || 2,
             tension: 0,
-            lineCap: 'round',
-            lineJoin: 'round',
+            lineCap: "round",
+            lineJoin: "round",
           });
           tempLayer.add(line);
-        } else if (shape.type === 'text') {
+        } else if (shape.type === "text") {
           const text = new Konva.Text({
             x: (shape as any).x + offsetX,
             y: (shape as any).y + offsetY,
             text: (shape as any).text,
             fontSize: (shape as any).fontSize || 16,
-            fontFamily: (shape as any).fontFamily || 'Arial',
+            fontFamily: (shape as any).fontFamily || "Arial",
             fill: (shape as any).fill || strokeColor,
           });
           tempLayer.add(text);
-        } else if (shape.type === 'image') {
+        } else if (shape.type === "image") {
           // For images, we need to load them first
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             const konvaImage = new Konva.Image({
               x: (shape as any).x + offsetX,
@@ -832,7 +1092,7 @@ function KonvaCanvas({
       tempLayer.draw();
 
       // Wait a bit for images to load (if any)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Export the temporary stage
       const dataURL = tempStage.toDataURL({
@@ -842,24 +1102,24 @@ function KonvaCanvas({
       // Clean up
       tempStage.destroy();
 
-      if (!dataURL || dataURL === 'data:,') {
-        throw new Error('Failed to generate image data');
+      if (!dataURL || dataURL === "data:,") {
+        throw new Error("Failed to generate image data");
       }
 
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = dataURL;
-      a.download = 'selected-shapes.png';
+      a.download = "selected-shapes.png";
       a.click();
     } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export image. Please try again.');
+      console.error("Export error:", error);
+      alert("Failed to export image. Please try again.");
     }
   };
 
   // AI button handler (you can customize this)
   const handleAIClick = () => {
     const selectedShapes = getSelectedShapes();
-    console.log('AI button clicked with shapes:', selectedShapes);
+    console.log("AI button clicked with shapes:", selectedShapes);
     // Add your AI logic here
   };
 
@@ -898,8 +1158,8 @@ function KonvaCanvas({
   // helper: remove a shape by id
   const removeShapeById = (id: string) => {
     setShapesWithHistory(
-      shapes.filter(s => s.id !== id),
-      { pushHistory: true },
+      shapes.filter((s) => s.id !== id),
+      { pushHistory: true }
     );
   };
 
@@ -909,7 +1169,11 @@ function KonvaCanvas({
     if (!stage) return;
 
     const currentScale = stage.scaleX();
-    const newScale = clamp(currentScale + ZOOM_STEP, STAGE_MIN_SCALE, STAGE_MAX_SCALE);
+    const newScale = clamp(
+      currentScale + ZOOM_STEP,
+      STAGE_MIN_SCALE,
+      STAGE_MAX_SCALE
+    );
 
     const pointer = { x: dimensions.width / 2, y: dimensions.height / 2 };
     const scaleBy = newScale / currentScale;
@@ -923,7 +1187,11 @@ function KonvaCanvas({
     if (!stage) return;
 
     const currentScale = stage.scaleX();
-    const newScale = clamp(currentScale - ZOOM_STEP, STAGE_MIN_SCALE, STAGE_MAX_SCALE);
+    const newScale = clamp(
+      currentScale - ZOOM_STEP,
+      STAGE_MIN_SCALE,
+      STAGE_MAX_SCALE
+    );
 
     const pointer = { x: dimensions.width / 2, y: dimensions.height / 2 };
     const scaleBy = newScale / currentScale;
@@ -948,8 +1216,8 @@ function KonvaCanvas({
         onTouchEnd={handleTouchEnd}
       >
         <Layer>
-          {shapes.map(s => {
-            if (s.type === 'rect')
+          {shapes.map((s) => {
+            if (s.type === "rect")
               return (
                 <Rect
                   key={s.id}
@@ -961,21 +1229,32 @@ function KonvaCanvas({
                   fill={s.fill}
                   stroke={strokeColor}
                   cornerRadius={8}
-                  draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
-                  onDragStart={e => onShapeDragStart(e, s.id)}
-                  onDragEnd={e => onShapeDragEnd(e, s.id)}
-                  onClick={e => {
+                  draggable={
+                    activeTool === ACTIONS.SELECT ||
+                    activeTool === ACTIONS.MARQUEE_SELECT
+                  }
+                  onDragStart={(e) => onShapeDragStart(e, s.id)}
+                  onDragEnd={(e) => onShapeDragEnd(e, s.id)}
+                  onClick={(e) => {
                     if (e.evt.shiftKey) {
-                      setSelectedIds(prev => (prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]));
+                      setSelectedIds((prev) =>
+                        prev.includes(s.id)
+                          ? prev.filter((id) => id !== s.id)
+                          : [...prev, s.id]
+                      );
                     } else {
                       setSelectedIds([s.id]);
                     }
                   }}
-                  onTransformEnd={e => onRectTransform(e.target, s.id)}
+                  onTransformEnd={(e) => onRectTransform(e.target, s.id)}
                   onMouseEnter={() => {
                     // hover over shapes: pointer or grab
-                    if ((activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT) && !isDraggingShape) {
-                      setStageCursor('grab');
+                    if (
+                      (activeTool === ACTIONS.SELECT ||
+                        activeTool === ACTIONS.MARQUEE_SELECT) &&
+                      !isDraggingShape
+                    ) {
+                      setStageCursor("grab");
                       setIsDraggingStage(false);
                     }
                   }}
@@ -986,7 +1265,7 @@ function KonvaCanvas({
                   }}
                 />
               );
-            if (s.type === 'circle')
+            if (s.type === "circle")
               return (
                 <Circle
                   key={s.id}
@@ -996,26 +1275,71 @@ function KonvaCanvas({
                   radius={s.r}
                   fill={s.fill}
                   stroke={strokeColor}
-                  draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
-                  onDragStart={e => onShapeDragStart(e, s.id)}
-                  onDragEnd={e => onShapeDragEnd(e, s.id)}
-                  onClick={e => {
+                  draggable={
+                    activeTool === ACTIONS.SELECT ||
+                    activeTool === ACTIONS.MARQUEE_SELECT
+                  }
+                  onDragStart={(e) => onShapeDragStart(e, s.id)}
+                  onDragEnd={(e) => onShapeDragEnd(e, s.id)}
+                  onClick={(e) => {
                     if (e.evt.shiftKey) {
-                      setSelectedIds(prev => (prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]));
+                      setSelectedIds((prev) =>
+                        prev.includes(s.id)
+                          ? prev.filter((id) => id !== s.id)
+                          : [...prev, s.id]
+                      );
                     } else {
                       setSelectedIds([s.id]);
                     }
                   }}
                   onMouseEnter={() => {
                     // hover over shapes: pointer or grab
-                    if ((activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT) && !isDraggingShape)
-                      setStageCursor('grab');
+                    if (
+                      (activeTool === ACTIONS.SELECT ||
+                        activeTool === ACTIONS.MARQUEE_SELECT) &&
+                      !isDraggingShape
+                    )
+                      setStageCursor("grab");
                   }}
                   onMouseLeave={() => {
-                    if (!isDraggingShape && !isDraggingStage) setStageCursor(cursor);
+                    if (!isDraggingShape && !isDraggingStage)
+                      setStageCursor(cursor);
                   }}
                 />
               );
+
+            if (s.type === "text") {
+              const t = s as any;
+              return (
+                <Text
+                  key={s.id}
+                  id={s.id}
+                  x={t.x}
+                  y={t.y}
+                  text={t.text}
+                  fontSize={t.fontSize}
+                  fontFamily={t.fontFamily}
+                  fill={t.fill}
+                  draggable={activeTool === ACTIONS.SELECT}
+                  onDragEnd={(e) => {
+                    onDragMove(s.id, e.target.x(), e.target.y());
+                    // push history on drag end
+                    setShapesWithHistory(
+                      shapes.map((sh) =>
+                        sh.id === s.id
+                          ? { ...sh, x: e.target.x(), y: e.target.y() }
+                          : sh
+                      ),
+                      { pushHistory: true }
+                    );
+                  }}
+                  onDblClick={(e) => {
+                    openTextEditor(s.id, { x: t.x, y: t.y });
+                  }}
+                />
+              );
+            }
+
             return (
               <Line
                 key={s?.id}
@@ -1027,21 +1351,27 @@ function KonvaCanvas({
                 lineCap="round"
                 lineJoin="round"
                 draggable={activeTool === ACTIONS.SELECT}
-                onDragStart={e => onShapeDragStart(e, s.id)}
-                onDragEnd={e => onShapeDragEnd(e, s.id)}
-                onClick={e => {
+                onDragStart={(e) => onShapeDragStart(e, s.id)}
+                onDragEnd={(e) => onShapeDragEnd(e, s.id)}
+                onClick={(e) => {
                   if (e.evt.shiftKey) {
-                    setSelectedIds(prev => (prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]));
+                    setSelectedIds((prev) =>
+                      prev.includes(s.id)
+                        ? prev.filter((id) => id !== s.id)
+                        : [...prev, s.id]
+                    );
                   } else {
                     setSelectedIds([s.id]);
                   }
                 }}
                 onMouseEnter={() => {
                   // hover over shapes: pointer or grab
-                  if (activeTool === ACTIONS.SELECT && !isDraggingShape) setStageCursor('grab');
+                  if (activeTool === ACTIONS.SELECT && !isDraggingShape)
+                    setStageCursor("grab");
                 }}
                 onMouseLeave={() => {
-                  if (!isDraggingShape && !isDraggingStage) setStageCursor(cursor);
+                  if (!isDraggingShape && !isDraggingStage)
+                    setStageCursor(cursor);
                 }}
               />
             );
@@ -1067,44 +1397,63 @@ function KonvaCanvas({
             <Transformer
               ref={trRef}
               rotateEnabled={true}
-              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+              enabledAnchors={[
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right",
+              ]}
             />
           )}
         </Layer>
       </Stage>
 
       {/* button overlays - appears only when selection box */}
-      {selectedIds.length > 0 && activeTool === ACTIONS.MARQUEE_SELECT && getButtonPosition() && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${getButtonPosition()!.x}px`,
-            top: `${getButtonPosition()!.y}px`,
-            transform: 'translateY(-50%)', // Center vertically
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            zIndex: 1000,
-            backgroundColor: 'white',
-            padding: '8px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          }}
-        >
-          {/* ai button */}
-          <button onClick={handleAIClick} className="cursor-pointer mb-2" title="AI Actions">
-            <img src="/icons/ai_icon.svg" alt="AI" width={16} height={16} />
-          </button>
-          {/* export image */}
-          <button onClick={exportSelectedShapesImage} className="cursor-pointer mb-2" title="Export as Image">
-            <Download width={16} height={16} color="black" />
-          </button>
-          {/* export json */}
-          <button onClick={exportSelectedShapesJSON} className="cursor-pointer mb-2" title="Export as JSON">
-            <FileDown width={16} height={16} color="black" />
-          </button>
-        </div>
-      )}
+      {selectedIds.length > 0 &&
+        activeTool === ACTIONS.MARQUEE_SELECT &&
+        getButtonPosition() && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${getButtonPosition()!.x}px`,
+              top: `${getButtonPosition()!.y}px`,
+              transform: "translateY(-50%)", // Center vertically
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              zIndex: 1000,
+              backgroundColor: "white",
+              padding: "8px",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            }}
+          >
+            {/* ai button */}
+            <button
+              onClick={handleAIClick}
+              className="cursor-pointer mb-2"
+              title="AI Actions"
+            >
+              <Image src="/icons/ai_icon.svg" alt="AI" width={16} height={16} />
+            </button>
+            {/* export image */}
+            <button
+              onClick={exportSelectedShapesImage}
+              className="cursor-pointer mb-2"
+              title="Export as Image"
+            >
+              <Download width={16} height={16} color="black" />
+            </button>
+            {/* export json */}
+            <button
+              onClick={exportSelectedShapesJSON}
+              className="cursor-pointer mb-2"
+              title="Export as JSON"
+            >
+              <FileDown width={16} height={16} color="black" />
+            </button>
+          </div>
+        )}
 
       {/* zoom controls */}
       <div className="fixed bottom-5 left-5 z-10 flex bg-gray-100 dark:bg-[#323332] rounded-md p-2 items-center">
@@ -1113,9 +1462,16 @@ function KonvaCanvas({
           disabled={scale >= STAGE_MAX_SCALE - 0.001}
           className="cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4"
         >
-          <Plus width={16} height={16} color={theme === 'dark' ? '#fff' : '#111'} />
+          <Plus
+            width={16}
+            height={16}
+            color={theme === "dark" ? "#fff" : "#111"}
+          />
         </button>
-        <div className="text-sm dark:text-white" style={{ minWidth: 32, textAlign: 'center', fontWeight: 600 }}>
+        <div
+          className="text-sm dark:text-white"
+          style={{ minWidth: 32, textAlign: "center", fontWeight: 600 }}
+        >
           {Math.round(scale * 100)}%
         </div>
         <button
@@ -1123,7 +1479,11 @@ function KonvaCanvas({
           disabled={scale <= STAGE_MIN_SCALE + 0.001}
           className="cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear flex flex-col gap-4"
         >
-          <Minus width={16} height={16} color={theme === 'dark' ? '#fff' : '#111'} />
+          <Minus
+            width={16}
+            height={16}
+            color={theme === "dark" ? "#fff" : "#111"}
+          />
         </button>
       </div>
     </div>

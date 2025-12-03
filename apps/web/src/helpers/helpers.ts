@@ -1,11 +1,11 @@
-import Konva from 'konva';
+import Konva from "konva";
 
 export const buildShapes = (data: any) => {
   return data.map((shape: any) => {
-    if (shape.type === 'rect') {
+    if (shape.type === "rect") {
       return {
         id: shape.uuid,
-        type: 'rect',
+        type: "rect",
         x: shape.data.x,
         y: shape.data.y,
         w: shape.data.w,
@@ -16,10 +16,10 @@ export const buildShapes = (data: any) => {
         points: shape.data.points,
       };
     }
-    if (shape.type === 'circle') {
+    if (shape.type === "circle") {
       return {
         id: shape.uuid,
-        type: 'circle',
+        type: "circle",
         x: shape.data.x,
         y: shape.data.y,
         r: shape.data.r,
@@ -29,20 +29,34 @@ export const buildShapes = (data: any) => {
         points: shape.data.points,
       };
     }
-    if (shape.type === 'line') {
+    if (shape.type === "line") {
       return {
         id: shape.uuid,
-        type: 'line',
+        type: "line",
         points: shape.data.points,
         stroke: shape.data.stroke,
         strokeWidth: shape.data.strokeWidth,
       };
     }
-    if (shape.type === 'pencil') {
+    if (shape.type === "pencil") {
       return {
         id: shape.uuid,
-        type: 'pencil',
+        type: "pencil",
         points: shape.data.points,
+        stroke: shape.data.stroke,
+        strokeWidth: shape.data.strokeWidth,
+      };
+    }
+    if (shape.type === "text") {
+      return {
+        id: shape.uuid,
+        type: "text",
+        text: shape.data.text,
+        x: shape.data.x,
+        y: shape.data.y,
+        fontSize: shape.data.fontSize,
+        fontFamily: shape.data.fontFamily,
+        fill: shape.data.fill,
         stroke: shape.data.stroke,
         strokeWidth: shape.data.strokeWidth,
       };
@@ -50,9 +64,13 @@ export const buildShapes = (data: any) => {
   });
 };
 
-export const getBoardStateSnapshot = async (stageRef: any, bgColor = '#000000', pixelRatio = 2) => {
+export const getBoardStateSnapshot = async (
+  stageRef: any,
+  bgColor = "#000000",
+  pixelRatio = 2
+) => {
   const stage = stageRef.current as any;
-  if (!stage) throw new Error('stageRef missing');
+  if (!stage) throw new Error("stageRef missing");
 
   // create a temporary background rect on a new layer (so we don't disturb UI)
   const bgLayer = new Konva.Layer();
@@ -74,7 +92,7 @@ export const getBoardStateSnapshot = async (stageRef: any, bgColor = '#000000', 
   bgLayer.batchDraw();
 
   // export (you can use toBlob for memory-friendly, toDataURL for simple)
-  const dataURL = stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
+  const dataURL = stage.toDataURL({ pixelRatio, mimeType: "image/png" });
   // cleanup: remove the bg layer so app returns to normal
   bgLayer.destroy();
   stage.batchDraw();
@@ -86,16 +104,16 @@ export const getBoardStateSnapshot = async (stageRef: any, bgColor = '#000000', 
 
 export const exportCompositedImageWithBoth = async (
   stageRef: any,
-  bgColor = '#000000',
-  pixelRatio = 2,
+  bgColor = "#000000",
+  pixelRatio = 2
 ): Promise<{ dataURL: string; blob: Blob }> => {
   const stage = stageRef.current as any;
-  if (!stage) throw new Error('stageRef missing');
+  if (!stage) throw new Error("stageRef missing");
 
   // Step 1: render stage to PNG
   const stageDataUrl = stage.toDataURL({
     pixelRatio,
-    mimeType: 'image/png',
+    mimeType: "image/png",
   });
 
   // Wait for stage image to load in memory
@@ -110,12 +128,12 @@ export const exportCompositedImageWithBoth = async (
   const exportW = stage.width() * pixelRatio;
   const exportH = stage.height() * pixelRatio;
 
-  const off = document.createElement('canvas');
+  const off = document.createElement("canvas");
   off.width = exportW;
   off.height = exportH;
 
-  const ctx = off.getContext('2d')!;
-  if (!ctx) throw new Error('Canvas context missing');
+  const ctx = off.getContext("2d")!;
+  if (!ctx) throw new Error("Canvas context missing");
 
   // Step 3: fill with background
   ctx.fillStyle = bgColor;
@@ -125,10 +143,12 @@ export const exportCompositedImageWithBoth = async (
   ctx.drawImage(img, 0, 0, exportW, exportH);
 
   // Step 5: convert final canvas → dataURL
-  const finalDataURL = off.toDataURL('image/png');
+  const finalDataURL = off.toDataURL("image/png");
 
   // Step 6: convert final canvas → Blob
-  const finalBlob = await new Promise<Blob>(res => off.toBlob(b => res(b!), 'image/png'));
+  const finalBlob = await new Promise<Blob>((res) =>
+    off.toBlob((b) => res(b!), "image/png")
+  );
 
   return {
     dataURL: finalDataURL,
