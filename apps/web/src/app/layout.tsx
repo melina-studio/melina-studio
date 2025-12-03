@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Melina Studio",
   description:
-    "Melina Studio is a platform for creating and sharing your own AI-powered applications.",
+    "Melina Studio is an AI-powered design studio for creating and editing your visual content.",
 };
 
 export default function RootLayout({
