@@ -274,7 +274,12 @@ function KonvaCanvas({
     const shape = shapes.find((s) => s.id === id) as any;
     if (!shape) return;
 
-    const fontSize = (shape?.fontSize ?? 18) * (1 / stage.scaleX()); // scale to screen px if stage scaled
+    // Scale font size to match canvas appearance
+    // When zoomed out, canvas text appears smaller, so textarea should too
+    const baseFontSize = shape?.fontSize ?? 18;
+    const scaledFontSize = baseFontSize * stage.scaleX();
+    // Clamp to reasonable min/max for usability (min 12px, max 72px)
+    const fontSize = Math.max(12, Math.min(72, scaledFontSize));
     const fontFamily = shape?.fontFamily ?? "Arial";
     const fill = shape?.fill ?? "#111";
 
@@ -359,26 +364,25 @@ function KonvaCanvas({
     const finish = (commit = true) => {
       const val = textarea!.value;
 
-      // cleanup listeners
+      // cleanup listeners first
       textarea!.removeEventListener("blur", onBlur);
       textarea!.removeEventListener("keydown", onKeyDown);
       textarea!.removeEventListener("input", autoResize);
-      // remove textarea from dom
-      try {
-        textarea!.remove();
-      } catch (e) {}
-      textAreaRef.current = null;
+
       setEditingTextId(null);
       setIsDrawing(false); // Reset drawing state
+
+      // Hide textarea immediately (but don't remove yet) to prevent blink
+      textarea!.style.opacity = "0";
+      textarea!.style.pointerEvents = "none";
 
       if (!commit) {
         // if we created a brand new empty text, remove it
         if (!val.trim()) {
-          // remove shape
           const filtered = stateBeforeEditing.filter((s) => s.id !== id);
           setShapes(filtered);
+          removeTextarea();
 
-          // Schedule history update for next tick
           setTimeout(() => {
             setShapesWithHistory(filtered, {
               pushHistory: true,
@@ -387,7 +391,8 @@ function KonvaCanvas({
           }, 0);
           return;
         } else {
-          // else just discard changes
+          // just discard changes, remove textarea
+          removeTextarea();
           return;
         }
       }
@@ -396,8 +401,8 @@ function KonvaCanvas({
       if (!val.trim()) {
         const filtered = stateBeforeEditing.filter((s) => s.id !== id);
         setShapes(filtered);
+        removeTextarea();
 
-        // Schedule history update for next tick
         setTimeout(() => {
           setShapesWithHistory(filtered, {
             pushHistory: true,
@@ -410,28 +415,36 @@ function KonvaCanvas({
       // commit value to shapes and push history
       let finalShapes: Shape[] = [];
 
-      // Use functional setState to get the latest shapes
+      // Update shapes state so canvas shows the text
       setShapes((latestShapes) => {
-        // Create updated shapes array with the new text
         const updatedShapes = latestShapes.map((s) =>
           s.id === id ? { ...s, text: val } : s
         );
-
         finalShapes = updatedShapes;
         return updatedShapes;
       });
 
-      // Schedule history update for next tick to avoid setState during render
+      // Remove textarea after a short delay to ensure smooth transition
       setTimeout(() => {
-        // Update parent state with the correct updatedShapes
+        removeTextarea();
+      }, 50);
+
+      // Schedule history update
+      setTimeout(() => {
         setShapesWithHistory(finalShapes, {
           pushHistory: true,
           stateToPush: stateBeforeEditing,
         });
-
-        // Trigger save with the shapes passed directly (avoids stale closure)
         handleSave(finalShapes);
       }, 0);
+    };
+
+    // Helper to remove textarea cleanly
+    const removeTextarea = () => {
+      try {
+        textarea!.remove();
+      } catch (e) {}
+      textAreaRef.current = null;
     };
 
     const onBlur = () => finish(true);
