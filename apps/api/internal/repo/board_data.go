@@ -73,6 +73,14 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		addString("fill", shapeData.Fill)
 		addFloat("strokeWidth", shapeData.StrokeWidth)
 
+	case "text":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addString("text", shapeData.Text)
+		addFloat("fontSize", shapeData.FontSize)
+		addString("fontFamily", shapeData.FontFamily)
+		addString("fill", shapeData.Fill)
+
 	case "pencil":
 		if shapeData.Points != nil {
 			// store slice, not pointer

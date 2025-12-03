@@ -13,6 +13,12 @@ const (
 	Rect   Type = "rect"
 	Circle Type = "circle"
 	Pencil Type = "pencil"
+	Text   Type = "text"
+	Image  Type = "image"
+	Line   Type = "line"
+	Arrow  Type = "arrow"
+	Ellipse Type = "ellipse"
+	Polygon Type = "polygon"
 )
 
 type BoardData struct {
@@ -36,4 +42,7 @@ type Shape struct {
 	Fill        *string    `json:"fill,omitempty"`
 	StrokeWidth *float64   `json:"strokeWidth,omitempty"`
 	Points      *[]float64 `json:"points,omitempty"`
+	Text        *string    `json:"text,omitempty"`
+	FontSize    *float64   `json:"fontSize,omitempty"`
+	FontFamily  *string    `json:"fontFamily,omitempty"`
 }
