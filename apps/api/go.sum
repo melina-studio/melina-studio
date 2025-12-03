@@ -22,8 +22,6 @@ cloud.google.com/go/storage v1.57.2 h1:sVlym3cHGYhrp6XZKkKb+92I1V42ks2qKKpB0CF5M
 cloud.google.com/go/storage v1.57.2/go.mod h1:n5ijg4yiRXXpCu0sJTD6k+eMf7GRrJmPyr9YxLXGHOk=
 cloud.google.com/go/trace v1.11.6 h1:2O2zjPzqPYAHrn3OKl029qlqG6W8ZdYaOWRyr8NgMT4=
 cloud.google.com/go/trace v1.11.6/go.mod h1:GA855OeDEBiBMzcckLPE2kDunIpC72N+Pq8WFieFjnI=
-cloud.google.com/go/vertexai v0.15.0 h1:FRVdUsm07qX9P/19SMDd/RZVwLR9sCm3HN0Ze7wSEpc=
-cloud.google.com/go/vertexai v0.15.0/go.mod h1:YTy1fUT3yH57nClxotpyY29T0MhnNUHIyysef8u69ow=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0 h1:UQUsRi8WTzhZntp5313l+CHIAT95ojUI2lpP/ExlZa4=
