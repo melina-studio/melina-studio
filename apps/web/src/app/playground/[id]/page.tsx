@@ -1,20 +1,29 @@
 // app/playground/[id]/page.tsx
-'use client';
-import { useParams, useRouter } from 'next/navigation';
-import { Download, Loader, Menu, Redo, StepBack, Undo } from 'lucide-react';
-import { KonvaEventObject } from 'konva/lib/Node';
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { useTheme } from 'next-themes';
-import { DotBackground } from '@/components/ui/aceternity/DotBackground';
-import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from '@/lib/konavaTypes';
-import KonvaCanvas from '@/components/custom/KonvaCanvas';
-import { HISTORY_LIMIT } from '@/lib/constants';
-import ToolControls from '@/components/custom/ToolControls';
-import { saveBoardData, getBoardData, clearBoardData } from '@/service/boardService';
-import { useDebouncedCallback } from '@/helpers/debounce';
-import { buildShapes, exportCompositedImageWithBoth, getBoardStateSnapshot } from '@/helpers/helpers';
-import AIController from '@/components/custom/AIController';
-import { getChatHistory } from '@/service/chatService';
+"use client";
+import { useParams, useRouter } from "next/navigation";
+import { Download, Loader, Menu, Redo, StepBack, Undo } from "lucide-react";
+import { KonvaEventObject } from "konva/lib/Node";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { useTheme } from "next-themes";
+import { DotBackground } from "@/components/ui/aceternity/DotBackground";
+import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from "@/lib/konavaTypes";
+import KonvaCanvas from "@/components/custom/KonvaCanvas";
+import { HISTORY_LIMIT } from "@/lib/constants";
+import ToolControls from "@/components/custom/ToolControls";
+import {
+  saveBoardData,
+  getBoardData,
+  clearBoardData,
+} from "@/service/boardService";
+import { useDebouncedCallback } from "@/helpers/debounce";
+import {
+  buildShapes,
+  exportCompositedImageWithBoth,
+  getBoardStateSnapshot,
+} from "@/helpers/helpers";
+import AIController from "@/components/custom/AIController";
+import { getChatHistory } from "@/service/chatService";
+import Image from "next/image";
 
 // types
 type History = {
@@ -26,7 +35,7 @@ type History = {
 type ChatMessage = {
   uuid: string;
   board_uuid: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   created_at: string;
   updated_at: string;
@@ -49,7 +58,7 @@ export default function BoardPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   // stroke color
-  const currentColor = theme === 'dark' ? '#fff' : '#111';
+  const currentColor = theme === "dark" ? "#fff" : "#111";
   const [activeColor, setActiveColor] = useState<string>(currentColor);
 
   // replace your shapes state with history state
@@ -76,9 +85,9 @@ export default function BoardPage() {
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Fetch board data on mount
@@ -97,7 +106,7 @@ export default function BoardPage() {
         });
         setChatHistory(chatHistory?.chats);
       } catch (error) {
-        console.error('Failed fetching board data:', error);
+        console.error("Failed fetching board data:", error);
       }
     };
 
@@ -119,27 +128,30 @@ export default function BoardPage() {
   }
 
   const toolbarToggle = () => {
-    setOpen(v => !v);
+    setOpen((v) => !v);
     resetActionClick();
   };
 
   const exportImage = async () => {
-    const color = theme === 'dark' ? '#111' : '#fff';
+    const color = theme === "dark" ? "#111" : "#fff";
     const { dataURL } = await exportCompositedImageWithBoth(stageRef, color);
     if (dataURL) {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = dataURL;
-      a.download = 'image.png';
+      a.download = "image.png";
       a.click();
     }
   };
 
-  const setShapesWithHistory = (newShapes: Shape[], opts?: { pushHistory?: boolean; stateToPush?: Shape[] }) => {
+  const setShapesWithHistory = (
+    newShapes: Shape[],
+    opts?: { pushHistory?: boolean; stateToPush?: Shape[] }
+  ) => {
     // default: pushHistory false (for live updates)
     const pushHistory = opts?.pushHistory ?? false;
     const stateToPush = opts?.stateToPush;
 
-    setHistory(cur => {
+    setHistory((cur) => {
       if (!pushHistory) {
         // update present only (no history change)
         return { ...cur, present: newShapes };
@@ -153,7 +165,9 @@ export default function BoardPage() {
           ? []
           : cloneShapes(cur.present);
 
-      const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
+      const nextPast = [...cur.past, stateToPushToHistory].slice(
+        -HISTORY_LIMIT
+      );
       return {
         past: nextPast,
         present: cloneShapes(newShapes),
@@ -163,11 +177,14 @@ export default function BoardPage() {
   };
 
   const undo = () => {
-    setHistory(cur => {
+    setHistory((cur) => {
       if (cur.past.length === 0) return cur;
       const previous = cur.past[cur.past.length - 1];
       const newPast = cur.past.slice(0, -1);
-      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(0, HISTORY_LIMIT);
+      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(
+        0,
+        HISTORY_LIMIT
+      );
       return {
         past: newPast,
         present: cloneShapes(previous),
@@ -177,11 +194,13 @@ export default function BoardPage() {
   };
 
   const redo = () => {
-    setHistory(cur => {
+    setHistory((cur) => {
       if (cur.future.length === 0) return cur;
       const nextState = cur.future[0];
       const newFuture = cur.future.slice(1);
-      const newPast = [...cur.past, cloneShapes(cur.present)].slice(-HISTORY_LIMIT);
+      const newPast = [...cur.past, cloneShapes(cur.present)].slice(
+        -HISTORY_LIMIT
+      );
       return {
         past: newPast,
         present: cloneShapes(nextState),
@@ -194,35 +213,35 @@ export default function BoardPage() {
     const boardState = JSON.stringify(presentShapes, null, 2);
     console.log(boardState);
     // download a json file
-    const data = new Blob([boardState], { type: 'application/json' });
+    const data = new Blob([boardState], { type: "application/json" });
     const url = URL.createObjectURL(data);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = 'boardState.json';
+    link.download = "boardState.json";
     link.click();
   };
 
   // Core save function that performs the actual save
   const performSave = useCallback(async () => {
     try {
-      const color = theme === 'dark' ? '#111' : '#fff';
+      const color = theme === "dark" ? "#111" : "#fff";
       const { blob } = await exportCompositedImageWithBoth(stageRef, color);
 
       // Prepare FormData
       const fd = new FormData();
       if (presentShapes.length > 0) {
-        fd.append('boardData', JSON.stringify(presentShapes));
-        fd.append('image', blob, `board-${id}.png`);
+        fd.append("boardData", JSON.stringify(presentShapes));
+        fd.append("image", blob, `board-${id}.png`);
 
         await saveBoardData(id, fd);
 
-        console.log('Board saved successfully');
+        console.log("Board saved successfully");
       }
     } catch (error) {
-      console.error('Save failed:', error);
+      console.error("Save failed:", error);
       throw error;
     }
-  }, [presentShapes, id]);
+  }, [presentShapes, id, theme]);
 
   // Create debounced save using the custom hook
   const debouncedSave = useDebouncedCallback(performSave, 2000, [performSave]);
@@ -266,7 +285,10 @@ export default function BoardPage() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer" onClick={handleClearBoard}>
+          <div
+            className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer"
+            onClick={handleClearBoard}
+          >
             Clear Board
           </div>
           <div
@@ -307,9 +329,14 @@ export default function BoardPage() {
         {/* ai controller toggle icon */}
         <div
           className="bg-gray-200 shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
-          onClick={() => setShowAiController(v => !v)}
+          onClick={() => setShowAiController((v) => !v)}
         >
-          <img src="/icons/ai_controller.png" alt="AIController" className="w-5 h-5" />
+          <Image
+            src="/icons/ai_controller.png"
+            alt="AIController"
+            width={20}
+            height={20}
+          />
         </div>
         {/* ai controller */}
         {showAiController && (
