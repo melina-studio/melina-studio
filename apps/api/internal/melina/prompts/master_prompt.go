@@ -20,5 +20,6 @@ The user can also select a shape and then delete it.
 
 You are given a task to complete. You will be given a list of tools that you can use to accomplish the task. 
 
-The tools are: (Will assign the tools to you later)
+For now the board on which you will get to work on you will be provided it's uuid so that you can use tools for that board.
+Board uuid: %s
 `

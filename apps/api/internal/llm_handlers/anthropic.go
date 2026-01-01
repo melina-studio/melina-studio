@@ -88,7 +88,7 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 	for i, m := range messages {
 		msgs[i] = map[string]interface{}{
 			"role":    m.Role,
-			"content": m.Content, // string is fine for simple text
+			"content": m.Content, // string is fine for simple text, or array for content blocks
 		}
 	}
 
@@ -324,6 +324,7 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			// find handler
 			handler, ok := getToolHandler(toolUse.Name)
 			if !ok {
+				fmt.Printf("UNKNOWN TOOL: %#v\n", toolUse.Name)
 				// unknown tool -> return error-style tool_result
 				toolResultsContent = append(toolResultsContent, map[string]interface{}{
 					"type":        "tool_result",
@@ -337,6 +338,7 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			// run handler (with context)
 			result, herr := handler(ctx, input)
 			if herr != nil {
+				fmt.Printf("ERROR: %#v\n", herr)
 				toolResultsContent = append(toolResultsContent, map[string]interface{}{
 					"type":        "tool_result",
 					"tool_use_id": toolUse.ID,
@@ -346,20 +348,46 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 				continue
 			}
 
-			// convert result to string representation
-			var resultStr string
-			switch v := result.(type) {
-			case string:
-				resultStr = v
-			default:
-				b, _ := json.Marshal(v)
-				resultStr = string(b)
+			// Check if result contains image content (for getBoardData tool)
+			// Anthropic's tool_result content can be either a string OR an array of content blocks
+			// For images, we use an array of content blocks
+			var content interface{}
+			
+			if resultMap, ok := result.(map[string]interface{}); ok {
+				if hasImage, _ := resultMap["_imageContent"].(bool); hasImage {
+					// Extract image data
+					imageBase64, _ := resultMap["image"].(string)
+					boardId, _ := resultMap["boardId"].(string)
+					
+					// Format as array of content blocks (text + image) directly in tool_result content
+					content = []map[string]interface{}{
+						{
+							"type": "text",
+							"text": fmt.Sprintf("Board image for boardId: %s", boardId),
+						},
+						{
+							"type": "image",
+							"source": map[string]interface{}{
+								"type":       "base64",
+								"media_type": "image/png",
+								"data":       imageBase64,
+							},
+						},
+					}
+				} else {
+					// Regular result - convert to string
+					b, _ := json.Marshal(resultMap)
+					content = string(b)
+				}
+			} else {
+				// Regular string result
+				content = fmt.Sprintf("%v", result)
 			}
 
 			toolResultsContent = append(toolResultsContent, map[string]interface{}{
 				"type":        "tool_result",
 				"tool_use_id": toolUse.ID,
-				"content":     resultStr,
+				"content":     content,
 			})
 		}
 
