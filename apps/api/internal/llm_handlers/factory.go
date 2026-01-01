@@ -33,6 +33,7 @@ func New(cfg Config) (Client, error) {
 		return NewLangChainClient(LangChainConfig{
 			Model:  cfg.Model,
 			APIKey: cfg.APIKey,
+			Tools:  cfg.Tools,
 		})
 
 	case ProviderLangChainGroq:
@@ -40,6 +41,7 @@ func New(cfg Config) (Client, error) {
 			Model:   cfg.Model,
 			BaseURL: cfg.BaseURL, // e.g. https://api.groq.com/openai/v1
 			APIKey:  cfg.APIKey,
+			Tools:   cfg.Tools,
 		})
 
 	case ProviderVertexAnthropic:
