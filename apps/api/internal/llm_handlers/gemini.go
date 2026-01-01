@@ -316,86 +316,28 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 			return gr, nil
 		}
 
-		// Build function results
+		// Convert FunctionCalls to common ToolCall format
+		toolCalls := make([]ToolCall, len(gr.FunctionCalls))
+		for i, fc := range gr.FunctionCalls {
+			toolCalls[i] = ToolCall{
+				ID:       "", // Gemini doesn't use IDs
+				Name:     fc.Name,
+				Input:    fc.Arguments,
+				Provider: "gemini",
+			}
+		}
+
+		// Execute tools using common executor
+		execResults := ExecuteTools(ctx, toolCalls)
+
+		// Format results for Gemini
 		functionResults := []map[string]interface{}{}
 		var imageContentBlocks []map[string]interface{} // Collect images to add separately
 		
-		for _, fc := range gr.FunctionCalls {
-			fmt.Printf("[gemini] executing tool: %s with args=%#v\n", fc.Name, fc.Arguments)
-
-			// Find handler
-			handler, ok := getToolHandler(fc.Name)
-			if !ok {
-				fmt.Printf("UNKNOWN TOOL: %#v\n", fc.Name)
-				resultJSON, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("unknown tool: %s", fc.Name)})
-				functionResults = append(functionResults, map[string]interface{}{
-					"type": "function_response",
-					"function": map[string]interface{}{
-						"name":     fc.Name,
-						"response": string(resultJSON),
-					},
-				})
-				continue
-			}
-
-			// Execute handler
-			result, herr := handler(ctx, fc.Arguments)
-			if herr != nil {
-				fmt.Printf("ERROR: %#v\n", herr)
-				resultJSON, _ := json.Marshal(map[string]string{"error": herr.Error()})
-				functionResults = append(functionResults, map[string]interface{}{
-					"type": "function_response",
-					"function": map[string]interface{}{
-						"name":     fc.Name,
-						"response": string(resultJSON),
-					},
-				})
-				continue
-			}
-
-			// Format result
-			var resultJSON []byte
-			if resultMap, ok := result.(map[string]interface{}); ok {
-				// Check if result contains image content
-				if hasImage, _ := resultMap["_imageContent"].(bool); hasImage {
-					// Extract image data
-					imageBase64, _ := resultMap["image"].(string)
-					boardId, _ := resultMap["boardId"].(string)
-					
-					// Return metadata in function response
-					metadata := map[string]interface{}{
-						"boardId": boardId,
-						"format":  resultMap["format"],
-						"message": fmt.Sprintf("Board image retrieved for boardId: %s", boardId),
-					}
-					resultJSON, _ = json.Marshal(metadata)
-					
-					// Store image as content block to add separately
-					imageContentBlocks = append(imageContentBlocks, map[string]interface{}{
-						"type": "text",
-						"text": fmt.Sprintf("Board image for boardId: %s", boardId),
-					}, map[string]interface{}{
-						"type": "image",
-						"source": map[string]interface{}{
-							"type":       "base64",
-							"media_type": "image/png",
-							"data":       imageBase64,
-						},
-					})
-				} else {
-					resultJSON, _ = json.Marshal(resultMap)
-				}
-			} else {
-				resultJSON, _ = json.Marshal(result)
-			}
-
-			functionResults = append(functionResults, map[string]interface{}{
-				"type": "function_response",
-				"function": map[string]interface{}{
-					"name":     fc.Name,
-					"response": string(resultJSON),
-				},
-			})
+		for _, execResult := range execResults {
+			funcResp, imgBlocks := FormatGeminiToolResult(execResult)
+			functionResults = append(functionResults, funcResp)
+			imageContentBlocks = append(imageContentBlocks, imgBlocks...)
 		}
 
 		// Append assistant message with function calls

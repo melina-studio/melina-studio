@@ -308,87 +308,24 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			return cr, nil
 		}
 
-		// Build tool_results array
-		toolResultsContent := make([]map[string]interface{}, 0, len(cr.ToolUses))
-		for _, toolUse := range cr.ToolUses {
-			fmt.Printf("[anthropic] executing tool: %s (id=%s) with input=%#v\n", toolUse.Name, toolUse.ID, toolUse.Input)
-
-			// ensure input is map[string]interface{}
-			input := make(map[string]interface{})
-			if toolUse.Input != nil {
-				for k, v := range toolUse.Input {
-					input[k] = v
-				}
+		// Convert ToolUses to common ToolCall format
+		toolCalls := make([]ToolCall, len(cr.ToolUses))
+		for i, toolUse := range cr.ToolUses {
+			toolCalls[i] = ToolCall{
+				ID:       toolUse.ID,
+				Name:     toolUse.Name,
+				Input:    toolUse.Input,
+				Provider: "anthropic",
 			}
+		}
 
-			// find handler
-			handler, ok := getToolHandler(toolUse.Name)
-			if !ok {
-				fmt.Printf("UNKNOWN TOOL: %#v\n", toolUse.Name)
-				// unknown tool -> return error-style tool_result
-				toolResultsContent = append(toolResultsContent, map[string]interface{}{
-					"type":        "tool_result",
-					"tool_use_id": toolUse.ID,
-					"content":     fmt.Sprintf("Error: unknown tool: %s", toolUse.Name),
-					"is_error":    true,
-				})
-				continue
-			}
+		// Execute tools using common executor
+		execResults := ExecuteTools(ctx, toolCalls)
 
-			// run handler (with context)
-			result, herr := handler(ctx, input)
-			if herr != nil {
-				fmt.Printf("ERROR: %#v\n", herr)
-				toolResultsContent = append(toolResultsContent, map[string]interface{}{
-					"type":        "tool_result",
-					"tool_use_id": toolUse.ID,
-					"content":     fmt.Sprintf("Error: %v", herr),
-					"is_error":    true,
-				})
-				continue
-			}
-
-			// Check if result contains image content (for getBoardData tool)
-			// Anthropic's tool_result content can be either a string OR an array of content blocks
-			// For images, we use an array of content blocks
-			var content interface{}
-			
-			if resultMap, ok := result.(map[string]interface{}); ok {
-				if hasImage, _ := resultMap["_imageContent"].(bool); hasImage {
-					// Extract image data
-					imageBase64, _ := resultMap["image"].(string)
-					boardId, _ := resultMap["boardId"].(string)
-					
-					// Format as array of content blocks (text + image) directly in tool_result content
-					content = []map[string]interface{}{
-						{
-							"type": "text",
-							"text": fmt.Sprintf("Board image for boardId: %s", boardId),
-						},
-						{
-							"type": "image",
-							"source": map[string]interface{}{
-								"type":       "base64",
-								"media_type": "image/png",
-								"data":       imageBase64,
-							},
-						},
-					}
-				} else {
-					// Regular result - convert to string
-					b, _ := json.Marshal(resultMap)
-					content = string(b)
-				}
-			} else {
-				// Regular string result
-				content = fmt.Sprintf("%v", result)
-			}
-
-			toolResultsContent = append(toolResultsContent, map[string]interface{}{
-				"type":        "tool_result",
-				"tool_use_id": toolUse.ID,
-				"content":     content,
-			})
+		// Format results for Anthropic
+		toolResultsContent := make([]map[string]interface{}, 0, len(execResults))
+		for _, execResult := range execResults {
+			toolResultsContent = append(toolResultsContent, FormatAnthropicToolResult(execResult))
 		}
 
 		// Append assistant message (what was returned earlier)
