@@ -48,7 +48,7 @@ func New(cfg Config) (Client, error) {
 	case ProviderGemini:
 		// Create background context for client initialization
 		ctx := context.Background()
-		client, err := NewGenaiGeminiClient(ctx)
+		client, err := NewGenaiGeminiClient(ctx, cfg.Tools)
 		if err != nil {
 			return nil, err
 		}

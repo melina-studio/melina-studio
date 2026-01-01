@@ -12,6 +12,19 @@ import (
 	"google.golang.org/genai"
 )
 
+// GeminiResponse contains the parsed response from Gemini
+type GeminiResponse struct {
+	TextContent  []string
+	FunctionCalls []FunctionCall
+	RawResponse   *genai.GenerateContentResponse
+}
+
+// FunctionCall represents a function call from Gemini
+type FunctionCall struct {
+	Name      string
+	Arguments map[string]interface{}
+}
+
 // GenaiGeminiClient implements Client for Gemini via Google AI API
 type GenaiGeminiClient struct {
 	client  *genai.Client
@@ -19,9 +32,10 @@ type GenaiGeminiClient struct {
 
 	Temperature float32
 	MaxTokens   int32
+	Tools       []map[string]interface{}
 }
 
-func NewGenaiGeminiClient(ctx context.Context) (*GenaiGeminiClient, error) {
+func NewGenaiGeminiClient(ctx context.Context, tools []map[string]interface{}) (*GenaiGeminiClient, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	modelID := os.Getenv("GEMINI_MODEL_ID")
 
@@ -43,6 +57,7 @@ func NewGenaiGeminiClient(ctx context.Context) (*GenaiGeminiClient, error) {
 		modelID:     modelID,
 		Temperature: 0.2,
 		MaxTokens:   1024,
+		Tools:       tools,
 	}, nil
 }
 
@@ -73,7 +88,7 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 			roleOut = "model"
 		}
 
-		// Handle content - can be string or []map[string]interface{} (for images)
+		// Handle content - can be string or []map[string]interface{} (for images, function calls, etc.)
 		parts := []*genai.Part{}
 		
 		switch c := m.Content.(type) {
@@ -82,7 +97,7 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 			parts = append(parts, &genai.Part{Text: c})
 			
 		case []map[string]interface{}:
-			// Multi-part content (text + images)
+			// Multi-part content (text + images + function calls/responses)
 			for _, block := range c {
 				blockType, _ := block["type"].(string)
 				
@@ -109,6 +124,40 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 							})
 						}
 					}
+					
+				case "function_call":
+					// Handle function call from assistant (model role)
+					if fn, ok := block["function"].(map[string]interface{}); ok {
+						name, _ := fn["name"].(string)
+						args, _ := fn["arguments"].(map[string]interface{})
+						
+						parts = append(parts, &genai.Part{
+							FunctionCall: &genai.FunctionCall{
+								Name: name,
+								Args: args,
+							},
+						})
+					}
+					
+				case "function_response":
+					// Handle function response from user
+					if fn, ok := block["function"].(map[string]interface{}); ok {
+						name, _ := fn["name"].(string)
+						responseStr, _ := fn["response"].(string)
+						
+						// Parse response string to map
+						var responseMap map[string]interface{}
+						if err := json.Unmarshal([]byte(responseStr), &responseMap); err != nil {
+							responseMap = make(map[string]interface{})
+						}
+						
+						parts = append(parts, &genai.Part{
+							FunctionResponse: &genai.FunctionResponse{
+								Name:     name,
+								Response: responseMap,
+							},
+						})
+					}
 				}
 			}
 			
@@ -130,52 +179,281 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 	return systemText, contents, nil
 }
 
-func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	_, contents, err := convertMessagesToGenaiContent(messages)
-	if err != nil {
-		return "", fmt.Errorf("convert messages: %w", err)
+// convertToolsToGenaiTools converts tool definitions from map format to genai.Tool format
+func convertToolsToGenaiTools(tools []map[string]interface{}) []*genai.Tool {
+	if len(tools) == 0 {
+		return nil
 	}
+
+	genaiTools := make([]*genai.Tool, 0, len(tools))
+	for _, toolMap := range tools {
+		// Handle OpenAI-style format: {"type": "function", "function": {...}}
+		if toolType, ok := toolMap["type"].(string); ok && toolType == "function" {
+			if fn, ok := toolMap["function"].(map[string]interface{}); ok {
+				name, _ := fn["name"].(string)
+				description, _ := fn["description"].(string)
+				parameters, _ := fn["parameters"].(map[string]interface{})
+
+				// Convert parameters map to genai.Schema
+				// The Schema expects a JSON schema structure
+				paramsJSON, err := json.Marshal(parameters)
+				if err != nil {
+					continue // Skip invalid tool
+				}
+
+				// Parse JSON schema into genai.Schema
+				var schema genai.Schema
+				if err := json.Unmarshal(paramsJSON, &schema); err != nil {
+					continue // Skip if schema parsing fails
+				}
+
+				genaiTool := &genai.Tool{
+					FunctionDeclarations: []*genai.FunctionDeclaration{
+						{
+							Name:        name,
+							Description: description,
+							Parameters:  &schema,
+						},
+					},
+				}
+				genaiTools = append(genaiTools, genaiTool)
+			}
+		}
+	}
+
+	return genaiTools
+}
+
+// callGeminiWithMessages calls Gemini API and returns parsed response
+func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message) (*GeminiResponse, error) {
+	systemText, contents, err := convertMessagesToGenaiContent(messages)
+	if err != nil {
+		return nil, fmt.Errorf("convert messages: %w", err)
+	}
+
+	// Convert tools to genai.Tool format
+	genaiTools := convertToolsToGenaiTools(v.Tools)
 
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
 		Temperature:     &v.Temperature,
 		MaxOutputTokens: v.MaxTokens,
+		Tools:           genaiTools,
 	}
 
 	// Add system instruction if exists
-	if systemMessage != "" {
-		systemPart := &genai.Part{Text: systemMessage}
+	if systemMessage != "" || systemText != "" {
+		sysMsg := systemMessage
+		if sysMsg == "" {
+			sysMsg = systemText
+		}
+		systemPart := &genai.Part{Text: sysMsg}
 		sysContent := &genai.Content{
 			Parts: []*genai.Part{systemPart},
 		}
 		genConfig.SystemInstruction = sysContent
 	}
 
-	// Call GenerateContent with the model ID, contents, and config
+	// Call GenerateContent
 	resp, err := v.client.Models.GenerateContent(ctx, v.modelID, contents, genConfig)
 	if err != nil {
-		return "", fmt.Errorf("gemini GenerateContent: %w", err)
+		return nil, fmt.Errorf("gemini GenerateContent: %w", err)
 	}
 
 	if resp == nil || len(resp.Candidates) == 0 {
-		return "", fmt.Errorf("gemini returned no candidates")
+		return nil, fmt.Errorf("gemini returned no candidates")
 	}
 
-	// Collect output text from parts
-	var sb strings.Builder
-	for _, cand := range resp.Candidates {
-		if cand.Content != nil {
-			for _, part := range cand.Content.Parts {
-				// many SDKs store text as a field (string)
-				if part.Text != "" {
-					sb.WriteString(part.Text)
-				}
+	// Parse response
+	gr := &GeminiResponse{
+		RawResponse: resp,
+	}
+
+	cand := resp.Candidates[0]
+	if cand.Content == nil {
+		return gr, nil
+	}
+
+	// Extract text and function calls from parts
+	for _, part := range cand.Content.Parts {
+		if part.Text != "" {
+			gr.TextContent = append(gr.TextContent, part.Text)
+		}
+		if part.FunctionCall != nil {
+			// Extract function arguments (already a map)
+			args := make(map[string]interface{})
+			if part.FunctionCall.Args != nil {
+				args = part.FunctionCall.Args
 			}
+
+			gr.FunctionCalls = append(gr.FunctionCalls, FunctionCall{
+				Name:      part.FunctionCall.Name,
+				Arguments: args,
+			})
 		}
 	}
 
-	return sb.String(), nil
+	return gr, nil
+}
+
+// ChatWithTools handles tool execution loop similar to Anthropic's implementation
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message) (*GeminiResponse, error) {
+	const maxIterations = 8
+
+	workingMessages := make([]Message, 0, len(messages)+6)
+	workingMessages = append(workingMessages, messages...)
+
+	var lastResp *GeminiResponse
+	for iter := 0; iter < maxIterations; iter++ {
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages)
+		if err != nil {
+			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
+		}
+		lastResp = gr
+
+		// If no function calls, we're done
+		if len(gr.FunctionCalls) == 0 {
+			return gr, nil
+		}
+
+		// Build function results
+		functionResults := []map[string]interface{}{}
+		var imageContentBlocks []map[string]interface{} // Collect images to add separately
+		
+		for _, fc := range gr.FunctionCalls {
+			fmt.Printf("[gemini] executing tool: %s with args=%#v\n", fc.Name, fc.Arguments)
+
+			// Find handler
+			handler, ok := getToolHandler(fc.Name)
+			if !ok {
+				fmt.Printf("UNKNOWN TOOL: %#v\n", fc.Name)
+				resultJSON, _ := json.Marshal(map[string]string{"error": fmt.Sprintf("unknown tool: %s", fc.Name)})
+				functionResults = append(functionResults, map[string]interface{}{
+					"type": "function_response",
+					"function": map[string]interface{}{
+						"name":     fc.Name,
+						"response": string(resultJSON),
+					},
+				})
+				continue
+			}
+
+			// Execute handler
+			result, herr := handler(ctx, fc.Arguments)
+			if herr != nil {
+				fmt.Printf("ERROR: %#v\n", herr)
+				resultJSON, _ := json.Marshal(map[string]string{"error": herr.Error()})
+				functionResults = append(functionResults, map[string]interface{}{
+					"type": "function_response",
+					"function": map[string]interface{}{
+						"name":     fc.Name,
+						"response": string(resultJSON),
+					},
+				})
+				continue
+			}
+
+			// Format result
+			var resultJSON []byte
+			if resultMap, ok := result.(map[string]interface{}); ok {
+				// Check if result contains image content
+				if hasImage, _ := resultMap["_imageContent"].(bool); hasImage {
+					// Extract image data
+					imageBase64, _ := resultMap["image"].(string)
+					boardId, _ := resultMap["boardId"].(string)
+					
+					// Return metadata in function response
+					metadata := map[string]interface{}{
+						"boardId": boardId,
+						"format":  resultMap["format"],
+						"message": fmt.Sprintf("Board image retrieved for boardId: %s", boardId),
+					}
+					resultJSON, _ = json.Marshal(metadata)
+					
+					// Store image as content block to add separately
+					imageContentBlocks = append(imageContentBlocks, map[string]interface{}{
+						"type": "text",
+						"text": fmt.Sprintf("Board image for boardId: %s", boardId),
+					}, map[string]interface{}{
+						"type": "image",
+						"source": map[string]interface{}{
+							"type":       "base64",
+							"media_type": "image/png",
+							"data":       imageBase64,
+						},
+					})
+				} else {
+					resultJSON, _ = json.Marshal(resultMap)
+				}
+			} else {
+				resultJSON, _ = json.Marshal(result)
+			}
+
+			functionResults = append(functionResults, map[string]interface{}{
+				"type": "function_response",
+				"function": map[string]interface{}{
+					"name":     fc.Name,
+					"response": string(resultJSON),
+				},
+			})
+		}
+
+		// Append assistant message with function calls
+		assistantParts := []map[string]interface{}{}
+		for _, text := range gr.TextContent {
+			assistantParts = append(assistantParts, map[string]interface{}{
+				"type": "text",
+				"text": text,
+			})
+		}
+		for _, fc := range gr.FunctionCalls {
+			assistantParts = append(assistantParts, map[string]interface{}{
+				"type": "function_call",
+				"function": map[string]interface{}{
+					"name":      fc.Name,
+					"arguments": fc.Arguments,
+				},
+			})
+		}
+		workingMessages = append(workingMessages, Message{
+			Role:    "assistant",
+			Content: assistantParts,
+		})
+
+		// Append user message with function results
+		workingMessages = append(workingMessages, Message{
+			Role:    "user",
+			Content: functionResults,
+		})
+		
+		// If we have image content blocks, add them as a separate user message
+		// This allows Gemini to actually "see" the image (function responses are JSON-only)
+		if len(imageContentBlocks) > 0 {
+			workingMessages = append(workingMessages, Message{
+				Role:    "user",
+				Content: imageContentBlocks,
+			})
+		}
+
+		// Small throttle
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return lastResp, fmt.Errorf("max iterations reached (%d) while resolving tools", maxIterations)
+}
+
+func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.TextContent) == 0 {
+		return "", fmt.Errorf("gemini returned no text content")
+	}
+
+	return strings.Join(resp.TextContent, "\n\n"), nil
 }
