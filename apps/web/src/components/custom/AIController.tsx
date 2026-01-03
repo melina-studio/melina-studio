@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
 import TypingLoader from "./TypingLoader";
-import { sendMessage } from "@/service/chatService";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
+import { useWebsocket } from "@/hooks/useWebsocket";
 
 type Message = {
   uuid: string;
@@ -19,6 +19,18 @@ type AiMessageResponse = {
   message: string;
 };
 
+type ChatResponse = {
+  type: string;
+  data: {
+    board_id: string;
+    message: string;
+    human_message_id?: string;
+    ai_message_id?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
+};
+
 function AIController({ chatHistory }: { chatHistory: Message[] }) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -26,6 +38,11 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const params = useParams();
   const boardId = params?.id as string;
+
+  const aiMessageIdRef = useRef<string | null>(null);
+  const humanMessageIdRef = useRef<string | null>(null);
+
+  const { sendMessage, subscribe } = useWebsocket();
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -39,39 +56,134 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
       textareaRef.current.style.height = "auto";
     }
 
-    // Add user message
+    // Add user message with temporary UUID
     const humanMessageId = uuidv4();
+    humanMessageIdRef.current = humanMessageId;
     setMessages((msgs) => [
       ...msgs,
       { uuid: humanMessageId, role: "user", content: text },
     ]);
-    setIsMessageLoading(true);
+    // setIsMessageLoading(true);
     try {
-      const response: AiMessageResponse = await sendMessage(boardId, text);
-      // update the human message with the new human message id
-      setMessages((msgs) =>
-        msgs.map((msg) =>
-          msg.uuid === humanMessageId
-            ? { ...msg, uuid: response.human_message_id }
-            : msg
-        )
-      );
-      // add the new ai message to the messages array
-      setMessages((msgs) => [
-        ...msgs,
-        {
-          uuid: response.ai_message_id,
-          role: "assistant",
-          content: response.message,
+      sendMessage({
+        type: "chat_message",
+        data: {
+          board_id: boardId,
+          message: text,
         },
-      ]);
+      });
     } catch (error) {
       console.log(error);
-      setIsMessageLoading(false);
+      // setIsMessageLoading(false);
+      humanMessageIdRef.current = null;
       return;
     }
-    setIsMessageLoading(false);
   };
+
+  useEffect(() => {
+    const unsubscribeChatStart = subscribe("chat_starting", (data) => {
+      setIsMessageLoading(true);
+      // Create temporary AI message ID, but don't create the message yet
+      // Wait for first chunk to arrive before creating the message bubble
+      const aiId = crypto.randomUUID();
+      aiMessageIdRef.current = aiId;
+    });
+
+    const unsubscribeChatCompleted = subscribe(
+      "chat_completed",
+      (data: ChatResponse) => {
+        setIsMessageLoading(false);
+
+        const { ai_message_id, human_message_id } = data.data;
+
+        if (ai_message_id && human_message_id) {
+          // Update both message UUIDs with the actual IDs from backend
+          setMessages((msgs) =>
+            msgs.map((msg) => {
+              // Update human message UUID
+              if (
+                msg.uuid === humanMessageIdRef.current &&
+                msg.role === "user"
+              ) {
+                humanMessageIdRef.current = null;
+                return { ...msg, uuid: human_message_id };
+              }
+              // Update AI message UUID
+              if (
+                msg.uuid === aiMessageIdRef.current &&
+                msg.role === "assistant"
+              ) {
+                aiMessageIdRef.current = null;
+                return { ...msg, uuid: ai_message_id };
+              }
+              return msg;
+            })
+          );
+        }
+
+        aiMessageIdRef.current = null;
+        humanMessageIdRef.current = null;
+      }
+    );
+
+    const unsubscribeChatResponse = subscribe(
+      "chat_response",
+      (data: ChatResponse) => {
+        const { message } = data.data;
+
+        const currentAiId = aiMessageIdRef.current;
+        if (!currentAiId) return;
+
+        setMessages((msgs) => {
+          // Check if the AI message already exists
+          const existingMessage = msgs.find(
+            (msg) => msg.uuid === currentAiId && msg.role === "assistant"
+          );
+
+          if (existingMessage) {
+            // Message exists, append new chunk to existing content
+            return msgs.map((msg) => {
+              if (msg.uuid === currentAiId && msg.role === "assistant") {
+                return { ...msg, content: msg.content + message };
+              }
+              return msg;
+            });
+          } else {
+            // First chunk - create the message with this chunk
+            return [
+              ...msgs,
+              {
+                uuid: currentAiId,
+                role: "assistant",
+                content: message, // First chunk becomes the initial content
+              },
+            ];
+          }
+        });
+      }
+    );
+
+    const unsubscribeChatError = subscribe("error", (data) => {
+      setIsMessageLoading(false);
+
+      // Remove the empty AI message if it exists
+      if (aiMessageIdRef.current) {
+        setMessages((msgs) =>
+          msgs.filter((msg) => msg.uuid !== aiMessageIdRef.current)
+        );
+      }
+
+      aiMessageIdRef.current = null;
+      humanMessageIdRef.current = null;
+    });
+
+    return () => {
+      unsubscribeChatStart();
+      unsubscribeChatCompleted();
+      unsubscribeChatResponse();
+      unsubscribeChatError();
+    };
+  }, [subscribe]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -110,8 +222,8 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
               Start a conversation with Melina
             </div>
           ) : (
-            messages.map((msg, i) => (
-              <div key={i}>
+            messages.map((msg) => (
+              <div key={msg.uuid}>
                 <ChatMessage role={msg.role} content={msg.content} />
               </div>
             ))
