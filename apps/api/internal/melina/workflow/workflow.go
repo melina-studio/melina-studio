@@ -116,11 +116,18 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
+	// after get successful response, create a chat in the database
+	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, message.Message, aiResponse)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
+		return
+	}
+
 	// send an event that the chat is completed
 	libraries.SendChatMessageResponse(hub , client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
 		BoardId: boardId,
 		Message: aiResponse,
-		HumanMessageId: "123",
-		AiMessageId: "123",
+		HumanMessageId: human_message_id.String(),
+		AiMessageId: ai_message_id.String(),
 	})
 }

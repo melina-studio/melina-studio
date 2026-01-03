@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"net/http"
 	"os"
@@ -48,11 +49,36 @@ type Message struct {
 }
 
 type streamEvent struct {
-	Type    string `json:"type"` // e.g. "message_start", "content_block_delta", etc.
-	Content []struct {
-		Type string `json:"type"` // "text", "tool_use", etc.
-		Text string `json:"text"` // for text blocks
-	} `json:"content"`
+	Type         string                 `json:"type"` // e.g. "message_start", "content_block_delta", "message_stop", etc.
+	Content      []streamContentBlock   `json:"content,omitempty"`
+	Delta        *streamDelta           `json:"delta,omitempty"`        // for content_block_delta
+	StopReason   string                 `json:"stop_reason,omitempty"`  // for message_stop
+	ContentBlock *streamContentBlockRef `json:"content_block,omitempty"` // for content_block_start
+	Index        int                    `json:"index,omitempty"`         // block index for content_block_delta
+}
+
+type streamContentBlock struct {
+	Type      string                 `json:"type"`      // "text", "tool_use", etc.
+	Text      string                 `json:"text"`      // for text blocks
+	ID        string                 `json:"id"`        // for tool_use blocks
+	Name      string                 `json:"name"`      // for tool_use blocks
+	Input     map[string]interface{} `json:"input"`     // for tool_use blocks (can be partial during streaming)
+	Index     int                    `json:"index"`     // block index
+	ToolUseID string                 `json:"tool_use_id,omitempty"` // for tool_result blocks
+}
+
+type streamDelta struct {
+	Type        string `json:"type"`         // "text_delta", "input_json_delta", etc.
+	Text        string `json:"text"`         // for text_delta
+	Delta       string `json:"delta"`        // for input_json_delta (partial JSON) - some APIs use this
+	PartialJSON string `json:"partial_json"` // for input_json_delta (partial JSON) - Vertex AI uses this
+}
+
+type streamContentBlockRef struct {
+	Type  string `json:"type"`
+	Index int    `json:"index"`
+	ID    string `json:"id,omitempty"`   // for tool_use blocks
+	Name  string `json:"name,omitempty"`  // for tool_use blocks
 }
 
 func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
@@ -174,8 +200,8 @@ func StreamClaudeWithMessages(
 	systemMessage string,
 	messages []Message,
 	tools []map[string]interface{},
-	onTextChunk func(chunk string) error,
-) error {
+	streamCtx *StreamingContext,
+) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // e.g. "us-east5"
 	modelID := "claude-sonnet-4-5@20250929"                 // your model
@@ -183,16 +209,16 @@ func StreamClaudeWithMessages(
 	// ---------- 1) Auth HTTP client from SA JSON ----------
 	enc := os.Getenv("GCP_SERVICE_ACCOUNT_CREDENTIALS")
 	if enc == "" {
-		return fmt.Errorf("GCP_SERVICE_ACCOUNT_CREDENTIALS not set")
+		return nil, fmt.Errorf("GCP_SERVICE_ACCOUNT_CREDENTIALS not set")
 	}
 	saJSON, err := base64.StdEncoding.DecodeString(enc)
 	if err != nil {
-		return fmt.Errorf("decode sa json: %w", err)
+		return nil, fmt.Errorf("decode sa json: %w", err)
 	}
 
 	creds, err := google.CredentialsFromJSON(ctx, saJSON, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		return fmt.Errorf("CredentialsFromJSON: %w", err)
+		return nil, fmt.Errorf("CredentialsFromJSON: %w", err)
 	}
 	httpClient := oauth2.NewClient(ctx, creds.TokenSource)
 
@@ -228,12 +254,12 @@ func StreamClaudeWithMessages(
 
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
+		return nil, fmt.Errorf("marshal body: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("new request: %w", err)
+		return nil, fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
@@ -241,15 +267,30 @@ func StreamClaudeWithMessages(
 	// ---------- 4) Do request & read SSE ----------
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("http do: %w", err)
+		return nil, fmt.Errorf("http do: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		buf := new(bytes.Buffer)
 		_, _ = buf.ReadFrom(resp.Body)
-		return fmt.Errorf("vertex error %d: %s", resp.StatusCode, buf.String())
+		return nil, fmt.Errorf("vertex error %d: %s", resp.StatusCode, buf.String())
 	}
+
+	// Initialize response to accumulate data
+	cr := &ClaudeResponse{
+		TextContent: []string{},
+		ToolUses:     []ToolUse{},
+	}
+
+	// Track current text block being built
+	var currentTextBuilder strings.Builder
+	var accumulatedText strings.Builder
+
+	// Track current tool_use block being built (by index)
+	// Map of block index -> ToolUse being built
+	currentToolUseBuilders := make(map[int]*ToolUse)
+	currentToolUseInputBuilders := make(map[int]*strings.Builder) // for accumulating JSON input
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -272,35 +313,278 @@ func StreamClaudeWithMessages(
 			continue
 		}
 
-		// Extract text chunks from content blocks
-		for _, block := range ev.Content {
-			if block.Type == "text" && block.Text != "" {
-				if err := onTextChunk(block.Text); err != nil {
-					return err
+		// Debug: Log tool_use related events (can be removed later)
+		if ev.Type == "content_block_start" && ev.ContentBlock != nil && ev.ContentBlock.Type == "tool_use" {
+			fmt.Printf("[anthropic] Started tool_use: index=%d, ID=%s, Name=%s\n", ev.ContentBlock.Index, ev.ContentBlock.ID, ev.ContentBlock.Name)
+		}
+
+		switch ev.Type {
+		case "content_block_delta":
+			// Handle incremental text or tool_use input updates
+			if ev.Delta != nil {
+				if ev.Delta.Type == "text_delta" && ev.Delta.Text != "" {
+					// Accumulate text delta
+					currentTextBuilder.WriteString(ev.Delta.Text)
+					accumulatedText.WriteString(ev.Delta.Text)
+
+					// Send streaming chunk to client
+					if streamCtx != nil && streamCtx.Client != nil {
+						payload := &libraries.ChatMessageResponsePayload{
+							Message: ev.Delta.Text,
+						}
+						if streamCtx.BoardId != "" {
+							payload.BoardId = streamCtx.BoardId
+						}
+						libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+					}
+				} else if ev.Delta.Type == "input_json_delta" {
+					// Tool use input is being streamed (partial JSON)
+					// Vertex AI uses "partial_json" field, other APIs might use "delta"
+					jsonChunk := ev.Delta.PartialJSON
+					if jsonChunk == "" {
+						jsonChunk = ev.Delta.Delta
+					}
+					
+					if jsonChunk != "" {
+						// Use the index from the event to find the correct tool_use builder
+						idx := ev.Index
+						if inputBuilder, ok := currentToolUseInputBuilders[idx]; ok {
+							inputBuilder.WriteString(jsonChunk)
+							fmt.Printf("[anthropic] Accumulated partial_json for index %d: %s (total: %d chars)\n", idx, jsonChunk, inputBuilder.Len())
+						} else {
+							// Index not found - try to find any active builder
+							// This handles cases where index might not be set correctly
+							if len(currentToolUseInputBuilders) > 0 {
+								// Use the most recent one (highest index)
+								var maxIndex int = -1
+								for idx := range currentToolUseInputBuilders {
+									if idx > maxIndex {
+										maxIndex = idx
+									}
+								}
+								if maxIndex >= 0 {
+									currentToolUseInputBuilders[maxIndex].WriteString(jsonChunk)
+									fmt.Printf("[anthropic] Accumulated partial_json to fallback index %d\n", maxIndex)
+								}
+							} else {
+								// No builder exists yet - this shouldn't happen, but log it
+								fmt.Printf("[anthropic] WARNING: input_json_delta received but no tool_use builder exists (index: %d, chunk: %s)\n", idx, jsonChunk)
+							}
+						}
+					}
+				}
+			}
+
+		case "content_block_stop":
+			// A content block (text or tool_use) is complete
+			// If it was a text block, finalize it
+			if currentTextBuilder.Len() > 0 {
+				text := currentTextBuilder.String()
+				cr.TextContent = append(cr.TextContent, text)
+				currentTextBuilder.Reset()
+			}
+			// Finalize tool_use block - check if we have an index in the event
+			// The index might be in ev.Index or we need to finalize all pending
+			var indicesToFinalize []int
+			// Check if index is explicitly provided and exists in our builders
+			// Note: 0 is a valid index, so we check if it exists in the map
+			if _, hasIndex := currentToolUseBuilders[ev.Index]; hasIndex {
+				// Specific index provided and exists
+				indicesToFinalize = []int{ev.Index}
+			} else if len(currentToolUseBuilders) > 0 {
+				// No valid index specified - finalize all pending tool_use blocks
+				for idx := range currentToolUseBuilders {
+					indicesToFinalize = append(indicesToFinalize, idx)
+				}
+			}
+			
+			for _, idx := range indicesToFinalize {
+				if toolUse, ok := currentToolUseBuilders[idx]; ok {
+					// Try to get input from accumulated JSON deltas
+					if inputBuilder, ok := currentToolUseInputBuilders[idx]; ok && inputBuilder.Len() > 0 {
+						// Parse the accumulated JSON input
+						accumulatedJSON := inputBuilder.String()
+						var input map[string]interface{}
+						if err := json.Unmarshal([]byte(accumulatedJSON), &input); err == nil {
+							toolUse.Input = input
+						} else {
+							// Log parsing error for debugging
+							fmt.Printf("[anthropic] Failed to parse tool_use input JSON for index %d: %v, JSON: %s\n", idx, err, accumulatedJSON)
+						}
+					} else {
+						// No input was accumulated - log for debugging
+						fmt.Printf("[anthropic] No input accumulated for tool_use index %d (ID: %s, Name: %s)\n", idx, toolUse.ID, toolUse.Name)
+					}
+					// Add to response (only if we have ID and Name)
+					if toolUse.ID != "" && toolUse.Name != "" {
+						cr.ToolUses = append(cr.ToolUses, *toolUse)
+						fmt.Printf("[anthropic] Finalized tool_use: ID=%s, Name=%s, Input=%v\n", toolUse.ID, toolUse.Name, toolUse.Input)
+					}
+					// Clean up
+					delete(currentToolUseBuilders, idx)
+					delete(currentToolUseInputBuilders, idx)
+				}
+			}
+
+		case "content_block_start":
+			// A new content block is starting
+			if ev.ContentBlock != nil {
+				if ev.ContentBlock.Type == "tool_use" {
+					// Initialize a new tool use (will be populated in subsequent deltas)
+					idx := ev.ContentBlock.Index
+					currentToolUseBuilders[idx] = &ToolUse{
+						ID:    ev.ContentBlock.ID,   // Extract ID if available
+						Name:  ev.ContentBlock.Name, // Extract name if available
+						Input: make(map[string]interface{}),
+					}
+					currentToolUseInputBuilders[idx] = &strings.Builder{}
+					fmt.Printf("[anthropic] Started tool_use block: index=%d, ID=%s, Name=%s\n", idx, ev.ContentBlock.ID, ev.ContentBlock.Name)
+				} else if ev.ContentBlock.Type == "text" {
+					// Reset text builder for new text block
+					currentTextBuilder.Reset()
+				}
+			}
+
+		case "message_stop":
+			// Message is complete - extract stop_reason and finalize any tool uses
+			if ev.StopReason != "" {
+				cr.StopReason = ev.StopReason
+			}
+
+		case "message_delta":
+			// Message-level delta (usually contains stop_reason)
+			if ev.StopReason != "" {
+				cr.StopReason = ev.StopReason
+			}
+
+		case "content_block":
+			// Full content block (used in some streaming formats)
+			for _, block := range ev.Content {
+				if block.Type == "text" && block.Text != "" {
+					// Complete text block
+					cr.TextContent = append(cr.TextContent, block.Text)
+					accumulatedText.WriteString(block.Text)
+
+					// Send to client
+					if streamCtx != nil && streamCtx.Client != nil {
+						payload := &libraries.ChatMessageResponsePayload{
+							Message: block.Text,
+						}
+						if streamCtx.BoardId != "" {
+							payload.BoardId = streamCtx.BoardId
+						}
+						libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+					}
+				} else if block.Type == "tool_use" {
+					// Complete tool use block - this might contain the full input
+					toolUse := ToolUse{
+						ID:    block.ID,
+						Name:  block.Name,
+						Input: block.Input,
+					}
+					
+					// If input is provided directly in the block, use it
+					// Otherwise, check if we have accumulated input from deltas
+					if len(toolUse.Input) == 0 {
+						// Try to get from accumulated input if available
+						if block.Index >= 0 {
+							if inputBuilder, ok := currentToolUseInputBuilders[block.Index]; ok && inputBuilder.Len() > 0 {
+								var input map[string]interface{}
+								if err := json.Unmarshal([]byte(inputBuilder.String()), &input); err == nil {
+									toolUse.Input = input
+								}
+							}
+						}
+					}
+					
+					cr.ToolUses = append(cr.ToolUses, toolUse)
+					fmt.Printf("[anthropic] Found tool_use in content_block: ID=%s, Name=%s, Input=%v\n", toolUse.ID, toolUse.Name, toolUse.Input)
+					
+					// Also update any in-progress builder for this index
+					if block.Index >= 0 {
+						if existingToolUse, ok := currentToolUseBuilders[block.Index]; ok {
+							existingToolUse.ID = block.ID
+							existingToolUse.Name = block.Name
+							if len(block.Input) > 0 {
+								existingToolUse.Input = block.Input
+							} else if inputBuilder, ok := currentToolUseInputBuilders[block.Index]; ok && inputBuilder.Len() > 0 {
+								// Try accumulated input
+								var input map[string]interface{}
+								if err := json.Unmarshal([]byte(inputBuilder.String()), &input); err == nil {
+									existingToolUse.Input = input
+								}
+							}
+						}
+					}
 				}
 			}
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scanner error: %w", err)
+		return nil, fmt.Errorf("scanner error: %w", err)
 	}
 
-	return nil
+	// Finalize any remaining text
+	if currentTextBuilder.Len() > 0 {
+		text := currentTextBuilder.String()
+		cr.TextContent = append(cr.TextContent, text)
+	}
+
+	// Finalize any remaining tool_use blocks
+	for idx, toolUse := range currentToolUseBuilders {
+		if inputBuilder, ok := currentToolUseInputBuilders[idx]; ok && inputBuilder.Len() > 0 {
+			// Parse the accumulated JSON input
+			var input map[string]interface{}
+			if err := json.Unmarshal([]byte(inputBuilder.String()), &input); err == nil {
+				toolUse.Input = input
+			}
+		}
+		// Add to response (only if we have ID and Name)
+		if toolUse.ID != "" && toolUse.Name != "" {
+			cr.ToolUses = append(cr.ToolUses, *toolUse)
+		}
+		// Clean up
+		delete(currentToolUseBuilders, idx)
+		delete(currentToolUseInputBuilders, idx)
+	}
+
+	// If we have accumulated text but no TextContent entries, create one
+	if accumulatedText.Len() > 0 && len(cr.TextContent) == 0 {
+		cr.TextContent = append(cr.TextContent, accumulatedText.String())
+	}
+
+	return cr, nil
 }
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
-func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}) (*ClaudeResponse, error) {
-	const maxIterations = 8 // safety guard
+func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext) (*ClaudeResponse, error) {
+	const maxIterations = 3 // safety guard
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *ClaudeResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		cr, err := callClaudeWithMessages(ctx, systemMessage, workingMessages, tools)
-		if err != nil {
-			return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
+
+		var cr *ClaudeResponse
+		var err error
+		if streamCtx != nil && streamCtx.Client != nil {
+			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx)
+			if err != nil {
+				return nil, fmt.Errorf("StreamClaudeWithMessages: %w", err)
+			}
+		} else {
+			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools)
+			if err != nil {
+				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
+			}
 		}
+
+		if cr == nil {
+			return nil, fmt.Errorf("received nil response from Claude")
+		}
+
 		lastResp = cr
 
 		// If no tool uses, we're done

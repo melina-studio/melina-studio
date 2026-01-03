@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -154,6 +155,8 @@ func SendChatMessageResponse(hub *Hub, client *Client, Type WebSocketMessageType
 		return
 	}
 	hub.SendMessage(client, chatMessageResponseBytes)
+	// add a delay mille seconds
+	time.Sleep(50 * time.Millisecond)
 }
 
 

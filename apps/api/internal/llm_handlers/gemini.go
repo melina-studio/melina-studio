@@ -226,7 +226,7 @@ func convertToolsToGenaiTools(tools []map[string]interface{}) []*genai.Tool {
 }
 
 // callGeminiWithMessages calls Gemini API and returns parsed response
-func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message , hub ...*libraries.Hub) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
 	systemText, contents, err := convertMessagesToGenaiContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -259,10 +259,87 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 		genConfig.SystemInstruction = sysContent
 	}
 
-	// Call GenerateContent
-	resp, err := v.client.Models.GenerateContent(ctx, v.modelID, contents, genConfig)
-	if err != nil {
-		return nil, fmt.Errorf("gemini GenerateContent: %w", err)
+	var resp *genai.GenerateContentResponse
+
+	// Use streaming if streaming context is provided
+	if streamCtx != nil && streamCtx.Client != nil {
+		// Use GenerateContentStream for real-time tokens
+		iterator := v.client.Models.GenerateContentStream(ctx, v.modelID, contents, genConfig)
+		
+		var lastChunk *genai.GenerateContentResponse
+		var accumulatedText strings.Builder
+		
+		// Iterate over streaming chunks
+		// Note: chunk and chunkErr are the loop variables, not shadowing outer resp
+		for chunk, chunkErr := range iterator {
+			if chunkErr != nil {
+				return nil, fmt.Errorf("gemini stream error: %w", chunkErr)
+			}
+			
+			// Store the last chunk (contains final state including function calls)
+			lastChunk = chunk
+			
+			// Extract text from the current chunk and stream it
+			// Note: chunk.Text() returns only the incremental text (new token)
+			token := chunk.Text()
+			if token != "" {
+				// Accumulate the full text
+				accumulatedText.WriteString(token)
+				
+				// Send streaming chunk to client
+				payload := &libraries.ChatMessageResponsePayload{
+					Message: token,
+				}
+				// Only include BoardId if it's not empty
+				if streamCtx.BoardId != "" {
+					payload.BoardId = streamCtx.BoardId
+				}
+				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+			}
+		}
+		
+		// Use the last chunk as the base for the final response
+		// This contains the complete response structure including any function calls
+		resp = lastChunk
+		
+		if resp == nil {
+			return nil, fmt.Errorf("gemini stream returned no response")
+		}
+		
+		// IMPORTANT: The last chunk's Content.Parts might only contain the last token
+		// We need to ensure the full accumulated text is in the response
+		// Update the response to include the full accumulated text
+		if len(resp.Candidates) > 0 {
+			if resp.Candidates[0].Content != nil && len(resp.Candidates[0].Content.Parts) > 0 {
+				// Replace the text in the first part with the accumulated full text
+				// This ensures the response parsing later gets the complete text
+				fullText := accumulatedText.String()
+				if fullText != "" {
+					// Find the first text part and update it, or create one if needed
+					foundTextPart := false
+					for _, part := range resp.Candidates[0].Content.Parts {
+						if part.Text != "" {
+							part.Text = fullText
+							foundTextPart = true
+							break
+						}
+					}
+					// If no text part exists, create one with the full text
+					if !foundTextPart && fullText != "" {
+						resp.Candidates[0].Content.Parts = append([]*genai.Part{
+							{Text: fullText},
+						}, resp.Candidates[0].Content.Parts...)
+					}
+				}
+			}
+		}
+	} else {
+		// Non-streaming path
+		var err error
+		resp, err = v.client.Models.GenerateContent(ctx, v.modelID, contents, genConfig)
+		if err != nil {
+			return nil, fmt.Errorf("gemini GenerateContent: %w", err)
+		}
 	}
 
 	if resp == nil || len(resp.Candidates) == 0 {
@@ -302,7 +379,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
-func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message , hub ...*libraries.Hub) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message , streamCtx *StreamingContext) (*GeminiResponse, error) {
 	const maxIterations = 8
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -310,7 +387,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 
 	var lastResp *GeminiResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages , hub...)
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages , streamCtx)
 		if err != nil {
 			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
 		}
@@ -393,7 +470,7 @@ func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, mess
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages , nil)
 	if err != nil {
 		return "", err
 	}
@@ -409,9 +486,15 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	// Pass hub for now (gemini uses variadic hub parameter)
-	// TODO: Refactor gemini to use StreamingContext like langchain
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, hub)
+	var streamCtx *StreamingContext
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId, // Can be empty string
+		}
+	}
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
 	if err != nil {
 		return "", err
 	}

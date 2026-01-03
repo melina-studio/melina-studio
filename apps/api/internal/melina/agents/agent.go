@@ -24,7 +24,7 @@ func NewAgent(provider string) *Agent {
 		tools := tools.GetOpenAITools()
 		cfg = llmHandlers.Config{
 			Provider: llmHandlers.ProviderLangChainOpenAI,
-			Model:    "gpt-4.1",
+			Model:    "gpt-5.1",
 			APIKey:   os.Getenv("OPENAI_API_KEY"),
 			Tools:    tools,
 		}

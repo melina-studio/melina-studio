@@ -2,7 +2,6 @@ package llmHandlers
 
 import (
 	"context"
-	"fmt"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"strings"
@@ -29,7 +28,7 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 		})
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools , nil)
 	if err != nil {
 		return "", err
 	}
@@ -37,8 +36,30 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 }
 
 func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
-	fmt.Print("Calling VertexAnthropicClient ChatStream")
-	return "", fmt.Errorf("vertex anthropic chat stream not implemented")
+	// fmt.Print("Calling VertexAnthropicClient ChatStream")
+	// return "", fmt.Errorf("vertex anthropic chat stream not implemented")
+	// Convert llmMessage -> libraries.Message
+	msgs := make([]Message, 0, len(messages))
+	for _, m := range messages {
+		msgs = append(msgs, Message{
+			Role:    models.Role(m.Role),
+			Content: m.Content,
+		})
+	}
+
+	var streamCtx *StreamingContext
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId, // Can be empty string
+		}
+	}
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx)
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
 /*

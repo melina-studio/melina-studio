@@ -23,6 +23,10 @@ type StreamingContext struct {
 	Hub     *libraries.Hub
 	Client  *libraries.Client
 	BoardId string // Optional: empty string means don't include boardId in response
+	// BufferedChunks stores chunks that should be sent only if there are no tool calls
+	BufferedChunks []string
+	// ShouldStream indicates whether chunks should be streamed immediately or buffered
+	ShouldStream bool
 }
 
 type LangChainConfig struct {
@@ -200,16 +204,24 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	langChainTools := convertToolsToLangChainTools(c.Tools)
 
 	streamingFunc := func(ctx context.Context, chunk []byte) error {
-		// Only send streaming response if client is provided
+		// Only handle streaming if client is provided
 		if streamCtx != nil && streamCtx.Client != nil {
-			payload := &libraries.ChatMessageResponsePayload{
-				Message: string(chunk),
+			chunkStr := string(chunk)
+			
+			if streamCtx.ShouldStream {
+				// Stream immediately (final iteration, no tool calls)
+				payload := &libraries.ChatMessageResponsePayload{
+					Message: chunkStr,
+				}
+				// Only include BoardId if it's not empty
+				if streamCtx.BoardId != "" {
+					payload.BoardId = streamCtx.BoardId
+				}
+				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+			} else {
+				// Buffer chunks (intermediate iteration, might have tool calls)
+				streamCtx.BufferedChunks = append(streamCtx.BufferedChunks, chunkStr)
 			}
-			// Only include BoardId if it's not empty
-			if streamCtx.BoardId != "" {
-				payload.BoardId = streamCtx.BoardId
-			}
-			libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 		}
 		return nil
 	}
@@ -358,16 +370,45 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 
 	var lastResp *LangChainResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+		// Prepare streaming context for this iteration
+		var currentStreamCtx *StreamingContext
+		if streamCtx != nil && streamCtx.Client != nil {
+			// Create a copy to avoid modifying the original
+			currentStreamCtx = &StreamingContext{
+				Hub:            streamCtx.Hub,
+				Client:         streamCtx.Client,
+				BoardId:        streamCtx.BoardId,
+				BufferedChunks: make([]string, 0),
+				ShouldStream:   false, // Start with buffering - we'll decide after the call
+			}
+		}
+		
+		// Make the call with streaming enabled (but buffered)
+		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx)
 		if err != nil {
 			return nil, fmt.Errorf("callLangChainWithMessages: %w", err)
 		}
 		lastResp = lr
 
-		// If no function calls, we're done
+		// If no function calls, this is the final iteration - send buffered chunks
 		if len(lr.FunctionCalls) == 0 {
+			// Final iteration - send all buffered chunks to the client
+			if currentStreamCtx != nil && len(currentStreamCtx.BufferedChunks) > 0 {
+				for _, chunk := range currentStreamCtx.BufferedChunks {
+					payload := &libraries.ChatMessageResponsePayload{
+						Message: chunk,
+					}
+					if currentStreamCtx.BoardId != "" {
+						payload.BoardId = currentStreamCtx.BoardId
+					}
+					libraries.SendChatMessageResponse(currentStreamCtx.Hub, currentStreamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+				}
+			}
 			return lr, nil
 		}
+		
+		// There are tool calls - discard buffered chunks (they were tool-related)
+		// The buffered chunks will be ignored since we're in an intermediate iteration
 
 		// Convert FunctionCalls to common ToolCall format
 		toolCalls := make([]ToolCall, len(lr.FunctionCalls))
