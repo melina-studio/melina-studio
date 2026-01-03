@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/melina/agents"
 	"melina-studio-backend/internal/repo"
 
@@ -81,5 +83,44 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 		"message": aiResponse,
 		"human_message_id": human_message_id.String(),
 		"ai_message_id": ai_message_id.String(),
+	})
+}
+
+func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Client, boardId string, message *libraries.ChatMessagePayload) {
+	// get chat history from the database
+	boardIdUUID, err := uuid.Parse(boardId)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, "Invalid board ID")
+		return
+	}
+
+	// get chat history from the database
+	chatHistory, err := w.chatRepo.GetChatHistory(boardIdUUID, 20)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, "Failed to get chat history")
+		return
+	}
+
+	// create an agent
+	LLM := "groq"
+	agent := agents.NewAgent(LLM)
+
+
+	// send an event that the chat is starting
+	libraries.SendEventType(hub , client, libraries.WebSocketMessageTypeChatStarting)
+
+	// process the chat message - pass client and boardId for streaming
+	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, message.Message, chatHistory, boardId)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, "Failed to process chat message")
+		return
+	}
+
+	// send an event that the chat is completed
+	libraries.SendChatMessageResponse(hub , client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
+		BoardId: boardId,
+		Message: aiResponse,
+		HumanMessageId: "123",
+		AiMessageId: "123",
 	})
 }

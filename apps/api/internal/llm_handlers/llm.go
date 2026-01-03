@@ -2,6 +2,7 @@ package llmHandlers
 
 import (
 	"context"
+	"melina-studio-backend/internal/libraries"
 )
 
 type MessageRole string
@@ -14,6 +15,7 @@ const (
 
 type Client interface {
 	Chat(ctx context.Context, systemMessage string, messages []Message) (string, error)
+	ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error)
 }
 
 /*

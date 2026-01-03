@@ -7,6 +7,7 @@ import (
 	"context"
 	gcp "melina-studio-backend/internal/libraries"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -27,6 +28,14 @@ func NewServer() *fiber.App {
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
+	// Middleware to allow WebSocket upgrade
+	app.Use("/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
 
 	ctx := context.Background()
 	_, err := gcp.NewClients(ctx)

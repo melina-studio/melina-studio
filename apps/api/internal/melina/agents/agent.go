@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"melina-studio-backend/internal/libraries"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
 	"melina-studio-backend/internal/melina/prompts"
 	"melina-studio-backend/internal/melina/tools"
@@ -73,19 +74,6 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 	// Build user message content - may include image if boardId is provided
 	var userContent interface{} = message
 	
-	// if boardId != "" {
-	// 	// Try to load and encode the board image
-	// 	imagePath := filepath.Join("temp", "images", fmt.Sprintf("%s.png", boardId))
-	// 	imageData, err := os.ReadFile(imagePath)
-	// 	if err == nil {
-	// 		// Image file exists - format content based on provider
-	// 		userContent = helpers.FormatMessageWithImage(message, imageData)
-	// 	} else {
-	// 		// Image not found - log but continue with text only
-	// 		log.Printf("Warning: Board image not found at %s, continuing with text only: %v", imagePath, err)
-	// 	}
-	// }
-
 	messages := []llmHandlers.Message{}
 
 	if len(chatHistory) >0 {
@@ -100,6 +88,36 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 
 	// Call the LLM
 	response, err := a.llmClient.Chat(ctx, systemMessage, messages)
+	if err != nil {
+		return "", fmt.Errorf("LLM chat error: %w", err)
+	}
+
+	return response, nil
+}
+
+// ProcessRequestStream processes a user message with optional board image
+// boardId can be empty string if no image should be included
+// client can be nil if streaming is not needed
+func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
+	// Build messages for the LLM
+	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId)
+	
+	// Build user message content - may include image if boardId is provided
+	var userContent interface{} = message
+	
+	messages := []llmHandlers.Message{}
+
+	if len(chatHistory) >0 {
+		messages = append(messages, chatHistory...)
+	}
+
+	messages = append(messages, llmHandlers.Message{
+		Role:    models.RoleUser,
+		Content: userContent,
+	})
+
+	// Call the LLM - pass client and boardId for streaming
+	response, err := a.llmClient.ChatStream(ctx, hub, client, boardId, systemMessage, messages)
 	if err != nil {
 		return "", fmt.Errorf("LLM chat error: %w", err)
 	}

@@ -2,6 +2,8 @@ package llmHandlers
 
 import (
 	"context"
+	"fmt"
+	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"strings"
 )
@@ -32,6 +34,11 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 		return "", err
 	}
 	return strings.Join(resp.TextContent, "\n\n"), nil
+}
+
+func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+	fmt.Print("Calling VertexAnthropicClient ChatStream")
+	return "", fmt.Errorf("vertex anthropic chat stream not implemented")
 }
 
 /*

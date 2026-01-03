@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/libraries"
 	"reflect"
 	"strings"
 	"time"
@@ -15,6 +16,13 @@ import (
 type LangChainClient struct {
 	llm   llms.Model
 	Tools []map[string]interface{}
+}
+
+// StreamingContext holds the context needed for streaming responses
+type StreamingContext struct {
+	Hub     *libraries.Hub
+	Client  *libraries.Client
+	BoardId string // Optional: empty string means don't include boardId in response
 }
 
 type LangChainConfig struct {
@@ -175,7 +183,7 @@ func (c *LangChainClient) convertMessagesToLangChainContent(messages []Message) 
 }
 
 // callLangChainWithMessages calls LangChain API and returns parsed response
-func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemMessage string, messages []Message) (*LangChainResponse, error) {
+func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*LangChainResponse, error) {
 	msgContents, err := c.convertMessagesToLangChainContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -191,11 +199,31 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	// Convert tools to langchaingo format
 	langChainTools := convertToolsToLangChainTools(c.Tools)
 
+	streamingFunc := func(ctx context.Context, chunk []byte) error {
+		// Only send streaming response if client is provided
+		if streamCtx != nil && streamCtx.Client != nil {
+			payload := &libraries.ChatMessageResponsePayload{
+				Message: string(chunk),
+			}
+			// Only include BoardId if it's not empty
+			if streamCtx.BoardId != "" {
+				payload.BoardId = streamCtx.BoardId
+			}
+			libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+		}
+		return nil
+	}
+
 	// Build call options
 	opts := []llms.CallOption{}
 	if len(langChainTools) > 0 {
 		// WithFunctions expects a single slice, not variadic
 		opts = append(opts, llms.WithFunctions(langChainTools))
+
+		// Enable streaming if streaming context is provided
+		if streamCtx != nil && streamCtx.Client != nil {
+			opts = append(opts, llms.WithStreamingFunc(streamingFunc))
+		}
 	}
 
 	// Call GenerateContent
@@ -322,7 +350,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's and Gemini's implementation
-func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message) (*LangChainResponse, error) {
+func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*LangChainResponse, error) {
 	const maxIterations = 8
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -330,7 +358,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 
 	var lastResp *LangChainResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages)
+		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, streamCtx)
 		if err != nil {
 			return nil, fmt.Errorf("callLangChainWithMessages: %w", err)
 		}
@@ -413,7 +441,43 @@ func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messag
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages)
+	// No streaming context for regular Chat
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// If we have text content, return it
+	if len(resp.TextContent) > 0 {
+		return resp.TextContent[0], nil
+	}
+
+	// If we have function calls but no text, that's normal for function calling
+	// The function calls should have been executed in ChatWithTools
+	// Return empty string or a message indicating function calls were executed
+	if len(resp.FunctionCalls) > 0 {
+		// This shouldn't happen if ChatWithTools is working correctly
+		// as it should continue until there's a final text response
+		return "", fmt.Errorf("function calls were made but no final text response was generated")
+	}
+
+	return "", fmt.Errorf("langchain returned no text content and no function calls")
+}
+
+func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	// Create streaming context if client is provided
+	var streamCtx *StreamingContext
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId, // Can be empty string
+		}
+	}
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
 	if err != nil {
 		return "", err
 	}

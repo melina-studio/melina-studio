@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/libraries"
 	"os"
 	"strings"
 	"time"
@@ -225,7 +226,7 @@ func convertToolsToGenaiTools(tools []map[string]interface{}) []*genai.Tool {
 }
 
 // callGeminiWithMessages calls Gemini API and returns parsed response
-func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message , hub ...*libraries.Hub) (*GeminiResponse, error) {
 	systemText, contents, err := convertMessagesToGenaiContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -234,12 +235,16 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	// Convert tools to genai.Tool format
 	genaiTools := convertToolsToGenaiTools(v.Tools)
 
+	
+	// need to hanlde streaming later
+	
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
 		Temperature:     &v.Temperature,
 		MaxOutputTokens: v.MaxTokens,
 		Tools:           genaiTools,
 	}
+
 
 	// Add system instruction if exists
 	if systemMessage != "" || systemText != "" {
@@ -297,7 +302,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
-func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message , hub ...*libraries.Hub) (*GeminiResponse, error) {
 	const maxIterations = 8
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -305,7 +310,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 
 	var lastResp *GeminiResponse
 	for iter := 0; iter < maxIterations; iter++ {
-		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages)
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages , hub...)
 		if err != nil {
 			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
 		}
@@ -389,6 +394,24 @@ func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, mess
 	defer cancel()
 
 	resp, err := v.ChatWithTools(ctx, systemMessage, messages)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.TextContent) == 0 {
+		return "", fmt.Errorf("gemini returned no text content")
+	}
+
+	return strings.Join(resp.TextContent, "\n\n"), nil
+}
+
+func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	// Pass hub for now (gemini uses variadic hub parameter)
+	// TODO: Refactor gemini to use StreamingContext like langchain
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, hub)
 	if err != nil {
 		return "", err
 	}
