@@ -30,6 +30,7 @@ function KonvaCanvas({
   const [shapes, setShapes] = useState<Shape[]>(externalShapes);
   const [isDraggingStage, setIsDraggingStage] = useState(false);
   const [isDraggingShape, setIsDraggingShape] = useState(false);
+  const [isEraserFinalizing, setIsEraserFinalizing] = useState(false);
 
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
 
@@ -84,6 +85,7 @@ function KonvaCanvas({
   const {
     isDrawing,
     setIsDrawing,
+    shapesBeforeDrawing,
     startDrawing,
     updateDrawing,
     finishDrawing,
@@ -100,12 +102,12 @@ function KonvaCanvas({
   );
 
   // Sync local shapes state with external shapes (from history)
-  // Only sync when NOT drawing to avoid interrupting active drawing
+  // Only sync when NOT drawing and NOT finalizing eraser to avoid interrupting active operations
   useEffect(() => {
-    if (!isDrawing) {
+    if (!isDrawing && !isEraserFinalizing) {
       setShapes(externalShapes);
     }
-  }, [externalShapes, isDrawing]);
+  }, [externalShapes, isDrawing, isEraserFinalizing]);
 
   // Open text editor when pending text edit is set
   useEffect(() => {
@@ -212,9 +214,25 @@ function KonvaCanvas({
     }
 
     if (activeTool === ACTIONS.ERASER) {
-      // finalize and push history once (if you removed shapes by updating present without history)
-      setShapesWithHistory(shapes, { pushHistory: true });
+      // Capture the current erased shapes BEFORE any state changes
+      const erasedShapes = [...shapes];
+      const beforeDrawing = [...shapesBeforeDrawing];
+
+      // Set flags to prevent sync from restoring old shapes
+      setIsEraserFinalizing(true);
       setIsDrawing(false);
+
+      // Use queueMicrotask to defer the history update to after the current render
+      // This avoids the "Cannot update component while rendering" error
+      queueMicrotask(() => {
+        setShapesWithHistory(erasedShapes, {
+          pushHistory: true,
+          stateToPush: beforeDrawing,
+        });
+        handleSave();
+        // Reset the flag after history is updated
+        setIsEraserFinalizing(false);
+      });
       return;
     }
 
@@ -275,6 +293,50 @@ function KonvaCanvas({
               y: node.y(),
               w: Math.max(5, (s as any).w! * scaleX),
               h: Math.max(5, (s as any).h! * scaleY),
+            }
+          : s
+      );
+      setShapesWithHistory(updated, { pushHistory: true });
+      return updated;
+    });
+  };
+
+  const onEllipseTransform = (node: any, id: string) => {
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+    setShapes((arr) => {
+      const updated = arr.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              x: node.x(),
+              y: node.y(),
+              radiusX: Math.max(5, (s as any).radiusX! * scaleX),
+              radiusY: Math.max(5, (s as any).radiusY! * scaleY),
+            }
+          : s
+      );
+      setShapesWithHistory(updated, { pushHistory: true });
+      return updated;
+    });
+  };
+
+  const onImageTransform = (node: any, id: string) => {
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+    setShapes((arr) => {
+      const updated = arr.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              x: node.x(),
+              y: node.y(),
+              width: Math.max(5, (s as any).width! * scaleX),
+              height: Math.max(5, (s as any).height! * scaleY),
             }
           : s
       );
@@ -345,6 +407,8 @@ function KonvaCanvas({
               onShapeDragEnd={onShapeDragEnd}
               onDragMove={onDragMove}
               onRectTransform={onRectTransform}
+              onEllipseTransform={onEllipseTransform}
+              onImageTransform={onImageTransform}
               onTextDoubleClick={(id, pos) => openTextEditor(id, pos)}
               setStageCursor={setStageCursor}
               setIsDraggingStage={setIsDraggingStage}

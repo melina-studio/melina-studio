@@ -1,7 +1,15 @@
 // app/playground/[id]/page.tsx
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { Download, Loader, Menu, Redo, StepBack, Undo } from "lucide-react";
+import {
+  Download,
+  Loader,
+  Menu,
+  Redo,
+  Settings2,
+  StepBack,
+  Undo,
+} from "lucide-react";
 import { KonvaEventObject } from "konva/lib/Node";
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "next-themes";
@@ -24,6 +32,9 @@ import {
 import AIController from "@/components/custom/AIController";
 import { getChatHistory } from "@/service/chatService";
 import Image from "next/image";
+import ElephantDrawing from "@/components/custom/Elephant";
+import { useWebsocket } from "@/hooks/useWebsocket";
+import { SettingsModal } from "@/components/custom/SettingsModal";
 
 // types
 type History = {
@@ -39,6 +50,21 @@ type ChatMessage = {
   content: string;
   created_at: string;
   updated_at: string;
+};
+
+type ShapeCreatedEvent = {
+  type: "shape_created";
+  data: {
+    board_id: string;
+    shape: Shape;
+  };
+};
+
+export type Settings = {
+  activeModel: string;
+  temperature: number;
+  maxTokens: number;
+  theme: string;
 };
 
 // helpers
@@ -66,10 +92,15 @@ export default function BoardPage() {
   const stageRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [activeTool, setActiveTool] = useState<string>(ACTIONS.SELECT);
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAiController, setShowAiController] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  const { subscribe } = useWebsocket();
 
   // stroke color
   const currentColor = theme === "dark" ? "#fff" : "#111";
@@ -101,6 +132,14 @@ export default function BoardPage() {
     handleResize();
     window.addEventListener("resize", handleResize);
 
+    // get settings from localStorage
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      setSettings(JSON.parse(settings));
+    }
+
+    setMounted(true);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
@@ -126,6 +165,36 @@ export default function BoardPage() {
 
     fetchData();
   }, [id]);
+
+  // listen for board updates event
+  useEffect(() => {
+    const unsubscribeBoardUpdates = subscribe(
+      "shape_created",
+      (data: ShapeCreatedEvent) => {
+        console.log("Shape created:", data);
+        const { shape } = data.data;
+        // Use functional update to get the current state and append the new shape
+        setHistory((cur) => {
+          const currentShapes = cloneShapes(cur.present);
+          const newShapes = [...currentShapes, shape];
+          // Push current state to history before adding new shape
+          const stateToPushToHistory =
+            cur.past.length === 0 && cur.present.length === 0
+              ? []
+              : cloneShapes(cur.present);
+          const nextPast = [...cur.past, stateToPushToHistory].slice(
+            -HISTORY_LIMIT
+          );
+          return {
+            past: nextPast,
+            present: cloneShapes(newShapes),
+            future: [],
+          };
+        });
+      }
+    );
+    return () => unsubscribeBoardUpdates();
+  }, [subscribe]);
 
   const resetActionClick = () => {
     setActiveTool(ACTIONS.SELECT);
@@ -320,15 +389,30 @@ export default function BoardPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <div
+              className="bg-gray-200 hover:bg-gray-300 text-black rounded-md px-4 py-2 cursor-pointer flex items-center justify-center h-[36px]"
+              onClick={() => setShowSettings((v) => !v)}
+            >
+              <Settings2 className="w-4 h-4" />
+            </div>
+
+            <SettingsModal
+              isOpen={showSettings}
+              onClose={() => setShowSettings(false)}
+              activeSettings={settings}
+              setActiveSettings={setSettings}
+            />
+          </div>
           <div
-            className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer"
+            className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer flex items-center justify-center min-w-[120px] h-[36px]"
             onClick={handleClearBoard}
           >
             Clear Board
           </div>
           <div
-            className="bg-[#111] text-white rounded-md px-4 py-2  cursor-pointer"
+            className="bg-[#111] text-white rounded-md px-4 py-2 cursor-pointer flex items-center justify-center min-w-[120px] h-[36px]"
             onClick={() => handleGetBoardState()}
           >
             Export json
@@ -359,6 +443,7 @@ export default function BoardPage() {
         shapes={presentShapes}
         handleSave={handleSave}
       />
+      {/* <ElephantDrawing /> */}
 
       {/* ai controller */}
       <div className="fixed top-[10vh] right-4 z-10 flex items-start gap-2 h-[85vh]">

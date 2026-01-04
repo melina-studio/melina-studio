@@ -15,6 +15,16 @@ import {
 export function ThemeToggle() {
   const { setTheme } = useTheme();
 
+  const handleThemeChange = (theme: string) => {
+    setTheme(theme);
+    const settings = localStorage.getItem("settings");
+    if (!settings) return;
+    const settingsObj = JSON.parse(settings);
+    settingsObj.theme = theme;
+    localStorage.setItem("settings", JSON.stringify(settingsObj));
+    return;
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -25,10 +35,10 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem onClick={() => handleThemeChange("light")}>
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
           Dark
         </DropdownMenuItem>
         {/* <DropdownMenuItem onClick={() => setTheme("system")}>

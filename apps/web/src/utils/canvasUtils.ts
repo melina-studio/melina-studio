@@ -49,6 +49,37 @@ export const isShapeInSelectionBox = (
       shapeRight <= maxX &&
       shapeBottom <= maxY
     );
+  } else if (shape.type === "ellipse") {
+    const e = shape as any;
+    const shapeRight = shape.x + e.radiusX * 2;
+    const shapeBottom = shape.y + e.radiusY * 2;
+    const shapeLeft = shape.x - e.radiusX * 2;
+    const shapeTop = shape.y - e.radiusY * 2;
+    return (
+      shapeLeft >= minX &&
+      shapeTop >= minY &&
+      shapeRight <= maxX &&
+      shapeBottom <= maxY
+    );
+  } else if (shape.type === "path") {
+    // For paths, use a simple bounding box check
+    // This is a simplified check - for more accurate selection, parse the SVG path data
+    const p = shape as any;
+    const pathX = p.x || 0;
+    const pathY = p.y || 0;
+    // Use a default bounding box size as a fallback
+    // In a more sophisticated implementation, you'd parse the SVG path data
+    const defaultSize = 200; // Conservative estimate
+    const shapeRight = pathX + defaultSize;
+    const shapeBottom = pathY + defaultSize;
+    const shapeLeft = pathX - defaultSize;
+    const shapeTop = pathY - defaultSize;
+    return (
+      shapeLeft >= minX &&
+      shapeTop >= minY &&
+      shapeRight <= maxX &&
+      shapeBottom <= maxY
+    );
   } else if (shape.type === "line" || shape.type === "pencil") {
     // Check if all points are within the selection box
     const points = (shape as any).points || [];

@@ -1,67 +1,131 @@
 import Konva from "konva";
+import { Shape } from "@/lib/konavaTypes";
 
-export const buildShapes = (data: any) => {
-  return data.map((shape: any) => {
-    if (shape.type === "rect") {
-      return {
+export const buildShapes = (data: any): Shape[] => {
+  if (!data || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data
+    .map((shape: any): Shape | null => {
+      if (!shape || !shape.uuid || !shape.type) {
+        return null;
+      }
+
+      const baseShape = {
         id: shape.uuid,
-        type: "rect",
-        x: shape.data.x,
-        y: shape.data.y,
-        w: shape.data.w,
-        h: shape.data.h,
-        fill: shape.data.fill,
-        stroke: shape.data.stroke,
-        strokeWidth: shape.data.strokeWidth,
-        points: shape.data.points,
+        type: shape.type,
       };
-    }
-    if (shape.type === "circle") {
-      return {
-        id: shape.uuid,
-        type: "circle",
-        x: shape.data.x,
-        y: shape.data.y,
-        r: shape.data.r,
-        fill: shape.data.fill,
-        stroke: shape.data.stroke,
-        strokeWidth: shape.data.strokeWidth,
-        points: shape.data.points,
-      };
-    }
-    if (shape.type === "line") {
-      return {
-        id: shape.uuid,
-        type: "line",
-        points: shape.data.points,
-        stroke: shape.data.stroke,
-        strokeWidth: shape.data.strokeWidth,
-      };
-    }
-    if (shape.type === "pencil") {
-      return {
-        id: shape.uuid,
-        type: "pencil",
-        points: shape.data.points,
-        stroke: shape.data.stroke,
-        strokeWidth: shape.data.strokeWidth,
-      };
-    }
-    if (shape.type === "text") {
-      return {
-        id: shape.uuid,
-        type: "text",
-        text: shape.data.text,
-        x: shape.data.x,
-        y: shape.data.y,
-        fontSize: shape.data.fontSize,
-        fontFamily: shape.data.fontFamily,
-        fill: shape.data.fill,
-        stroke: shape.data.stroke,
-        strokeWidth: shape.data.strokeWidth,
-      };
-    }
-  });
+
+      if (shape.type === "rect") {
+        return {
+          ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          w: shape.data?.w ?? 0,
+          h: shape.data?.h ?? 0,
+          fill: shape.data?.fill,
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+        };
+      }
+      if (shape.type === "circle") {
+        return {
+          ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          r: shape.data?.r ?? 0,
+          fill: shape.data?.fill,
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+        };
+      }
+      if (shape.type === "ellipse") {
+        return {
+          ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          radiusX: shape.data?.radiusX ?? 0,
+          radiusY: shape.data?.radiusY ?? 0,
+          fill: shape.data?.fill,
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+          rotation: shape.data?.rotation,
+        };
+      }
+      if (shape.type === "path") {
+        return {
+          ...baseShape,
+          data: shape.data?.data ?? "",
+          x: shape.data?.x,
+          y: shape.data?.y,
+          fill: shape.data?.fill,
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+          lineCap: shape.data?.lineCap,
+          lineJoin: shape.data?.lineJoin,
+        };
+      }
+      if (shape.type === "line") {
+        return {
+          ...baseShape,
+          points: shape.data?.points ?? [],
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+        };
+      }
+      if (shape.type === "pencil") {
+        return {
+          ...baseShape,
+          points: shape.data?.points ?? [],
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+          tension: shape.data?.tension,
+        };
+      }
+      if (shape.type === "arrow") {
+        return {
+          ...baseShape,
+          points: shape.data?.points ?? [],
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+        };
+      }
+      if (shape.type === "eraser") {
+        return {
+          ...baseShape,
+          points: shape.data?.points ?? [],
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+        };
+      }
+      if (shape.type === "text") {
+        return {
+          ...baseShape,
+          text: shape.data?.text ?? "",
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          fontSize: shape.data?.fontSize,
+          fontFamily: shape.data?.fontFamily,
+          fill: shape.data?.fill,
+        };
+      }
+      if (shape.type === "image") {
+        return {
+          ...baseShape,
+          src: shape.data?.src ?? "",
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          width: shape.data?.width,
+          height: shape.data?.height,
+        };
+      }
+
+      // Return null for unknown shape types instead of undefined
+      console.warn(`Unknown shape type: ${shape.type}`);
+      return null;
+    })
+    .filter((shape): shape is Shape => shape !== null && shape !== undefined);
 };
 
 export const getBoardStateSnapshot = async (

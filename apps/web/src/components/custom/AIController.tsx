@@ -64,12 +64,20 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
       { uuid: humanMessageId, role: "user", content: text },
     ]);
     // setIsMessageLoading(true);
+    const settings = localStorage.getItem("settings");
+    if (!settings) return;
+    const settingsObj = JSON.parse(settings);
+    const { activeModel, temperature, maxTokens, theme } = settingsObj;
     try {
       sendMessage({
         type: "chat_message",
         data: {
           board_id: boardId,
           message: text,
+          active_model: activeModel,
+          temperature: temperature,
+          max_tokens: maxTokens,
+          active_theme: theme,
         },
       });
     } catch (error) {

@@ -152,6 +152,28 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
             strokeWidth: (shape as any).strokeWidth || 2,
           });
           tempLayer.add(circle);
+        } else if (shape.type === "ellipse") {
+          const ellipse = new Konva.Ellipse({
+            x: (shape as any).x + offsetX,
+            y: (shape as any).y + offsetY,
+            radiusX: (shape as any).radiusX,
+            radiusY: (shape as any).radiusY,
+            fill: (shape as any).fill,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+            rotation: (shape as any).rotation || 0,
+          });
+          tempLayer.add(ellipse);
+        } else if (shape.type === "path") {
+          const path = new Konva.Path({
+            data: (shape as any).data,
+            fill: (shape as any).fill,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+            lineCap: (shape as any).lineCap || "round",
+            lineJoin: (shape as any).lineJoin || "round",
+          });
+          tempLayer.add(path);
         } else if (
           shape.type === "line" ||
           shape.type === "pencil" ||

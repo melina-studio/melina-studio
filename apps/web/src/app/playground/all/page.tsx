@@ -1,20 +1,41 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { PlusIcon, Library } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 function Playground() {
   const router = useRouter();
+  const { theme } = useTheme();
 
   function createNewBoard() {
     // generate random uuid for routing
     const id = uuidv4();
     router.push(`/playground/${id}`);
   }
+
+  // set default settings
+  useEffect(() => {
+    // first check if settings are already set
+    if (localStorage.getItem("settings")) {
+      return;
+    }
+
+    // then set default settings
+    localStorage.setItem(
+      "settings",
+      JSON.stringify({
+        activeModel: "groq",
+        temperature: 0.5,
+        maxTokens: 1000,
+        theme: theme,
+      })
+    );
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">

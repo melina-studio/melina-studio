@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
@@ -137,9 +137,14 @@ export const useCanvasDrawing = (
       const hit = stage.getIntersection(pos);
       if (hit && hit.id()) {
         const hitId = hit.id();
-        if (hitId && shapes.some((s) => s.id === hitId)) {
-          setShapes((arr) => arr.filter((s) => s.id !== hitId));
-        }
+        // Use functional updates to ensure we're working with the latest state
+        // Only update local shapes state during erasing
+        setShapes((arr) => {
+          if (arr.some((s) => s.id === hitId)) {
+            return arr.filter((s) => s.id !== hitId);
+          }
+          return arr;
+        });
       }
       return;
     }
