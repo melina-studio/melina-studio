@@ -410,7 +410,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 		}
 
 		// Execute tools using common executor
-		execResults := ExecuteTools(ctx, toolCalls)
+		execResults := ExecuteTools(ctx, toolCalls , streamCtx)
 
 		// Format results for Gemini
 		functionResults := []map[string]interface{}{}

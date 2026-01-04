@@ -102,20 +102,44 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	}
 
 	// create an agent
-	LLM := "groq"
+	LLM := "vertex_anthropic"
 	agent := agents.NewAgent(LLM)
 
 
 	// send an event that the chat is starting
 	libraries.SendEventType(hub , client, libraries.WebSocketMessageTypeChatStarting)
 
+	fmt.Println("Processing chat message...")
 	// process the chat message - pass client and boardId for streaming
 	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, message.Message, chatHistory, boardId)
 	if err != nil {
-		libraries.SendErrorMessage(hub, client, "Failed to process chat message")
+		// Log the error for debugging but still try to send a helpful message
+		log.Printf("Error processing chat message: %v", err)
+		
+		// Send a more informative error message
+		errorMsg := fmt.Sprintf("I encountered an issue while processing your request: %v. Some shapes may have been created successfully. Please check the canvas.", err)
+		libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatResponse, &libraries.ChatMessageResponsePayload{
+			BoardId: boardId,
+			Message: errorMsg,
+		})
+		
+		// Still try to save what we have (even if partial)
+		if aiResponse != "" {
+			_, _, saveErr := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, message.Message, aiResponse)
+			if saveErr != nil {
+				log.Printf("Failed to save chat messages: %v", saveErr)
+			}
+		}
+		
+		// Send completion event even on error
+		libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
+			BoardId: boardId,
+			Message: aiResponse,
+		})
 		return
 	}
 
+	fmt.Println("Chat message processed successfully")
 	// after get successful response, create a chat in the database
 	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, message.Message, aiResponse)
 	if err != nil {
@@ -123,6 +147,10 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
+	fmt.Println("AI response:", aiResponse)
+	fmt.Println("Human message id:", human_message_id.String())
+	fmt.Println("AI message id:", ai_message_id.String())
+	fmt.Println("Sending chat message response...")
 	// send an event that the chat is completed
 	libraries.SendChatMessageResponse(hub , client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
 		BoardId: boardId,
@@ -130,4 +158,6 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		HumanMessageId: human_message_id.String(),
 		AiMessageId: ai_message_id.String(),
 	})
+
+	fmt.Println("Chat message completed")
 }

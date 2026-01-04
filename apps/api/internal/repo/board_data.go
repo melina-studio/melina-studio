@@ -65,10 +65,50 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		addString("fill", shapeData.Fill)
 		addFloat("strokeWidth", shapeData.StrokeWidth)
 
+	case "ellipse":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addFloat("w", shapeData.W)
+		addFloat("h", shapeData.H)
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
 	case "circle":
 		addFloat("x", shapeData.X)
 		addFloat("y", shapeData.Y)
 		addFloat("r", shapeData.R)
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "line", "arrow":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		if shapeData.Points != nil {
+			// store slice, not pointer
+			dataMap["points"] = *shapeData.Points
+		}
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "polygon":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		if shapeData.Points != nil {
+			// store slice, not pointer
+			dataMap["points"] = *shapeData.Points
+		}
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "pencil":
+		if shapeData.Points != nil {
+			// store slice, not pointer
+			dataMap["points"] = *shapeData.Points
+		}
 		addString("stroke", shapeData.Stroke)
 		addString("fill", shapeData.Fill)
 		addFloat("strokeWidth", shapeData.StrokeWidth)
@@ -80,15 +120,6 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		addFloat("fontSize", shapeData.FontSize)
 		addString("fontFamily", shapeData.FontFamily)
 		addString("fill", shapeData.Fill)
-
-	case "pencil":
-		if shapeData.Points != nil {
-			// store slice, not pointer
-			dataMap["points"] = *shapeData.Points
-		}
-		addString("stroke", shapeData.Stroke)
-		addString("fill", shapeData.Fill)
-		addFloat("strokeWidth", shapeData.StrokeWidth)
 
 	default:
 		return fmt.Errorf("unsupported shape type: %s", shapeData.Type)

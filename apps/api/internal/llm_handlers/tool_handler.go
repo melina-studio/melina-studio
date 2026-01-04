@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -67,13 +68,27 @@ type ImageContent struct {
 }
 
 // ExecuteTools executes a batch of tool calls and returns results
-func ExecuteTools(ctx context.Context, toolCalls []ToolCall) []ToolExecutionResult {
+func ExecuteTools(ctx context.Context, toolCalls []ToolCall , streamCtx *StreamingContext) []ToolExecutionResult {
 	results := make([]ToolExecutionResult, 0, len(toolCalls))
+
+	// Pass StreamingContext through context if available
+	if streamCtx != nil {
+		ctx = context.WithValue(ctx, "streamingContext", streamCtx)
+	}
 
 	for _, tc := range toolCalls {
 		result := ToolExecutionResult{
 			ToolCallID: tc.ID,
 			ToolName:   tc.Name,
+		}
+
+		// Handle empty input (streaming artifact) - return error result instead of skipping
+		// This is important because Claude requires a tool_result for every tool_use
+		if len(tc.Input) == 0 {
+			result.Error = fmt.Errorf("tool input was empty (streaming artifact) - please retry with valid parameters")
+			results = append(results, result)
+			fmt.Printf("[%s] EMPTY INPUT for tool %s (id=%s) - returning error result\n", tc.Provider, tc.Name, tc.ID)
+			continue
 		}
 
 		// Find handler
@@ -99,12 +114,25 @@ func ExecuteTools(ctx context.Context, toolCalls []ToolCall) []ToolExecutionResu
 		}
 		fmt.Printf(" with input=%#v\n", input)
 
-		// Execute handler
-		execResult, err := handler(ctx, input)
-		if err != nil {
-			result.Error = err
+		// Execute handler with panic recovery
+		var execResult interface{}
+		var handlerErr error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					handlerErr = fmt.Errorf("tool execution panicked: %v", r)
+					fmt.Printf("[%s] PANIC in tool %s: %v\n", tc.Provider, tc.Name, r)
+				}
+			}()
+			
+			execResult, handlerErr = handler(ctx, input)
+		}()
+		
+		// Handle errors (but don't stop the workflow - continue with other tools)
+		if handlerErr != nil {
+			result.Error = handlerErr
 			results = append(results, result)
-			fmt.Printf("[%s] ERROR: %v\n", tc.Provider, err)
+			fmt.Printf("[%s] ERROR in tool %s: %v (continuing with other tools)\n", tc.Provider, tc.Name, handlerErr)
 			continue
 		}
 
@@ -141,10 +169,24 @@ func ExecuteTools(ctx context.Context, toolCalls []ToolCall) []ToolExecutionResu
 // FormatAnthropicToolResult formats a ToolExecutionResult for Anthropic's API
 func FormatAnthropicToolResult(result ToolExecutionResult) map[string]interface{} {
 	if result.Error != nil {
+		// Create a helpful error message for the LLM
+		errorMsg := fmt.Sprintf("Tool execution failed: %v. Please check the input parameters and try again. The tool '%s' requires valid parameters.", result.Error, result.ToolName)
+		
+		// Add specific guidance based on error type
+		if strings.Contains(result.Error.Error(), "boardId") {
+			errorMsg += " Make sure boardId is provided and is a valid UUID string."
+		} else if strings.Contains(result.Error.Error(), "shapeType") {
+			errorMsg += " Make sure shapeType is one of: rect, circle, line, arrow, ellipse, polygon, text, pencil."
+		} else if strings.Contains(result.Error.Error(), "points") {
+			errorMsg += " For line/arrow/polygon/pencil shapes, provide a 'points' array with coordinates [x1, y1, x2, y2, ...]."
+		} else if strings.Contains(result.Error.Error(), "empty") {
+			errorMsg += " The tool input was empty. Please provide all required parameters: boardId, shapeType, x, y."
+		}
+		
 		return map[string]interface{}{
 			"type":        "tool_result",
 			"tool_use_id": result.ToolCallID,
-			"content":     fmt.Sprintf("Error: %v", result.Error),
+			"content":     errorMsg,
 			"is_error":    true,
 		}
 	}

@@ -422,7 +422,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		}
 
 		// Execute tools using common executor
-		execResults := ExecuteTools(ctx, toolCalls)
+		execResults := ExecuteTools(ctx, toolCalls, currentStreamCtx)
 
 		// Format results for LangChain (OpenAI-compatible)
 		functionResults := []map[string]interface{}{}

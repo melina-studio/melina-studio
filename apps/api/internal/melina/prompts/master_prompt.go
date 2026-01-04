@@ -72,6 +72,50 @@ var MASTER_PROMPT = `
         Retrieves the current board image.
         Requires boardId.
       </TOOL>
+      <TOOL name="addShape">
+        Adds a shape to the board in react konva format.
+        Requires boardId, shapeType, x, y, width, height, radius, stroke, fill, strokeWidth, text, fontSize, fontFamily.
+        The shape will appear on the board immediately.
+        
+        <SHAPES>
+        # Supported shapes
+        ## Basic shapes
+          ### rect — Rectangle
+            Properties: x, y, w, h, fill, stroke, strokeWidth
+            Draggable, resizable, selectable
+          ### circle — Circle
+            Properties: x, y, r, fill, stroke, strokeWidth, cornerRadius
+            Draggable, selectable
+          ### ellipse — Ellipse (newly added)
+            Properties: x, y, radiusX, radiusY, fill, stroke, strokeWidth, rotation
+            Draggable, resizable, selectable
+          <br>
+        ## Path-based shapes
+          ### path — SVG Path (newly added)
+            Properties: data (SVG path string), x, y, fill, stroke, strokeWidth, lineCap, lineJoin
+            Draggable, selectable
+          ### pencil — Freehand drawing
+            Properties: points (array), stroke, strokeWidth, tension
+            Rendered as Line, draggable, selectable
+          ### line — Straight line
+            Properties: points (array), stroke, strokeWidth
+            Rendered as Line, draggable, selectable
+          ### arrow — Arrow
+            Properties: points (array), stroke, strokeWidth
+            Rendered as Line, draggable, selectable
+          ### eraser — Eraser tool
+            Properties: points (array), stroke, strokeWidth
+            Rendered as Line
+          <br>
+          ## Text and media
+            ### text — Text
+            Properties: text, x, y, fontSize, fontFamily, fill
+            Draggable, double-click to edit
+          ### image — Image (newly added)
+            Properties: src, x, y, width, height
+            Draggable, resizable, selectable
+        </SHAPES>
+      </TOOL>
     </AVAILABLE>
 
     <USAGE_RULES>

@@ -21,6 +21,8 @@ const (
 	WebSocketMessageTypeChatResponse WebSocketMessageType = "chat_response"
 	WebSocketMessageTypeChatStarting WebSocketMessageType = "chat_starting"
 	WebSocketMessageTypeChatCompleted WebSocketMessageType = "chat_completed"
+	WebsocketShapeTypeStart WebSocketMessageType = "shape_start"
+	WebSocketMessageTypeShapeCreated WebSocketMessageType = "shape_created"
 )
 
 
@@ -39,8 +41,8 @@ type Hub struct {
 }
 
 type WebSocketMessage struct {
-	Type WebSocketMessageType      `json:"type"`
-	Data *ChatMessagePayload 		`json:"data,omitempty"`
+	Type WebSocketMessageType `json:"type"`
+	Data interface{}          `json:"data,omitempty"`
 }
 
 type ChatMessagePayload struct {
@@ -56,6 +58,11 @@ type ChatMessageResponsePayload struct {
 	Data           interface{} `json:"data,omitempty"`
 }
 
+// Add this new struct
+type ShapeCreatedPayload struct {
+	BoardId string                 `json:"board_id"`
+	Shape   map[string]interface{} `json:"shape"`
+}
 
 func NewHub() *Hub {
 	return &Hub{
@@ -140,13 +147,7 @@ func SendEventType(hub *Hub, client *Client, eventType WebSocketMessageType) {
 func SendChatMessageResponse(hub *Hub, client *Client, Type WebSocketMessageType, message *ChatMessageResponsePayload) {
 	chatMessageResponseResp := WebSocketMessage{
 		Type: Type,
-		Data: &ChatMessagePayload{
-			Message: message.Message,
-		},
-	}
-
-	if message.BoardId != "" {
-		chatMessageResponseResp.Data.BoardId = message.BoardId
+		Data: message,
 	}
 
 	chatMessageResponseBytes, err := json.Marshal(chatMessageResponseResp)
@@ -159,14 +160,64 @@ func SendChatMessageResponse(hub *Hub, client *Client, Type WebSocketMessageType
 	time.Sleep(50 * time.Millisecond)
 }
 
+// SendShapeCreatedMessage sends a shape created message to a client
+func SendShapeCreatedMessage(hub *Hub, client *Client, boardId string, shape map[string]interface{}) {
+	shapeCreatedResp := WebSocketMessage{
+		Type: WebSocketMessageTypeShapeCreated,
+		Data: &ShapeCreatedPayload{
+			BoardId: boardId,
+			Shape:   shape,
+		},
+	}
+	shapeCreatedBytes, err := json.Marshal(shapeCreatedResp)
+	if err != nil {
+		log.Println("failed to marshal shape created response:", err)
+		return
+	}
+	hub.SendMessage(client, shapeCreatedBytes)
+}
+
 
 // parseWebSocketMessage parses incoming websocket message and returns the message structure
 func parseWebSocketMessage(msg []byte) (*WebSocketMessage, error) {
-	var message WebSocketMessage
-	if err := json.Unmarshal(msg, &message); err != nil {
+	var rawMessage struct {
+		Type WebSocketMessageType `json:"type"`
+		Data json.RawMessage      `json:"data,omitempty"`
+	}
+	if err := json.Unmarshal(msg, &rawMessage); err != nil {
 		return nil, err
 	}
-	return &message, nil
+
+	message := &WebSocketMessage{
+		Type: rawMessage.Type,
+	}
+
+	// Convert data to appropriate type based on message type
+	if len(rawMessage.Data) > 0 {
+		switch rawMessage.Type {
+		case WebSocketMessageTypeMessage:
+			var chatPayload ChatMessagePayload
+			if err := json.Unmarshal(rawMessage.Data, &chatPayload); err != nil {
+				return nil, err
+			}
+			message.Data = &chatPayload
+		case WebSocketMessageTypeShapeCreated:
+			var shapePayload ShapeCreatedPayload
+			if err := json.Unmarshal(rawMessage.Data, &shapePayload); err != nil {
+				return nil, err
+			}
+			message.Data = &shapePayload
+		default:
+			// For other types, unmarshal as generic interface{}
+			var data interface{}
+			if err := json.Unmarshal(rawMessage.Data, &data); err != nil {
+				return nil, err
+			}
+			message.Data = data
+		}
+	}
+
+	return message, nil
 }
 
 // ChatMessageProcessor defines an interface for processing chat messages
@@ -224,14 +275,20 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 					SendErrorMessage(hub, client, "Chat message payload is required")
 					continue
 				}
+				// Type assert to ChatMessagePayload
+				chatPayload, ok := message.Data.(*ChatMessagePayload)
+				if !ok {
+					SendErrorMessage(hub, client, "Invalid chat message payload type")
+					continue
+				}
 				// extract the board id from the message
-				boardId := message.Data.BoardId
+				boardId := chatPayload.BoardId
 				if boardId == "" {
 					SendErrorMessage(hub, client, "Board ID is required")
 					continue
 				}
 				// send the chat message to the processor
-				go processor.ProcessChatMessage(hub, client,boardId, message.Data)
+				go processor.ProcessChatMessage(hub, client,boardId, chatPayload)
 			} else {
 				//  return error that type is invalid or not provided
 				SendErrorMessage(hub, client, "Type is invalid or not provided")

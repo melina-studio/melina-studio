@@ -446,10 +446,43 @@ func StreamClaudeWithMessages(
 			}
 
 		case "message_stop":
-			// Message is complete - extract stop_reason and finalize any tool uses
+			// Message is complete - extract stop_reason and finalize any pending tool uses
 			if ev.StopReason != "" {
 				cr.StopReason = ev.StopReason
 			}
+			
+			// Finalize any pending tool_use blocks that didn't get a content_block_stop
+			for idx, toolUse := range currentToolUseBuilders {
+				if toolUse.ID != "" && toolUse.Name != "" {
+					// Try to get input from accumulated JSON deltas
+					if inputBuilder, ok := currentToolUseInputBuilders[idx]; ok && inputBuilder.Len() > 0 {
+						accumulatedJSON := inputBuilder.String()
+						var input map[string]interface{}
+						if err := json.Unmarshal([]byte(accumulatedJSON), &input); err == nil {
+							toolUse.Input = input
+						} else {
+							fmt.Printf("[anthropic] message_stop: Failed to parse tool_use input JSON for index %d: %v\n", idx, err)
+						}
+					}
+					
+					// Check if this tool_use is already in the response (avoid duplicates)
+					alreadyAdded := false
+					for _, existing := range cr.ToolUses {
+						if existing.ID == toolUse.ID {
+							alreadyAdded = true
+							break
+						}
+					}
+					
+					if !alreadyAdded {
+						cr.ToolUses = append(cr.ToolUses, *toolUse)
+						fmt.Printf("[anthropic] message_stop: Finalized pending tool_use: ID=%s, Name=%s, Input=%v\n", toolUse.ID, toolUse.Name, toolUse.Input)
+					}
+				}
+			}
+			// Clear the builders
+			currentToolUseBuilders = make(map[int]*ToolUse)
+			currentToolUseInputBuilders = make(map[int]*strings.Builder)
 
 		case "message_delta":
 			// Message-level delta (usually contains stop_reason)
@@ -459,8 +492,8 @@ func StreamClaudeWithMessages(
 
 		case "content_block":
 			// Full content block (used in some streaming formats)
-			for _, block := range ev.Content {
-				if block.Type == "text" && block.Text != "" {
+		for _, block := range ev.Content {
+			if block.Type == "text" && block.Text != "" {
 					// Complete text block
 					cr.TextContent = append(cr.TextContent, block.Text)
 					accumulatedText.WriteString(block.Text)
@@ -559,7 +592,7 @@ func StreamClaudeWithMessages(
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
 func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext) (*ClaudeResponse, error) {
-	const maxIterations = 3 // safety guard
+	const maxIterations = 10 // safety guard - increased for complex drawings that need many shapes
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)
@@ -576,9 +609,9 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			}
 		} else {
 			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools)
-			if err != nil {
-				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
-			}
+		if err != nil {
+			return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
+		}
 		}
 
 		if cr == nil {
@@ -593,18 +626,34 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		}
 
 		// Convert ToolUses to common ToolCall format
-		toolCalls := make([]ToolCall, len(cr.ToolUses))
-		for i, toolUse := range cr.ToolUses {
-			toolCalls[i] = ToolCall{
+		// Note: We must include ALL tool calls (even empty ones) because Claude requires
+		// a tool_result for every tool_use in the assistant message
+		toolCalls := make([]ToolCall, 0, len(cr.ToolUses))
+		for _, toolUse := range cr.ToolUses {
+			toolCalls = append(toolCalls, ToolCall{
 				ID:       toolUse.ID,
 				Name:     toolUse.Name,
 				Input:    toolUse.Input,
 				Provider: "anthropic",
-			}
+			})
 		}
 
 		// Execute tools using common executor
-		execResults := ExecuteTools(ctx, toolCalls)
+		execResults := ExecuteTools(ctx, toolCalls , streamCtx)
+
+		// Count successes and failures for logging
+		successCount := 0
+		failureCount := 0
+		for _, r := range execResults {
+			if r.Error != nil {
+				failureCount++
+			} else {
+				successCount++
+			}
+		}
+		if len(execResults) > 0 {
+			fmt.Printf("[anthropic] Tool execution summary: %d succeeded, %d failed out of %d total\n", successCount, failureCount, len(execResults))
+		}
 
 		// Format results for Anthropic
 		toolResultsContent := make([]map[string]interface{}, 0, len(execResults))
