@@ -14,8 +14,10 @@ import (
 )
 
 type LangChainClient struct {
-	llm   llms.Model
-	Tools []map[string]interface{}
+	llm         llms.Model
+	Tools       []map[string]interface{}
+	Temperature *float32 // Optional: nil means use default
+	MaxTokens   *int     // Optional: nil means use default
 }
 
 // StreamingContext holds the context needed for streaming responses
@@ -30,10 +32,12 @@ type StreamingContext struct {
 }
 
 type LangChainConfig struct {
-	Model   string                 // e.g. "gpt-4.1", "llama-3.1-70b-versatile"
-	BaseURL string                 // optional: for Groq or other OpenAI-compatible APIs
-	APIKey  string                 // if not set, it'll fall back to env
-	Tools   []map[string]interface{} // Tool definitions in OpenAI format
+	Model       string                 // e.g. "gpt-4.1", "llama-3.1-70b-versatile"
+	BaseURL     string                 // optional: for Groq or other OpenAI-compatible APIs
+	APIKey      string                 // if not set, it'll fall back to env
+	Tools       []map[string]interface{} // Tool definitions in OpenAI format
+	Temperature *float32               // Optional: nil means use default
+	MaxTokens   *int                   // Optional: nil means use default
 }
 
 // LangChainResponse contains the parsed response from LangChain
@@ -67,8 +71,10 @@ func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 	}
 
 	return &LangChainClient{
-		llm:   llm,
-		Tools: cfg.Tools,
+		llm:         llm,
+		Tools:       cfg.Tools,
+		Temperature: cfg.Temperature,
+		MaxTokens:   cfg.MaxTokens,
 	}, nil
 }
 
@@ -149,23 +155,16 @@ func (c *LangChainClient) convertMessagesToLangChainContent(messages []Message) 
 					}
 
 				case "function_call":
-					// Handle function call from assistant
-					// Note: langchaingo may handle this differently, we'll parse from response instead
-					if fn, ok := block["function"].(map[string]interface{}); ok {
-						name, _ := fn["name"].(string)
-						arguments, _ := fn["arguments"].(map[string]interface{})
-						argsJSON, _ := json.Marshal(arguments)
-						// Convert to text representation for now
-						parts = append(parts, llms.TextPart(fmt.Sprintf("Function call: %s with args: %s", name, string(argsJSON))))
-					}
+					// Skip function_call blocks - langchaingo handles these automatically
+					// when using WithFunctions. Including them as text causes the model
+					// to echo the function call details.
+					continue
 
 				case "function_response":
-					// Handle function response (tool result)
-					// Note: langchaingo may handle this differently, we'll format as text for now
+					// Convert function_response to text for the model to understand
 					if fn, ok := block["function"].(map[string]interface{}); ok {
-						name, _ := fn["name"].(string)
 						responseStr, _ := fn["response"].(string)
-						parts = append(parts, llms.TextPart(fmt.Sprintf("Function response for %s: %s", name, responseStr)))
+						parts = append(parts, llms.TextPart(responseStr))
 					}
 				}
 			}
@@ -228,14 +227,37 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 
 	// Build call options
 	opts := []llms.CallOption{}
+	
+	// Add temperature if configured
+	// Note: For Groq models, slightly higher temperature (0.3-0.5) helps with tool calling
+	if c.Temperature != nil {
+		opts = append(opts, llms.WithTemperature(float64(*c.Temperature)))
+	}
+	
+	// Add max tokens if configured
+	if c.MaxTokens != nil {
+		opts = append(opts, llms.WithMaxTokens(*c.MaxTokens))
+	}
+	
+	// IMPORTANT: Always add tools if available, even if we're in a tool execution loop
+	// This ensures Groq models know tools are available on every call
 	if len(langChainTools) > 0 {
 		// WithFunctions expects a single slice, not variadic
 		opts = append(opts, llms.WithFunctions(langChainTools))
+		
+		// For Groq models, we can try to force tool usage by setting tool_choice
+		// This helps when the model is being "lazy" and not calling tools
+		// Note: This is OpenAI-compatible, so it should work with Groq
+		opts = append(opts, llms.WithToolChoice("auto"))
+		
+		fmt.Printf("[langchain] Added %d tools to call options with tool_choice=auto\n", len(langChainTools))
 
 		// Enable streaming if streaming context is provided
 		if streamCtx != nil && streamCtx.Client != nil {
 			opts = append(opts, llms.WithStreamingFunc(streamingFunc))
 		}
+	} else {
+		fmt.Printf("[langchain] WARNING: No tools available for this call\n")
 	}
 
 	// Call GenerateContent
@@ -269,6 +291,8 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	stopReason := choice.StopReason
 	isFunctionCall := stopReason == "function_call" || stopReason == "tool_calls" || 
 		stopReason == "function_calls" || strings.Contains(strings.ToLower(stopReason), "function")
+	
+	fmt.Printf("[langchain] StopReason: %s, isFunctionCall: %v, ToolCalls count: %d\n", stopReason, isFunctionCall, len(choice.ToolCalls))
 	
 	// Extract function calls from ToolCalls field
 	// langchaingo stores tool calls in choice.ToolCalls
@@ -357,6 +381,14 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 			fmt.Printf("[langchain] StopReason indicates function call (%s) but couldn't extract function calls. Response structure: %+v\n", stopReason, choice)
 		}
 	}
+	
+	// Log final function call count
+	if len(lr.FunctionCalls) > 0 {
+		fmt.Printf("[langchain] Extracted %d function calls: %v\n", len(lr.FunctionCalls), lr.FunctionCalls)
+	} else if len(langChainTools) > 0 {
+		// Warn if tools were available but no calls were made
+		fmt.Printf("[langchain] WARNING: Tools were available but model did not make any function calls. StopReason: %s\n", stopReason)
+	}
 
 	return lr, nil
 }
@@ -433,34 +465,29 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			functionResults = append(functionResults, funcResp)
 			imageContentBlocks = append(imageContentBlocks, imgBlocks...)
 		}
+		
+		fmt.Printf("[langchain] Tool results formatted: %+v\n", functionResults)
 
-		// Append assistant message with function calls
-		assistantParts := []map[string]interface{}{}
-		for _, text := range lr.TextContent {
-			assistantParts = append(assistantParts, map[string]interface{}{
-				"type": "text",
-				"text": text,
-			})
+		// Don't add assistant message with function calls to history
+		// The model already knows it made the call, we just need to provide the result
+		
+		// Append user message with function results as simple text
+		// Combine all tool results into a single clear message
+		var toolResultTexts []string
+		for _, fr := range functionResults {
+			if textContent, ok := fr["text"].(string); ok {
+				toolResultTexts = append(toolResultTexts, textContent)
+			}
 		}
-		for _, fc := range lr.FunctionCalls {
-			assistantParts = append(assistantParts, map[string]interface{}{
-				"type": "function_call",
-				"function": map[string]interface{}{
-					"name":      fc.Name,
-					"arguments": fc.Arguments,
-				},
+		
+		if len(toolResultTexts) > 0 {
+			combinedResult := strings.Join(toolResultTexts, "\n")
+			workingMessages = append(workingMessages, Message{
+				Role:    "user",
+				Content: combinedResult, // Simple string, not array of maps
 			})
+			fmt.Printf("[langchain] Added tool result message: %s\n", combinedResult)
 		}
-		workingMessages = append(workingMessages, Message{
-			Role:    "assistant",
-			Content: assistantParts,
-		})
-
-		// Append user message with function results
-		workingMessages = append(workingMessages, Message{
-			Role:    "user",
-			Content: functionResults,
-		})
 
 		// If we have image content blocks, add them as a separate user message
 		// This allows the LLM to actually "see" the image

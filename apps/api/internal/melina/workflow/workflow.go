@@ -49,9 +49,11 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 
 	// Default to gemini if not specified
 	LLM := "groq"
+	temperature := float32(0.2)
+	maxTokens := 1024
 
 	// Create agent on-demand with specified LLM provider
-	agent := agents.NewAgent(LLM)
+	agent := agents.NewAgent(LLM, &temperature, &maxTokens)
 
 	// get chat history from the database
 	chatHistory, err := w.chatRepo.GetChatHistory(boardUUID, 20)
@@ -86,9 +88,9 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	})
 }
 
-func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Client, boardId string, message *libraries.ChatMessagePayload) {
+func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Client, cfg *libraries.WorkflowConfig) {
 	// get chat history from the database
-	boardIdUUID, err := uuid.Parse(boardId)
+	boardIdUUID, err := uuid.Parse(cfg.BoardId)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Invalid board ID")
 		return
@@ -102,16 +104,15 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	}
 
 	// create an agent
-	LLM := "vertex_anthropic"
-	agent := agents.NewAgent(LLM)
+	LLM := cfg.Model
+	agent := agents.NewAgent(LLM, cfg.Temperature, cfg.MaxTokens)
 
 
 	// send an event that the chat is starting
 	libraries.SendEventType(hub , client, libraries.WebSocketMessageTypeChatStarting)
 
-	fmt.Println("Processing chat message...")
 	// process the chat message - pass client and boardId for streaming
-	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, message.Message, chatHistory, boardId)
+	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId , cfg.ActiveTheme)
 	if err != nil {
 		// Log the error for debugging but still try to send a helpful message
 		log.Printf("Error processing chat message: %v", err)
@@ -119,13 +120,13 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		// Send a more informative error message
 		errorMsg := fmt.Sprintf("I encountered an issue while processing your request: %v. Some shapes may have been created successfully. Please check the canvas.", err)
 		libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatResponse, &libraries.ChatMessageResponsePayload{
-			BoardId: boardId,
+			BoardId: cfg.BoardId,
 			Message: errorMsg,
 		})
 		
 		// Still try to save what we have (even if partial)
 		if aiResponse != "" {
-			_, _, saveErr := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, message.Message, aiResponse)
+			_, _, saveErr := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
 			if saveErr != nil {
 				log.Printf("Failed to save chat messages: %v", saveErr)
 			}
@@ -133,31 +134,25 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		
 		// Send completion event even on error
 		libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
-			BoardId: boardId,
+			BoardId: cfg.BoardId,
 			Message: aiResponse,
 		})
 		return
 	}
 
-	fmt.Println("Chat message processed successfully")
 	// after get successful response, create a chat in the database
-	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, message.Message, aiResponse)
+	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
 		return
 	}
 
-	fmt.Println("AI response:", aiResponse)
-	fmt.Println("Human message id:", human_message_id.String())
-	fmt.Println("AI message id:", ai_message_id.String())
-	fmt.Println("Sending chat message response...")
 	// send an event that the chat is completed
 	libraries.SendChatMessageResponse(hub , client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
-		BoardId: boardId,
+		BoardId: cfg.BoardId,
 		Message: aiResponse,
 		HumanMessageId: human_message_id.String(),
 		AiMessageId: ai_message_id.String(),
 	})
 
-	fmt.Println("Chat message completed")
 }

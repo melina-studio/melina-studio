@@ -16,7 +16,7 @@ type Agent struct {
 	llmClient llmHandlers.Client
 }
 
-func NewAgent(provider string) *Agent {
+func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
 	var cfg llmHandlers.Config
 
 	switch provider {
@@ -27,6 +27,8 @@ func NewAgent(provider string) *Agent {
 			Model:    "gpt-5.1",
 			APIKey:   os.Getenv("OPENAI_API_KEY"),
 			Tools:    tools,
+			Temperature: temperature,
+			MaxTokens: maxTokens,
 		}
 
 	case "groq":
@@ -37,22 +39,28 @@ func NewAgent(provider string) *Agent {
 			BaseURL:  os.Getenv("GROQ_BASE_URL"),
 			APIKey:   os.Getenv("GROQ_API_KEY"),
 			Tools:    tools,
+			Temperature: temperature,
+			MaxTokens: maxTokens,
 		}
 
-	case "vertex_anthropic":
+	case "anthropic":
 		tools := tools.GetAnthropicTools()
 		cfg = llmHandlers.Config{
 			Provider: llmHandlers.ProviderVertexAnthropic,
 			Tools:    tools,
+			Temperature: temperature,
+			MaxTokens: maxTokens,
 		}
 	case "gemini":
 		cfg = llmHandlers.Config{
 			Provider: llmHandlers.ProviderGemini,
 			Tools:    tools.GetGeminiTools(),
+			Temperature: temperature,
+			MaxTokens: maxTokens,
 		}
 
 	default:
-		log.Fatalf("Unknown provider: %s. Valid options: openai, groq, vertex_anthropic", provider)
+		log.Fatalf("Unknown provider: %s. Valid options: openai, groq, anthropic", provider)
 	}
 
 	llmClient, err := llmHandlers.New(cfg)
@@ -98,9 +106,9 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 // ProcessRequestStream processes a user message with optional board image
 // boardId can be empty string if no image should be included
 // client can be nil if streaming is not needed
-func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
+func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string, activeTheme string) (string, error) {
 	// Build messages for the LLM
-	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId)
+	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
 	
 	// Build user message content - may include image if boardId is provided
 	var userContent interface{} = message

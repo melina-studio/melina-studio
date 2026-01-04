@@ -115,21 +115,42 @@ func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
 		})
 	}
 
-	if len(shapes) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "No shapes provided",
-		})
-	}
+	// if len(shapes) == 0 {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"error": "No shapes provided",
+	// 	})
+	// }
+
+	// Collect UUIDs of shapes being saved
+	var shapeUUIDs []uuid.UUID
 
 	// Save each shape (create or update)
 	for _, data := range shapes {
-		err := h.boardDataRepo.SaveShapeData(boardId, &data)
+		shapeUUID, err := uuid.Parse(data.ID)
+		if err != nil {
+			log.Println(err, "Error parsing shape ID")
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid shape ID",
+			})
+		}
+		shapeUUIDs = append(shapeUUIDs, shapeUUID)
+
+		err = h.boardDataRepo.SaveShapeData(boardId, &data)
 		if err != nil {
 			log.Println(err, "Error saving shape data")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to save shape data",
 			})
 		}
+	}
+
+	// Delete shapes that exist in the database but are not in the payload
+	err = h.boardDataRepo.DeleteShapesNotInList(boardId, shapeUUIDs)
+	if err != nil {
+		log.Println(err, "Error deleting removed shapes")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete removed shapes",
+		})
 	}
 
 	// Handle image file if provided

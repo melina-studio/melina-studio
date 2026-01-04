@@ -10,11 +10,17 @@ import (
 // VertexAnthropicClient implements llm.Client using your libraries.ChatWithTools
 type VertexAnthropicClient struct {
 	// optional config fields (project, modelID) if needed
-	Tools []map[string]interface{} // optional metadata you send to Claude
+	Tools       []map[string]interface{} // optional metadata you send to Claude
+	Temperature *float32                   // Optional: nil means use default
+	MaxTokens   *int                       // Optional: nil means use default
 }
 
-func NewVertexAnthropicClient(tools []map[string]interface{}) *VertexAnthropicClient {
-	return &VertexAnthropicClient{Tools: tools}
+func NewVertexAnthropicClient(tools []map[string]interface{}, temperature *float32, maxTokens *int) *VertexAnthropicClient {
+	return &VertexAnthropicClient{
+		Tools:       tools,
+		Temperature: temperature,
+		MaxTokens:   maxTokens,
+	}
 }
 
 // Chat returns a single string answer (convenience wrapper).
@@ -28,7 +34,7 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 		})
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools , nil)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, nil, c.Temperature, c.MaxTokens)
 	if err != nil {
 		return "", err
 	}
@@ -55,7 +61,7 @@ func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.H
 			BoardId: boardId, // Can be empty string
 		}
 	}
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
 	if err != nil {
 		return "", err
 	}

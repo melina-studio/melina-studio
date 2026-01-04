@@ -2,6 +2,7 @@ package libraries
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -48,6 +49,10 @@ type WebSocketMessage struct {
 type ChatMessagePayload struct {
 	BoardId string `json:"board_id,omitempty"`
 	Message string `json:"message"`
+	ActiveModel string `json:"active_model"`
+	Temperature *float32 `json:"temperature"`
+	MaxTokens *int `json:"max_tokens"`
+	ActiveTheme string `json:"active_theme"`
 }
 
 type ChatMessageResponsePayload struct {
@@ -63,6 +68,16 @@ type ShapeCreatedPayload struct {
 	BoardId string                 `json:"board_id"`
 	Shape   map[string]interface{} `json:"shape"`
 }
+
+type WorkflowConfig struct {
+	BoardId     string
+	Message     *ChatMessagePayload
+	Model       string
+	Temperature *float32
+	MaxTokens   *int
+	ActiveTheme string
+}
+
 
 func NewHub() *Hub {
 	return &Hub{
@@ -222,7 +237,7 @@ func parseWebSocketMessage(msg []byte) (*WebSocketMessage, error) {
 
 // ChatMessageProcessor defines an interface for processing chat messages
 type ChatMessageProcessor interface {
-	ProcessChatMessage(hub *Hub, client *Client, boardId string, message *ChatMessagePayload)
+	ProcessChatMessage(hub *Hub, client *Client, cfg *WorkflowConfig)
 }
 
 func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
@@ -287,8 +302,23 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 					SendErrorMessage(hub, client, "Board ID is required")
 					continue
 				}
+				
+				fmt.Println("chatPayload", chatPayload)
+				fmt.Println("chatPayload.ActiveModel", chatPayload.ActiveModel)
+				fmt.Println("chatPayload.Temperature", chatPayload.Temperature)
+				fmt.Println("chatPayload.MaxTokens", chatPayload.MaxTokens)
+
+				payload := &WorkflowConfig{
+					BoardId:     boardId,
+					Message:     chatPayload,
+					Model:       chatPayload.ActiveModel,
+					Temperature: chatPayload.Temperature,
+					MaxTokens:   chatPayload.MaxTokens,
+					ActiveTheme: chatPayload.ActiveTheme,
+				}
+
 				// send the chat message to the processor
-				go processor.ProcessChatMessage(hub, client,boardId, chatPayload)
+				go processor.ProcessChatMessage(hub, client, payload)
 			} else {
 				//  return error that type is invalid or not provided
 				SendErrorMessage(hub, client, "Type is invalid or not provided")

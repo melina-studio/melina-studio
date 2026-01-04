@@ -24,6 +24,7 @@ type BoardDataRepoInterface interface {
 	SaveShapeData(boardId uuid.UUID, shapeData *models.Shape) error
 	GetBoardData(boardId uuid.UUID) ([]models.BoardData, error)
 	ClearBoardData(boardId uuid.UUID) error
+	DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error
 }
 
 // NewBoardDataRepository returns a new instance of BoardDataRepo
@@ -167,4 +168,13 @@ func (r *BoardDataRepo) GetBoardData(boardId uuid.UUID) ([]models.BoardData, err
 
 func (r *BoardDataRepo) ClearBoardData(boardId uuid.UUID) error {
 	return r.db.Where("board_id = ?", boardId).Delete(&models.BoardData{}).Error
+}
+
+func (r *BoardDataRepo) DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error {
+	if len(shapeUUIDs) == 0 {
+		// If no shapes in the list, delete all shapes for this board
+		return r.db.Where("board_id = ?", boardId).Delete(&models.BoardData{}).Error
+	}
+	// Delete shapes that belong to this board but are not in the provided list
+	return r.db.Where("board_id = ? AND uuid NOT IN ?", boardId, shapeUUIDs).Delete(&models.BoardData{}).Error
 }

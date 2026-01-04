@@ -36,7 +36,7 @@ type GenaiGeminiClient struct {
 	Tools       []map[string]interface{}
 }
 
-func NewGenaiGeminiClient(ctx context.Context, tools []map[string]interface{}) (*GenaiGeminiClient, error) {
+func NewGenaiGeminiClient(ctx context.Context, tools []map[string]interface{}, temperature *float32, maxTokens *int) (*GenaiGeminiClient, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	modelID := os.Getenv("GEMINI_MODEL_ID")
 
@@ -53,11 +53,22 @@ func NewGenaiGeminiClient(ctx context.Context, tools []map[string]interface{}) (
 		return nil, fmt.Errorf("genai.NewClient: %w", err)
 	}
 
+	// Set defaults if not provided
+	tempValue := float32(0.2)
+	if temperature != nil {
+		tempValue = *temperature
+	}
+	
+	maxTokensValue := int32(1024)
+	if maxTokens != nil {
+		maxTokensValue = int32(*maxTokens)
+	}
+
 	return &GenaiGeminiClient{
 		client:      client,
 		modelID:     modelID,
-		Temperature: 0.2,
-		MaxTokens:   1024,
+		Temperature: tempValue,
+		MaxTokens:   maxTokensValue,
 		Tools:       tools,
 	}, nil
 }

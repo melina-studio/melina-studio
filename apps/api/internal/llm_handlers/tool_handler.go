@@ -284,31 +284,18 @@ func FormatGeminiToolResult(result ToolExecutionResult) (functionResponse map[st
 
 // FormatLangChainToolResult formats a ToolExecutionResult for LangChain's API (OpenAI-compatible)
 // Returns both the function response and optional image content blocks
+// For OpenAI-compatible APIs, tool results should be plain text, not function_response blocks
 func FormatLangChainToolResult(result ToolExecutionResult) (functionResponse map[string]interface{}, imageBlocks []map[string]interface{}) {
 	imageBlocks = []map[string]interface{}{}
 
+	var resultText string
+
 	if result.Error != nil {
-		resultJSON, _ := json.Marshal(map[string]string{"error": result.Error.Error()})
-		return map[string]interface{}{
-			"type": "function_response",
-			"function": map[string]interface{}{
-				"name":     result.ToolName,
-				"response": string(resultJSON),
-			},
-		}, imageBlocks
-	}
-
-	var resultJSON []byte
-
-	if result.HasImage && result.ImageData != nil {
-		// Return metadata in function response
-		metadata := map[string]interface{}{
-			"boardId": result.ImageData.BoardID,
-			"format":  result.ImageData.Format,
-			"message": fmt.Sprintf("Board image retrieved for boardId: %s", result.ImageData.BoardID),
-		}
-		resultJSON, _ = json.Marshal(metadata)
-
+		resultText = fmt.Sprintf("Error: %v", result.Error)
+	} else if result.HasImage && result.ImageData != nil {
+		// Return simple message for image retrieval
+		resultText = fmt.Sprintf("Board image retrieved for boardId: %s", result.ImageData.BoardID)
+		
 		// Store image as content blocks to add separately
 		imageBlocks = append(imageBlocks,
 			map[string]interface{}{
@@ -325,16 +312,25 @@ func FormatLangChainToolResult(result ToolExecutionResult) (functionResponse map
 			},
 		)
 	} else if resultMap, ok := result.Result.(map[string]interface{}); ok {
-		resultJSON, _ = json.Marshal(resultMap)
+		// Extract success message if available, otherwise format as JSON
+		if msg, ok := resultMap["message"].(string); ok {
+			// For addShape tool, add a clear completion message
+			if result.ToolName == "addShape" {
+				resultText = fmt.Sprintf("Tool executed successfully: %s. Now respond to the user about what you created.", msg)
+			} else {
+				resultText = msg
+			}
+		} else {
+			resultJSON, _ := json.Marshal(resultMap)
+			resultText = string(resultJSON)
+		}
 	} else {
-		resultJSON, _ = json.Marshal(result.Result)
+		resultText = fmt.Sprintf("%v", result.Result)
 	}
 
+	// Return as plain text (not function_response) - langchaingo will handle tool results internally
 	return map[string]interface{}{
-		"type": "function_response",
-		"function": map[string]interface{}{
-			"name":     result.ToolName,
-			"response": string(resultJSON),
-		},
+		"type": "text",
+		"text": resultText,
 	}, imageBlocks
 }
