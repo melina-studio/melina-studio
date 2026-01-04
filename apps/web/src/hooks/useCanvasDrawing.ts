@@ -209,8 +209,13 @@ export const useCanvasDrawing = (
     );
   };
 
-  const finishDrawing = (handleSave: () => void) => {
+  const finishDrawing = (handleSave: (shapes?: Shape[]) => void) => {
     if (isDrawing) {
+      // Check if shapes actually changed
+      const shapesChanged =
+        shapes.length !== shapesBeforeDrawing.length ||
+        JSON.stringify(shapes) !== JSON.stringify(shapesBeforeDrawing);
+
       setShapesWithHistory(shapes, {
         pushHistory: true,
         stateToPush: shapesBeforeDrawing,
@@ -220,10 +225,15 @@ export const useCanvasDrawing = (
         setSelectedIds([lastCreatedId]);
         setLastCreatedId(null);
       }
+
+      // Only call save if shapes actually changed
+      // Pass current shapes to avoid stale state
+      if (shapesChanged) {
+        handleSave(shapes);
+      }
     }
 
     setIsDrawing(false);
-    handleSave();
   };
 
   return {

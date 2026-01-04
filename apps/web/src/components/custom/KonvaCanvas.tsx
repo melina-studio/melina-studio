@@ -218,6 +218,11 @@ function KonvaCanvas({
       const erasedShapes = [...shapes];
       const beforeDrawing = [...shapesBeforeDrawing];
 
+      // Check if shapes actually changed (something was erased)
+      const shapesChanged =
+        erasedShapes.length !== beforeDrawing.length ||
+        JSON.stringify(erasedShapes) !== JSON.stringify(beforeDrawing);
+
       // Set flags to prevent sync from restoring old shapes
       setIsEraserFinalizing(true);
       setIsDrawing(false);
@@ -229,7 +234,13 @@ function KonvaCanvas({
           pushHistory: true,
           stateToPush: beforeDrawing,
         });
-        handleSave();
+
+        // Only call save if shapes actually changed
+        // Pass erasedShapes directly to avoid using stale state
+        if (shapesChanged) {
+          handleSave(erasedShapes);
+        }
+
         // Reset the flag after history is updated
         setIsEraserFinalizing(false);
       });
@@ -299,6 +310,8 @@ function KonvaCanvas({
       setShapesWithHistory(updated, { pushHistory: true });
       return updated;
     });
+    // Trigger save after transform (shapes were modified)
+    handleSave();
   };
 
   const onEllipseTransform = (node: any, id: string) => {
@@ -321,6 +334,8 @@ function KonvaCanvas({
       setShapesWithHistory(updated, { pushHistory: true });
       return updated;
     });
+    // Trigger save after transform (shapes were modified)
+    handleSave();
   };
 
   const onImageTransform = (node: any, id: string) => {
@@ -343,6 +358,8 @@ function KonvaCanvas({
       setShapesWithHistory(updated, { pushHistory: true });
       return updated;
     });
+    // Trigger save after transform (shapes were modified)
+    handleSave();
   };
 
   // Shape drag handler
@@ -368,6 +385,9 @@ function KonvaCanvas({
     )
       setStageCursor("grab");
     else setStageCursor(cursor);
+
+    // Trigger save after drag ends (shapes were modified)
+    handleSave();
   };
 
   // AI button handler

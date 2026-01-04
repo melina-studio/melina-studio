@@ -173,10 +173,18 @@ export default function BoardPage() {
       (data: ShapeCreatedEvent) => {
         console.log("Shape created:", data);
         const { shape } = data.data;
+
+        // Variable to store the new shapes for saving
+        let newShapesToSave: Shape[] = [];
+
         // Use functional update to get the current state and append the new shape
         setHistory((cur) => {
           const currentShapes = cloneShapes(cur.present);
           const newShapes = [...currentShapes, shape];
+
+          // Store for saving after state update
+          newShapesToSave = newShapes;
+
           // Push current state to history before adding new shape
           const stateToPushToHistory =
             cur.past.length === 0 && cur.present.length === 0
@@ -191,6 +199,9 @@ export default function BoardPage() {
             future: [],
           };
         });
+
+        // Pass the updated shapes to the save function
+        handleSave(newShapesToSave);
       }
     );
     return () => unsubscribeBoardUpdates();
@@ -327,13 +338,15 @@ export default function BoardPage() {
           return true;
         });
 
-        if (shapesToSave.length > 0) {
-          fd.append("boardData", JSON.stringify(shapesToSave));
-          fd.append("image", blob, `board-${id}.png`);
+        // Always save, even if shapesToSave is empty (to clear the board)
+        fd.append("boardData", JSON.stringify(shapesToSave));
+        fd.append("image", blob, `board-${id}.png`);
 
-          await saveBoardData(id, fd);
+        await saveBoardData(id, fd);
 
-          console.log("Board saved successfully");
+        console.log("Board saved successfully");
+        if (shapesToSave.length === 0) {
+          console.log("Board cleared - saved empty state");
         }
       } catch (error) {
         console.error("Save failed:", error);
@@ -351,9 +364,9 @@ export default function BoardPage() {
   // Public handleSave function - accepts optional shapes to pass directly
   const handleSave = useCallback(
     (shapesOverride?: Shape[]) => {
-      // If shapes are passed directly, save immediately (for text editing)
+      // If shapes are passed directly, save immediately (for text editing and eraser)
       // Otherwise use debounced save (for drawing operations)
-      if (shapesOverride) {
+      if (shapesOverride !== undefined) {
         performSave(shapesOverride);
       } else {
         debouncedSave();
