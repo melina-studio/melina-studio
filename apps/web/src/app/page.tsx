@@ -1,4 +1,4 @@
-import { ThemeToggle } from "@/components/custom/ThemeToggle";
+import { ThemeToggle } from "@/components/custom/General/ThemeToggle";
 import Link from "next/link";
 
 export default function Home() {

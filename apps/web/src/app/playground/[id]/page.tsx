@@ -15,9 +15,9 @@ import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { DotBackground } from "@/components/ui/aceternity/DotBackground";
 import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from "@/lib/konavaTypes";
-import KonvaCanvas from "@/components/custom/KonvaCanvas";
+import KonvaCanvas from "@/components/custom/Canvas/KonvaCanvas";
 import { HISTORY_LIMIT } from "@/lib/constants";
-import ToolControls from "@/components/custom/ToolControls";
+import ToolControls from "@/components/custom/Canvas/ToolControls";
 import {
   saveBoardData,
   getBoardData,
@@ -29,12 +29,12 @@ import {
   exportCompositedImageWithBoth,
   getBoardStateSnapshot,
 } from "@/helpers/helpers";
-import AIController from "@/components/custom/AIController";
+import AIController from "@/components/custom/Chat/AIController";
 import { getChatHistory } from "@/service/chatService";
 import Image from "next/image";
-import ElephantDrawing from "@/components/custom/Elephant";
+import ElephantDrawing from "@/components/custom/General/Elephant";
 import { useWebsocket } from "@/hooks/useWebsocket";
-import { SettingsModal } from "@/components/custom/SettingsModal";
+import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
 
 // types
 type History = {
@@ -389,6 +389,7 @@ export default function BoardPage() {
       <div className="fixed inset-0 -z-10">
         <DotBackground />
       </div>
+      {/* header */}
       <div className="flex items-center justify-between w-full px-4 py-2 bg-transparent">
         <div className="flex gap-4 items-center z-2">
           <div onClick={handleBack}>

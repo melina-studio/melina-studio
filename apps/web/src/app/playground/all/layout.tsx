@@ -1,5 +1,5 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/custom/AppSidebar";
+import { AppSidebar } from "@/components/custom/General/AppSidebar";
 
 export default function AllPlaygroundLayout({
   children,

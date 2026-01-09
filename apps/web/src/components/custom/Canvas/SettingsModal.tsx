@@ -7,10 +7,10 @@ import {
   SelectTrigger,
   SelectItem,
   SelectContent,
-} from "../ui/select";
-import { Slider } from "../ui/slider";
-import { ThemeToggle } from "./ThemeToggle";
-import { Input } from "../ui/input";
+} from "../../ui/select";
+import { Slider } from "../../ui/slider";
+import { ThemeToggle } from "../General/ThemeToggle";
+import { Input } from "../../ui/input";
 import { Settings } from "@/app/playground/[id]/page";
 
 type SettingsModalProps = {
