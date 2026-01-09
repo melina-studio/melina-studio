@@ -24,7 +24,7 @@ const CanvasHeader = ({
   handleGetBoardState: () => void;
 }) => {
   return (
-    <div className="fixed w-full z-5 top-0 left-0 flex items-center justify-between px-4 py-4 bg-transparent">
+    <div className="fixed w-full z-6 top-0 left-0 flex items-center justify-between px-4 py-4 bg-transparent">
       <div className="flex gap-4 items-center z-2">
         <div onClick={handleBack}>
           <StepBack className="w-4 h-4 cursor-pointer" />

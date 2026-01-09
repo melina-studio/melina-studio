@@ -431,7 +431,7 @@ export default function BoardPage() {
       {/* <ElephantDrawing /> */}
 
       {/* ai controller */}
-      <div className="fixed top-[10vh] right-4 z-10 flex items-start gap-2 h-[85vh]">
+      <div className="fixed top-[10vh] right-4 z-5 flex items-start gap-2 h-[85vh]">
         {/* ai controller toggle icon */}
         <div
           className="bg-gray-200 shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
