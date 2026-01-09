@@ -100,6 +100,9 @@ export default function BoardPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [melinaStatus, setMelinaStatus] = useState<
+    "idle" | "thinking" | "editing"
+  >("idle");
 
   const { subscribe } = useWebsocket();
 
@@ -167,46 +170,41 @@ export default function BoardPage() {
     fetchData();
   }, [id]);
 
-  // listen for board updates event
+  // Track Melina status via websocket
   useEffect(() => {
-    const unsubscribeBoardUpdates = subscribe(
-      "shape_created",
-      (data: ShapeCreatedEvent) => {
-        console.log("Shape created:", data);
-        const { shape } = data.data;
+    const unsubscribeChatStart = subscribe("chat_starting", () => {
+      setMelinaStatus("thinking");
+    });
 
-        // Variable to store the new shapes for saving
-        let newShapesToSave: Shape[] = [];
+    const unsubscribeChatCompleted = subscribe("chat_completed", () => {
+      setMelinaStatus("editing");
+      // Reset to idle after a delay
+      setTimeout(() => setMelinaStatus("idle"), 2000);
+    });
 
-        // Use functional update to get the current state and append the new shape
-        setHistory((cur) => {
-          const currentShapes = cloneShapes(cur.present);
-          const newShapes = [...currentShapes, shape];
-
-          // Store for saving after state update
-          newShapesToSave = newShapes;
-
-          // Push current state to history before adding new shape
-          const stateToPushToHistory =
-            cur.past.length === 0 && cur.present.length === 0
-              ? []
-              : cloneShapes(cur.present);
-          const nextPast = [...cur.past, stateToPushToHistory].slice(
-            -HISTORY_LIMIT
-          );
-          return {
-            past: nextPast,
-            present: cloneShapes(newShapes),
-            future: [],
-          };
-        });
-
-        // Pass the updated shapes to the save function
-        handleSave(newShapesToSave);
-      }
-    );
-    return () => unsubscribeBoardUpdates();
+    return () => {
+      unsubscribeChatStart();
+      unsubscribeChatCompleted();
+    };
   }, [subscribe]);
+
+  // Keyboard shortcut for Command+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Command+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowAiController((prev) => !prev);
+      }
+      // Close on Escape
+      if (e.key === "Escape" && showAiController) {
+        setShowAiController(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAiController]);
 
   const resetActionClick = () => {
     setActiveTool(ACTIONS.SELECT);
@@ -376,6 +374,51 @@ export default function BoardPage() {
     [debouncedSave, performSave]
   );
 
+  // listen for board updates event
+  useEffect(() => {
+    const unsubscribeBoardUpdates = subscribe(
+      "shape_created",
+      (data: ShapeCreatedEvent) => {
+        console.log("Shape created:", data);
+        const { shape } = data.data;
+
+        // Update Melina status
+        setMelinaStatus("editing");
+        setTimeout(() => setMelinaStatus("idle"), 1000);
+
+        // Variable to store the new shapes for saving
+        let newShapesToSave: Shape[] = [];
+
+        // Use functional update to get the current state and append the new shape
+        setHistory((cur) => {
+          const currentShapes = cloneShapes(cur.present);
+          const newShapes = [...currentShapes, shape];
+
+          // Store for saving after state update
+          newShapesToSave = newShapes;
+
+          // Push current state to history before adding new shape
+          const stateToPushToHistory =
+            cur.past.length === 0 && cur.present.length === 0
+              ? []
+              : cloneShapes(cur.present);
+          const nextPast = [...cur.past, stateToPushToHistory].slice(
+            -HISTORY_LIMIT
+          );
+          return {
+            past: nextPast,
+            present: cloneShapes(newShapes),
+            future: [],
+          };
+        });
+
+        // Pass the updated shapes to the save function
+        handleSave(newShapesToSave);
+      }
+    );
+    return () => unsubscribeBoardUpdates();
+  }, [subscribe, handleSave]);
+
   const handleClearBoard = async () => {
     try {
       await clearBoardData(id);
@@ -402,6 +445,7 @@ export default function BoardPage() {
         setSettings={setSettings}
         handleClearBoard={handleClearBoard}
         handleGetBoardState={handleGetBoardState}
+        melinaStatus={melinaStatus}
       />
 
       {/* controls */}
@@ -428,13 +472,39 @@ export default function BoardPage() {
         shapes={presentShapes}
         handleSave={handleSave}
       />
+
+      {/* Empty canvas state - grid and hint text */}
+      {presentShapes.length === 0 && (
+        <div className="fixed inset-0 pointer-events-none z-[1]">
+          {/* Faint grid pattern */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)
+              `,
+              backgroundSize: "40px 40px",
+              opacity: 0.3,
+            }}
+          />
+          {/* Hint text */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+            <p className="text-base text-gray-400 dark:text-gray-500 font-normal">
+              Draw or ask Melina
+            </p>
+          </div>
+        </div>
+      )}
       {/* <ElephantDrawing /> */}
 
       {/* ai controller */}
-      <div className="fixed top-[10vh] right-4 z-5 flex items-start gap-2 h-[85vh]">
+      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97%]">
         {/* ai controller toggle icon */}
         <div
-          className="bg-gray-200 shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors"
+          className={`${
+            showAiController ? "bg-gray-200" : "bg-white"
+          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
           onClick={() => setShowAiController((v) => !v)}
         >
           <Image
@@ -445,11 +515,15 @@ export default function BoardPage() {
           />
         </div>
         {/* ai controller */}
-        {showAiController && (
-          <div className="h-full">
-            <AIController chatHistory={chatHistory} />
-          </div>
-        )}
+        <div
+          className={`h-full transition-all duration-300 ease-out ${
+            showAiController
+              ? "opacity-100 translate-x-0 scale-100"
+              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
+          }`}
+        >
+          {showAiController && <AIController chatHistory={chatHistory} />}
+        </div>
       </div>
     </div>
   );

@@ -62,7 +62,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Modal - positioned below settings button, aligned to the right */}
       <div className="absolute top-full right-0 mt-2 w-[320px] bg-white dark:bg-[#323332] rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
         {/* Content - empty for now */}
-        <div className="p-4 min-h-[100px] flex flex-col gap-2">
+        <div className="p-2 px-4 min-h-[100px] flex flex-col gap-2">
           {/* Content will be added later */}
 
           {/* active llm model selector */}
@@ -139,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* theme toggler */}
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-gray-500 dark:text-white">
-              Theme
+              Appearance
             </p>
             <ThemeToggle />
           </div>

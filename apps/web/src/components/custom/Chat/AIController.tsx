@@ -199,7 +199,7 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
 
   return (
     <div
-      className="w-[450px] h-full rounded-xl shadow-2xl border flex flex-col backdrop-blur-xl"
+      className="w-[500px] h-full rounded-md shadow-2xl border flex flex-col backdrop-blur-xl ease-in-out duration-300"
       style={{
         background: isDark ? "rgba(50, 51, 50, 0.5)" : "rgba(220, 220, 220, 0)",
         backdropFilter: "saturate(180%) blur(12px)",
@@ -210,7 +210,7 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
       }}
     >
       <h3
-        className="text-lg p-4 text-center font-bold pb-2 border-b sticky top-0 z-10"
+        className="text-lg p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
         style={{
           fontFamily: '"DM Serif Text", serif',
           background: isDark
@@ -256,7 +256,7 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
 
       {/* text input */}
       <div
-        className="sticky bottom-0 flex items-end border-t p-4 rounded-b-lg backdrop-blur-md gap-2 z-10"
+        className="sticky bottom-0 flex items-end border-t p-4 rounded-b-md backdrop-blur-md gap-2 z-10"
         style={{
           background: isDark
             ? "rgba(50, 51, 50, 0.9)"
