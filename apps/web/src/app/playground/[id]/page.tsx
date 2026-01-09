@@ -35,6 +35,7 @@ import Image from "next/image";
 import ElephantDrawing from "@/components/custom/General/Elephant";
 import { useWebsocket } from "@/hooks/useWebsocket";
 import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
+import CanvasHeader from "@/components/custom/General/CanvasHeader";
 
 // types
 type History = {
@@ -385,54 +386,24 @@ export default function BoardPage() {
   };
 
   return (
-    <div className="p-4 relative bg-transparent">
+    <div className="relative bg-transparent">
       <div className="fixed inset-0 -z-10">
         <DotBackground />
       </div>
       {/* header */}
-      <div className="flex items-center justify-between w-full px-4 py-2 bg-transparent">
-        <div className="flex gap-4 items-center z-2">
-          <div onClick={handleBack}>
-            <StepBack className="w-4 h-4 cursor-pointer" />
-          </div>
-          <h4 className="font-semibold">Board ID: {id}</h4>
-          {saving && (
-            <div className="ml-4 flex gap-2 items-center">
-              <Loader className="animate-spin" size={16} />
-              <p className="text-md text-gray-500">Saving...</p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <div
-              className="bg-gray-200 hover:bg-gray-300 text-black rounded-md px-4 py-2 cursor-pointer flex items-center justify-center h-[36px]"
-              onClick={() => setShowSettings((v) => !v)}
-            >
-              <Settings2 className="w-4 h-4" />
-            </div>
 
-            <SettingsModal
-              isOpen={showSettings}
-              onClose={() => setShowSettings(false)}
-              activeSettings={settings}
-              setActiveSettings={setSettings}
-            />
-          </div>
-          <div
-            className="bg-gray-200 text-black rounded-md px-4 py-2 cursor-pointer flex items-center justify-center min-w-[120px] h-[36px]"
-            onClick={handleClearBoard}
-          >
-            Clear Board
-          </div>
-          <div
-            className="bg-[#111] text-white rounded-md px-4 py-2 cursor-pointer flex items-center justify-center min-w-[120px] h-[36px]"
-            onClick={() => handleGetBoardState()}
-          >
-            Export json
-          </div>
-        </div>
-      </div>
+      <CanvasHeader
+        handleBack={handleBack}
+        id={id}
+        saving={saving}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        settings={settings}
+        setSettings={setSettings}
+        handleClearBoard={handleClearBoard}
+        handleGetBoardState={handleGetBoardState}
+      />
+
       {/* controls */}
 
       <ToolControls
