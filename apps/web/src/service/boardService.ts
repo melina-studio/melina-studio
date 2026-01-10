@@ -1,5 +1,6 @@
 import axios from "axios";
 import { BaseURL } from "@/lib/constants";
+import { UpdateBoardPayload } from "@/components/custom/Boards/types";
 
 export const createBoard = async (
   userId: string,
@@ -85,5 +86,35 @@ export const toggleStarredBoard = async (userId: string, boardId: string) => {
   } catch (error: any) {
     console.log(error, "Error toggling starred board");
     throw new Error(error?.error || "Error toggling starred board");
+  }
+};
+
+// delete a board
+export const deleteBoard = async (boardId: string) => {
+  try {
+    const response = await axios.delete(
+      `${BaseURL}/api/v1/boards/${boardId}/delete`
+    );
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error deleting board");
+    throw new Error(error?.error || "Error deleting board");
+  }
+};
+
+// update a board
+export const updateBoard = async (
+  boardId: string,
+  payload: UpdateBoardPayload
+) => {
+  try {
+    const response = await axios.put(
+      `${BaseURL}/api/v1/boards/${boardId}/update`,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error updating board");
+    throw new Error(error?.error || "Error updating board");
   }
 };

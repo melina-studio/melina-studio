@@ -8,3 +8,9 @@ export type Board = {
 };
 
 export type SortOption = "recent" | "az" | "lastEdited";
+
+export type UpdateBoardPayload = {
+  title?: string;
+  thumbnail?: string;
+  starred?: boolean;
+};

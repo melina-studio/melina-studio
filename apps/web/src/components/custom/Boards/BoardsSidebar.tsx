@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutGrid,
   Star,
@@ -10,6 +11,9 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  Receipt,
+  Moon,
+  Sun,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +35,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { useBoard } from "@/hooks/useBoard";
 
 type NavItem = {
   title: string;
@@ -59,18 +65,24 @@ const navItems: NavItem[] = [
 
 export function BoardsSidebar() {
   const router = useRouter();
-  const pathname = usePathname();
 
-  // Determine active item based on pathname and query params
-  const getActiveHref = () => {
-    if (typeof window !== "undefined" && pathname === "/playground/all") {
-      const params = new URLSearchParams(window.location.search);
-      const filter = params.get("filter");
-      if (filter === "starred") return "/playground/all?filter=starred";
-      if (filter === "recent") return "/playground/all?filter=recent";
-      return "/playground/all";
+  const { theme, setTheme } = useTheme();
+  const { createNewBoard, getActiveHref } = useBoard();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch by only rendering theme-dependent content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      const settingsObj = JSON.parse(settings);
+      settingsObj.theme = newTheme;
+      localStorage.setItem("settings", JSON.stringify(settingsObj));
     }
-    return pathname || "/playground/all";
   };
 
   const activeHref = getActiveHref();
@@ -79,25 +91,23 @@ export function BoardsSidebar() {
     router.push(href);
   };
 
-  const handleNewBoard = () => {
-    // Dispatch custom event to trigger board creation
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("createNewBoard"));
+  const handleNewBoard = async () => {
+    const uuid = await createNewBoard();
+    if (uuid) {
+      router.push(`/playground/${uuid}`);
     }
   };
 
   const handleMelinaClick = () => {
-    // Dispatch custom event to open Melina chat
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("openMelinaChat"));
-    }
+    // TODO: Implement Melina chat panel opening
+    console.log("Open Melina chat panel");
   };
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         {/* Workspace / Account Section */}
-        <div className="px-2 py-3">
+        <div className="py-3">
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full">
               <div className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
@@ -111,7 +121,8 @@ export function BoardsSidebar() {
                 Workspace settings
               </DropdownMenuItem>
               <DropdownMenuItem disabled>
-                <span className="size-4 mr-2" />
+                {/* <span className="size-4 mr-2" /> */}
+                <Receipt className="size-4 mr-2" />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
@@ -184,8 +195,37 @@ export function BoardsSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
-        {/* Melina */}
-        <div className="px-2 py-2">
+        <div className="space-y-1">
+          {/* Theme Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                variant="default"
+                tooltip="Theme"
+                className="w-full justify-start text-muted-foreground hover:text-foreground"
+                suppressHydrationWarning
+              >
+                {mounted && theme === "dark" ? (
+                  <Moon className="size-4" />
+                ) : (
+                  <Sun className="size-4" />
+                )}
+                <span>Theme</span>
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={() => handleThemeChange("light")}>
+                <Sun className="size-4 mr-2" />
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
+                <Moon className="size-4 mr-2" />
+                Dark
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Melina */}
           <SidebarMenuButton
             onClick={handleMelinaClick}
             variant="default"

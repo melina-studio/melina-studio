@@ -36,6 +36,8 @@ import ElephantDrawing from "@/components/custom/General/Elephant";
 import { useWebsocket } from "@/hooks/useWebsocket";
 import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
 import CanvasHeader from "@/components/custom/General/CanvasHeader";
+import { useBoard } from "@/hooks/useBoard";
+import type { Board } from "@/components/custom/Boards/types";
 
 // types
 type History = {
@@ -103,6 +105,7 @@ export default function BoardPage() {
   const [melinaStatus, setMelinaStatus] = useState<
     "idle" | "thinking" | "editing"
   >("idle");
+  const [boardInfo, setBoardInfo] = useState<Board | null>(null);
 
   const { subscribe } = useWebsocket();
 
@@ -154,6 +157,11 @@ export default function BoardPage() {
         const fetchBoardData = await getBoardData(id);
         const shapes = buildShapes(fetchBoardData.board);
         const chatHistory = await getChatHistory(id);
+
+        // Set board info from API response
+        if (fetchBoardData.boardInfo) {
+          setBoardInfo(fetchBoardData.boardInfo);
+        }
 
         // Initialize history with fetched shapes
         setHistory({
@@ -438,6 +446,7 @@ export default function BoardPage() {
       <CanvasHeader
         handleBack={handleBack}
         id={id}
+        board={boardInfo}
         saving={saving}
         showSettings={showSettings}
         setShowSettings={setShowSettings}

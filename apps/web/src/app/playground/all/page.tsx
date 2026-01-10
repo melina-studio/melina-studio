@@ -1,116 +1,41 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { USER_ID } from "@/lib/constants";
-import {
-  createBoard,
-  getBoards,
-  getStarredBoards,
-} from "@/service/boardService";
 import { ProcessingRequest } from "@/components/custom/Loader/ProcessingRequest";
 import { BoardsHeader } from "@/components/custom/Boards/BoardsHeader";
 import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
-import type { Board, SortOption } from "@/components/custom/Boards/types";
+import type { Board } from "@/components/custom/Boards/types";
+import { useBoard } from "@/hooks/useBoard";
 
 // Main Component
 function Playground() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { theme } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState<SortOption>("recent");
-  const [starredBoards, setStarredBoards] = useState<Set<string>>(new Set());
+  const {
+    boards,
+    loading,
+    error,
+    searchQuery,
+    sortOption,
+    setSearchQuery,
+    setSortOption,
+    filteredAndSortedBoards,
+    createNewBoard,
+    fetchStarredBoards,
+    getAllBoards,
+    deleteBoardById,
+    getActiveHref,
+  } = useBoard();
 
-  async function createNewBoard() {
-    try {
-      setLoading(true);
-      const data = await createBoard(USER_ID, "Untitled");
-      router.push(`/playground/${data.uuid}`);
-    } catch (error: any) {
-      setError(error.message);
-      console.log(error);
-    } finally {
-      setLoading(false);
+  // Handle creating a new board
+  async function handleCreateNewBoard() {
+    const uuid = await createNewBoard();
+    if (uuid) {
+      router.push(`/playground/${uuid}`);
     }
   }
-
-  async function getAllBoards() {
-    setLoading(true);
-    try {
-      const data = await getBoards();
-      setBoards(data.boards || []);
-    } catch (error: any) {
-      setError(error.message);
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchStarredBoards() {
-    try {
-      const data = await getStarredBoards(USER_ID);
-      setStarredBoards(new Set(data.starredBoards || []));
-    } catch (error: any) {
-      console.log(error);
-    }
-  }
-
-  // Get filter from URL params
-  const filter = searchParams.get("filter") || "all";
-
-  // Filter and sort boards
-  const filteredAndSortedBoards = useMemo(() => {
-    let filtered = boards;
-
-    // Apply sidebar filter
-    if (filter === "starred") {
-      filtered = filtered.filter((board) => starredBoards.has(board.uuid));
-    } else if (filter === "recent") {
-      // Show boards updated in last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      filtered = filtered.filter((board) => {
-        const updatedAt = new Date(board.updated_at);
-        return updatedAt >= sevenDaysAgo;
-      });
-    }
-    // "all" or no filter shows all boards
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (board) =>
-          board.title?.toLowerCase().includes(query) ||
-          board.uuid?.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort
-    const sorted = [...filtered].sort((a: Board, b: Board) => {
-      const aTime = a.updated_at || "";
-      const bTime = b.updated_at || "";
-
-      switch (sortOption) {
-        case "recent":
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        case "az":
-          return (a.title || "").localeCompare(b.title || "");
-        case "lastEdited":
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        default:
-          return 0;
-      }
-    });
-
-    return sorted;
-  }, [boards, searchQuery, sortOption, filter, starredBoards]);
 
   function handleOpenBoard(board: Board) {
     router.push(`/playground/${board.uuid}`);
@@ -121,31 +46,10 @@ function Playground() {
     console.log("Duplicate board:", board.uuid);
   }
 
-  function handleDeleteBoard(board: Board) {
-    // TODO: Implement delete functionality
-    console.log("Delete board:", board.uuid);
+  async function handleDeleteBoard(board: Board) {
+    const activeHref = getActiveHref();
+    await deleteBoardById(board.uuid, activeHref);
   }
-
-  // Listen for sidebar events
-  useEffect(() => {
-    const handleCreateNewBoard = () => {
-      createNewBoard();
-    };
-
-    const handleOpenMelinaChat = () => {
-      // TODO: Implement Melina chat panel opening
-      console.log("Open Melina chat panel");
-    };
-
-    window.addEventListener("createNewBoard", handleCreateNewBoard);
-    window.addEventListener("openMelinaChat", handleOpenMelinaChat);
-
-    return () => {
-      window.removeEventListener("createNewBoard", handleCreateNewBoard);
-      window.removeEventListener("openMelinaChat", handleOpenMelinaChat);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Set default settings and fetch boards
   useEffect(() => {
@@ -188,7 +92,7 @@ function Playground() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         sortOption={sortOption}
-        onSortChange={(value) => setSortOption(value as SortOption)}
+        onSortChange={setSortOption}
       />
 
       {error && (
@@ -199,7 +103,7 @@ function Playground() {
 
       <BoardGrid
         boards={filteredAndSortedBoards}
-        onCreateNew={createNewBoard}
+        onCreateNew={handleCreateNewBoard}
         onOpenBoard={handleOpenBoard}
         onDuplicateBoard={handleDuplicateBoard}
         onDeleteBoard={handleDeleteBoard}

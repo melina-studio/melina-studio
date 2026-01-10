@@ -39,8 +39,10 @@ export function BoardCard({
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
-    setMenuOpen(false);
+    // Don't set hover to false if menu is open - keeps menu visible
+    if (!menuOpen) {
+      setIsHovered(false);
+    }
   };
 
   return (
@@ -92,13 +94,37 @@ export function BoardCard({
         </div>
       </div>
 
-      {/* Quick actions - only show on hover */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto z-20">
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      {/* Quick actions - show on hover or when menu is open */}
+      <div
+        className={cn(
+          "absolute top-2 right-2 flex gap-1 transition-opacity duration-200 z-20",
+          isHovered || menuOpen ? "opacity-100" : "opacity-0"
+        )}
+        onMouseEnter={(e) => {
+          e.stopPropagation();
+          setIsHovered(true);
+        }}
+        onMouseLeave={(e) => {
+          e.stopPropagation();
+          // Don't set hover to false if menu is open
+          if (!menuOpen) {
+            setIsHovered(false);
+          }
+        }}
+      >
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open);
+            // When menu closes, reset hover state if mouse is not over the card
+            if (!open && !isHovered) {
+              setIsHovered(false);
+            }
+          }}
+        >
           <DropdownMenuTrigger
             onClick={(e) => {
               e.stopPropagation();
-              setMenuOpen(true);
             }}
             className="p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border hover:bg-background transition-colors cursor-pointer"
           >

@@ -22,12 +22,15 @@ import {
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
+import { useBoard } from "@/hooks/useBoard";
+import { Board } from "../Boards/types";
 
 type MelinaStatus = "idle" | "thinking" | "editing";
 
 const CanvasHeader = ({
   handleBack,
   id,
+  board,
   saving,
   showSettings,
   setShowSettings,
@@ -39,6 +42,7 @@ const CanvasHeader = ({
 }: {
   handleBack: () => void;
   id: string;
+  board: Board | null;
   saving: boolean;
   showSettings: boolean;
   setShowSettings: React.Dispatch<React.SetStateAction<boolean>>;
@@ -49,12 +53,13 @@ const CanvasHeader = ({
   melinaStatus?: MelinaStatus;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [boardName, setBoardName] = useState("Untitled");
+  const [boardName, setBoardName] = useState(board?.title || "Untitled");
   const [isHovering, setIsHovering] = useState(false);
-  const [originalName, setOriginalName] = useState("Untitled");
+  const [originalName, setOriginalName] = useState(board?.title || "Untitled");
   const inputRef = useRef<HTMLInputElement>(null);
   const { theme } = useTheme();
   const router = useRouter();
+  const { updateBoardById } = useBoard();
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -63,7 +68,15 @@ const CanvasHeader = ({
     }
   }, [isEditing]);
 
-  const saveName = () => {
+  // Update board name when board prop changes
+  useEffect(() => {
+    if (board?.title) {
+      setBoardName(board.title);
+      setOriginalName(board.title);
+    }
+  }, [board?.title]);
+
+  const saveName = async () => {
     // If name is empty or just whitespace, default to "Untitled"
     const trimmedName = boardName.trim();
     if (!trimmedName) {
@@ -71,8 +84,8 @@ const CanvasHeader = ({
     } else {
       setBoardName(trimmedName);
     }
+    await updateBoardById(id, { title: trimmedName });
     setIsEditing(false);
-    // TODO: Save board name to backend/localStorage
   };
 
   const handleNameSubmit = (e: React.FormEvent) => {
