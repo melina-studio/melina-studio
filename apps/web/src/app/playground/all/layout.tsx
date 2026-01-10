@@ -1,4 +1,4 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/custom/General/AppSidebar";
 
 export default function AllPlaygroundLayout({
@@ -9,8 +9,7 @@ export default function AllPlaygroundLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarTrigger className="cursor-pointer absolute top-0 left-0" />
-      <main className="h-full w-full">{children}</main>
+      <main className="flex-1 w-full overflow-auto">{children}</main>
     </SidebarProvider>
   );
 }

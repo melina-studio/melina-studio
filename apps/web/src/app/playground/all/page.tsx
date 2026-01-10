@@ -1,68 +1,217 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { PlusIcon, Library } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
+import { USER_ID } from "@/lib/constants";
+import {
+  createBoard,
+  getBoards,
+  getStarredBoards,
+} from "@/service/boardService";
+import { ProcessingRequest } from "@/components/custom/Loader/ProcessingRequest";
+import { BoardsHeader } from "@/components/custom/Boards/BoardsHeader";
+import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
+import type { Board, SortOption } from "@/components/custom/Boards/types";
 
+// Main Component
 function Playground() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("recent");
+  const [starredBoards, setStarredBoards] = useState<Set<string>>(new Set());
 
-  function createNewBoard() {
-    // generate random uuid for routing
-    const id = uuidv4();
-    router.push(`/playground/${id}`);
+  async function createNewBoard() {
+    try {
+      setLoading(true);
+      const data = await createBoard(USER_ID, "Untitled");
+      router.push(`/playground/${data.uuid}`);
+    } catch (error: any) {
+      setError(error.message);
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // set default settings
-  useEffect(() => {
-    // first check if settings are already set
-    if (localStorage.getItem("settings")) {
-      return;
+  async function getAllBoards() {
+    setLoading(true);
+    try {
+      const data = await getBoards();
+      setBoards(data.boards || []);
+    } catch (error: any) {
+      setError(error.message);
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchStarredBoards() {
+    try {
+      const data = await getStarredBoards(USER_ID);
+      setStarredBoards(new Set(data.starredBoards || []));
+    } catch (error: any) {
+      console.log(error);
+    }
+  }
+
+  // Get filter from URL params
+  const filter = searchParams.get("filter") || "all";
+
+  // Filter and sort boards
+  const filteredAndSortedBoards = useMemo(() => {
+    let filtered = boards;
+
+    // Apply sidebar filter
+    if (filter === "starred") {
+      filtered = filtered.filter((board) => starredBoards.has(board.uuid));
+    } else if (filter === "recent") {
+      // Show boards updated in last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      filtered = filtered.filter((board) => {
+        const updatedAt = new Date(board.updated_at);
+        return updatedAt >= sevenDaysAgo;
+      });
+    }
+    // "all" or no filter shows all boards
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (board) =>
+          board.title?.toLowerCase().includes(query) ||
+          board.uuid?.toLowerCase().includes(query)
+      );
     }
 
-    // then set default settings
-    localStorage.setItem(
-      "settings",
-      JSON.stringify({
-        activeModel: "groq",
-        temperature: 0.5,
-        maxTokens: 1000,
-        theme: theme,
-      })
-    );
+    // Sort
+    const sorted = [...filtered].sort((a: Board, b: Board) => {
+      const aTime = a.updated_at || "";
+      const bTime = b.updated_at || "";
+
+      switch (sortOption) {
+        case "recent":
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        case "az":
+          return (a.title || "").localeCompare(b.title || "");
+        case "lastEdited":
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [boards, searchQuery, sortOption, filter, starredBoards]);
+
+  function handleOpenBoard(board: Board) {
+    router.push(`/playground/${board.uuid}`);
+  }
+
+  function handleDuplicateBoard(board: Board) {
+    // TODO: Implement duplicate functionality
+    console.log("Duplicate board:", board.uuid);
+  }
+
+  function handleDeleteBoard(board: Board) {
+    // TODO: Implement delete functionality
+    console.log("Delete board:", board.uuid);
+  }
+
+  // Listen for sidebar events
+  useEffect(() => {
+    const handleCreateNewBoard = () => {
+      createNewBoard();
+    };
+
+    const handleOpenMelinaChat = () => {
+      // TODO: Implement Melina chat panel opening
+      console.log("Open Melina chat panel");
+    };
+
+    window.addEventListener("createNewBoard", handleCreateNewBoard);
+    window.addEventListener("openMelinaChat", handleOpenMelinaChat);
+
+    return () => {
+      window.removeEventListener("createNewBoard", handleCreateNewBoard);
+      window.removeEventListener("openMelinaChat", handleOpenMelinaChat);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-2xl font-bold mb-2 text-center">Playground</h1>
-      <p className="text-sm text-gray-500 text-center">
-        This is a playground for testing and experimenting with the components.
-      </p>
-      <div className="flex gap-4 items-stretch w-full max-w-xl justify-center mt-4">
-        {/* create new board button */}
-        <div
-          className="group flex flex-1 flex-col items-center justify-center border-2 border-gray-500 rounded-md p-4 cursor-pointer hover:bg-gray-800 hover:text-white dark:hover:bg-gray-100 transition-all duration-300 dark:hover:text-black"
-          onClick={createNewBoard}
-        >
-          {/* plus icon */}
-          <PlusIcon className="w-12 h-12 text-gray-500 dark:text-gray-500 group-hover:text-white dark:group-hover:text-gray-500" />
-          <p className="text-lg font-semibold text-gray-500 dark:text-gray-500 group-hover:text-white dark:group-hover:text-gray-500">
-            Create New Board
-          </p>
-        </div>
-        {/* explore all boards button */}
-        <div className="flex flex-1 flex-col items-center justify-center border-2 border-gray-500 rounded-md p-4 cursor-pointer hover:bg-gray-100 transition-all duration-300">
-          <Library className="w-12 h-12 text-gray-500" />
-          <p className="text-lg font-semibold text-gray-500">
-            Explore All Boards
-          </p>
-        </div>
+  // Set default settings and fetch boards
+  useEffect(() => {
+    async function fetchData() {
+      // Fetch starred boards from API
+      await fetchStarredBoards();
+
+      // First check if settings are already set
+      if (localStorage.getItem("settings")) {
+        await getAllBoards();
+        return;
+      }
+
+      // Then set default settings
+      localStorage.setItem(
+        "settings",
+        JSON.stringify({
+          activeModel: "groq",
+          temperature: 0.5,
+          maxTokens: 1000,
+          theme: theme,
+        })
+      );
+      await getAllBoards();
+    }
+    fetchData();
+  }, [theme]);
+
+  if (loading && boards.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <ProcessingRequest />
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-6 sm:p-8 md:p-12 max-w-7xl mx-auto">
+      <BoardsHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortOption={sortOption}
+        onSortChange={(value) => setSortOption(value as SortOption)}
+      />
+
+      {error && (
+        <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
+      <BoardGrid
+        boards={filteredAndSortedBoards}
+        onCreateNew={createNewBoard}
+        onOpenBoard={handleOpenBoard}
+        onDuplicateBoard={handleDuplicateBoard}
+        onDeleteBoard={handleDeleteBoard}
+      />
+
+      {filteredAndSortedBoards.length === 0 && !loading && (
+        <div className="text-center py-12 text-muted-foreground">
+          {searchQuery
+            ? "No boards found matching your search."
+            : "No boards yet. Create your first board to get started."}
+        </div>
+      )}
     </div>
   );
 }

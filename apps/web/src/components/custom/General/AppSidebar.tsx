@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Sidebar,
   SidebarContent,
@@ -8,8 +10,22 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { BoardsSidebar } from "../Boards/BoardsSidebar";
+import { usePathname } from "next/navigation";
 
 export function AppSidebar({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const isBoardsPage = pathname?.startsWith("/playground/all");
+
+  // Use BoardsSidebar for boards page, default sidebar for others
+  if (isBoardsPage) {
+    return (
+      <div className="relative">
+        <BoardsSidebar />
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <Sidebar className={cn(className)}>
