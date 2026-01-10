@@ -181,10 +181,12 @@ const CanvasHeader = ({
           >
             <button
               onDoubleClick={handleDoubleClick}
-              className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 px-1 transition-colors cursor-text"
+              className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 px-1 transition-colors cursor-text max-w-[150px] truncate"
               title="Double-click to rename"
             >
-              {boardName.trim() || "Untitled"}
+              <span className="block truncate max-w-[150px]">
+                {boardName.trim() || "Untitled"}
+              </span>
             </button>
             {/* Pencil icon that fades in on hover */}
             <Pencil

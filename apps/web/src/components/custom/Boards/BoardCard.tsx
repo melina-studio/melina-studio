@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MoreVertical, Copy, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,7 +32,29 @@ export function BoardCard({
   const thumbnailUrl = board.thumbnail?.trim() || "";
   const updatedAt = board.updated_at;
   const title = board.title || "Untitled";
-  const hasThumbnail = thumbnailUrl && !imageError;
+
+  // Browser/CDN can cache the same URL even if the file behind it changes.
+  // Bust cache using a stable version key (updated_at) so the newest thumbnail renders.
+  // Additionally, include a per-mount cache-buster so going back to the board list
+  // always refetches the image (even if the board list data is stale).
+  const mountCacheBuster = useMemo(() => Date.now().toString(), []);
+
+  const versionedThumbnailUrl = useMemo(() => {
+    if (!thumbnailUrl) return "";
+    const joiner = thumbnailUrl.includes("?") ? "&" : "?";
+    const parts: string[] = [];
+    if (updatedAt) parts.push(`v=${encodeURIComponent(updatedAt)}`);
+    parts.push(`cb=${encodeURIComponent(mountCacheBuster)}`);
+    return `${thumbnailUrl}${joiner}${parts.join("&")}`;
+  }, [thumbnailUrl, updatedAt, mountCacheBuster]);
+
+  // If thumbnail changes, reset loading/error so the new image can load.
+  useEffect(() => {
+    setImageError(false);
+    setImageLoading(true);
+  }, [versionedThumbnailUrl]);
+
+  const hasThumbnail = versionedThumbnailUrl && !imageError;
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -60,7 +82,7 @@ export function BoardCard({
               <div className="absolute inset-0 bg-muted animate-pulse" />
             )}
             <img
-              src={thumbnailUrl}
+              src={versionedThumbnailUrl}
               alt={title}
               className={cn(
                 "w-full h-full object-cover rounded-lg transition-all duration-300",

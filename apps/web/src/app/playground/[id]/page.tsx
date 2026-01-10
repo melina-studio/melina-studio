@@ -106,6 +106,8 @@ export default function BoardPage() {
     "idle" | "thinking" | "editing"
   >("idle");
   const [boardInfo, setBoardInfo] = useState<Board | null>(null);
+  const { updateBoardById } = useBoard();
+  const boardIdRef = useRef(id);
 
   const { subscribe } = useWebsocket();
 
@@ -147,7 +149,11 @@ export default function BoardPage() {
 
     setMounted(true);
 
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      // Fire and forget - cleanup cannot be async
+      updateBoardById(id, { saveThumbnail: true }).catch(console.error);
+    };
   }, []);
 
   // Fetch board data on mount

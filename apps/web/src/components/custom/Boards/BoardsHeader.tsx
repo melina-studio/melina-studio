@@ -33,7 +33,7 @@ export function BoardsHeader({
             Boards
           </h1>
           <p className="text-sm text-muted-foreground">
-            Create, explore, and manage your canvases
+            Your canvases, all in one place.
           </p>
         </div>
 

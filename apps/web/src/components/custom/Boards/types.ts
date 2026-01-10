@@ -13,4 +13,5 @@ export type UpdateBoardPayload = {
   title?: string;
   thumbnail?: string;
   starred?: boolean;
+  saveThumbnail?: boolean;
 };
