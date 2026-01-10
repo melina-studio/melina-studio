@@ -27,34 +27,36 @@ export function BoardCard({
 }: BoardCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  // Track which URL had an error - this automatically clears when URL changes
+  const [errorForUrl, setErrorForUrl] = useState<string | null>(null);
+
   const thumbnailUrl = board.thumbnail?.trim() || "";
   const updatedAt = board.updated_at;
   const title = board.title || "Untitled";
 
   // Browser/CDN can cache the same URL even if the file behind it changes.
-  // Bust cache using a stable version key (updated_at) so the newest thumbnail renders.
-  // Additionally, include a per-mount cache-buster so going back to the board list
-  // always refetches the image (even if the board list data is stale).
-  const mountCacheBuster = useMemo(() => Date.now().toString(), []);
-
+  // Bust cache using updated_at + a timestamp that changes when thumbnail URL changes.
   const versionedThumbnailUrl = useMemo(() => {
     if (!thumbnailUrl) return "";
     const joiner = thumbnailUrl.includes("?") ? "&" : "?";
     const parts: string[] = [];
     if (updatedAt) parts.push(`v=${encodeURIComponent(updatedAt)}`);
-    parts.push(`cb=${encodeURIComponent(mountCacheBuster)}`);
+    // Use a hash of the thumbnail URL + current time to bust cache
+    parts.push(`t=${Date.now()}`);
     return `${thumbnailUrl}${joiner}${parts.join("&")}`;
-  }, [thumbnailUrl, updatedAt, mountCacheBuster]);
+  }, [thumbnailUrl, updatedAt]);
 
-  // If thumbnail changes, reset loading/error so the new image can load.
+  // Reset loading state when thumbnail URL changes
   useEffect(() => {
-    setImageError(false);
-    setImageLoading(true);
-  }, [versionedThumbnailUrl]);
+    if (thumbnailUrl) {
+      setImageLoading(true);
+    }
+  }, [thumbnailUrl]);
 
-  const hasThumbnail = versionedThumbnailUrl && !imageError;
+  // Error only applies to the specific URL that failed
+  const imageError = errorForUrl === thumbnailUrl;
+  const hasThumbnail = thumbnailUrl && !imageError;
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -82,6 +84,7 @@ export function BoardCard({
               <div className="absolute inset-0 bg-muted animate-pulse" />
             )}
             <img
+              key={versionedThumbnailUrl}
               src={versionedThumbnailUrl}
               alt={title}
               className={cn(
@@ -90,7 +93,7 @@ export function BoardCard({
               )}
               onLoad={() => setImageLoading(false)}
               onError={() => {
-                setImageError(true);
+                setErrorForUrl(thumbnailUrl);
                 setImageLoading(false);
               }}
             />

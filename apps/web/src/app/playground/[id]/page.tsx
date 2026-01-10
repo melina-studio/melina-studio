@@ -46,13 +46,11 @@ type History = {
   future: Shape[][];
 };
 
+// Simplified message type that matches AIController's internal type
 type ChatMessage = {
   uuid: string;
-  board_uuid: string;
   role: "user" | "assistant";
   content: string;
-  created_at: string;
-  updated_at: string;
 };
 
 type ShapeCreatedEvent = {
@@ -113,6 +111,15 @@ export default function BoardPage() {
   const [boardInfo, setBoardInfo] = useState<Board | null>(null);
   const { updateBoardById } = useBoard();
   const boardIdRef = useRef(id);
+
+  // Ref to store latest save function to avoid stale closures
+  const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(null);
+  // Ref to track pending save and prevent duplicate API calls
+  const pendingSaveRef = useRef<{
+    timeoutId: NodeJS.Timeout | null;
+    isSaving: boolean;
+    lastShapes: Shape[] | null;
+  }>({ timeoutId: null, isSaving: false, lastShapes: null });
 
   const { subscribe } = useWebsocket();
 
@@ -349,47 +356,74 @@ export default function BoardPage() {
     link.click();
   };
 
-  // Core save function that performs the actual save
-  // Accepts optional shapes parameter to avoid stale closure issues
-  const performSave = useCallback(
-    async (shapesOverride?: Shape[]) => {
+  // Direct save function - always uses passed shapes, no fallback to state
+  // This avoids stale closure issues when called from websocket handlers
+  const saveShapesDirectly = useCallback(
+    async (shapesToSave: Shape[]) => {
+      // Prevent duplicate saves - if already saving, queue this for later
+      if (pendingSaveRef.current.isSaving) {
+        console.log("Save already in progress, queuing shapes for later");
+        pendingSaveRef.current.lastShapes = shapesToSave;
+        return;
+      }
+
+      pendingSaveRef.current.isSaving = true;
+      pendingSaveRef.current.lastShapes = null;
       setSaving(true);
 
       try {
         const color = theme === "dark" ? "#111" : "#fff";
         const { blob } = await exportCompositedImageWithBoth(stageRef, color);
 
-        // Use passed shapes or fall back to state
-        const shapesToUse = shapesOverride || presentShapes;
-
-        // Prepare FormData
-        const fd = new FormData();
         // Filter out text shapes with empty text before saving
-        const shapesToSave = shapesToUse.filter((shape) => {
+        const filteredShapes = shapesToSave.filter((shape) => {
           if (shape.type === "text") {
             return (shape as any).text && (shape as any).text.trim() !== "";
           }
           return true;
         });
 
-        // Always save, even if shapesToSave is empty (to clear the board)
-        fd.append("boardData", JSON.stringify(shapesToSave));
+        // Prepare FormData
+        const fd = new FormData();
+        fd.append("boardData", JSON.stringify(filteredShapes));
         fd.append("image", blob, `board-${id}.png`);
 
         await saveBoardData(id, fd);
-
-        console.log("Board saved successfully");
-        if (shapesToSave.length === 0) {
-          console.log("Board cleared - saved empty state");
-        }
+        console.log("Board saved successfully with", filteredShapes.length, "shapes");
       } catch (error) {
         console.error("Save failed:", error);
         throw error;
       } finally {
+        pendingSaveRef.current.isSaving = false;
         setSaving(false);
+
+        // If shapes were queued while we were saving, save them now
+        if (pendingSaveRef.current.lastShapes) {
+          const queuedShapes = pendingSaveRef.current.lastShapes;
+          pendingSaveRef.current.lastShapes = null;
+          console.log("Processing queued save...");
+          // Use setTimeout to avoid stack overflow with recursive calls
+          setTimeout(() => saveShapesDirectly(queuedShapes), 100);
+        }
       }
     },
-    [presentShapes, id, theme]
+    [id, theme]
+  );
+
+  // Keep ref updated with latest save function
+  useEffect(() => {
+    saveShapesRef.current = saveShapesDirectly;
+  }, [saveShapesDirectly]);
+
+  // Core save function that performs the actual save
+  // Accepts optional shapes parameter to avoid stale closure issues
+  const performSave = useCallback(
+    async (shapesOverride?: Shape[]) => {
+      // Use passed shapes or fall back to state
+      const shapesToUse = shapesOverride || presentShapes;
+      await saveShapesDirectly(shapesToUse);
+    },
+    [presentShapes, saveShapesDirectly]
   );
 
   // Create debounced save using the custom hook
@@ -421,16 +455,23 @@ export default function BoardPage() {
         setMelinaStatus("editing");
         setTimeout(() => setMelinaStatus("idle"), 1000);
 
-        // Variable to store the new shapes for saving
-        let newShapesToSave: Shape[] = [];
-
         // Use functional update to get the current state and append the new shape
         setHistory((cur) => {
           const currentShapes = cloneShapes(cur.present);
           const newShapes = [...currentShapes, shape];
 
-          // Store for saving after state update
-          newShapesToSave = newShapes;
+          // Debounce the save - cancel any pending save and schedule a new one
+          // This batches rapid successive shape_created events into a single save
+          if (pendingSaveRef.current.timeoutId) {
+            clearTimeout(pendingSaveRef.current.timeoutId);
+          }
+
+          pendingSaveRef.current.timeoutId = setTimeout(() => {
+            pendingSaveRef.current.timeoutId = null;
+            if (saveShapesRef.current) {
+              saveShapesRef.current(newShapes);
+            }
+          }, 300); // 300ms debounce to batch rapid events
 
           // Push current state to history before adding new shape
           const stateToPushToHistory =
@@ -446,13 +487,16 @@ export default function BoardPage() {
             future: [],
           };
         });
-
-        // Pass the updated shapes to the save function
-        handleSave(newShapesToSave);
       }
     );
-    return () => unsubscribeBoardUpdates();
-  }, [subscribe, handleSave]);
+    return () => {
+      unsubscribeBoardUpdates();
+      // Clean up any pending save timeout on unmount
+      if (pendingSaveRef.current.timeoutId) {
+        clearTimeout(pendingSaveRef.current.timeoutId);
+      }
+    };
+  }, [subscribe]);
 
   const handleClearBoard = async () => {
     try {
@@ -561,6 +605,7 @@ export default function BoardPage() {
           {showAiController && (
             <AIController
               chatHistory={chatHistory}
+              onMessagesChange={setChatHistory}
               initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
               onInitialMessageSent={handleInitialMessageSent}
             />

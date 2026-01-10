@@ -33,12 +33,24 @@ type ChatResponse = {
 
 interface AIControllerProps {
   chatHistory: Message[];
+  onMessagesChange?: (messages: Message[]) => void;
   initialMessage?: string;
   onInitialMessageSent?: () => void;
 }
 
-function AIController({ chatHistory, initialMessage, onInitialMessageSent }: AIControllerProps) {
+function AIController({
+  chatHistory,
+  onMessagesChange,
+  initialMessage,
+  onInitialMessageSent,
+}: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
+
+  // Sync messages back to parent whenever they change
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [isMessageLoading, setIsMessageLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -97,6 +97,28 @@ function Playground() {
     fetchData();
   }, [theme]);
 
+  // Refetch boards when page becomes visible (user navigates back from a board)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        getAllBoards();
+      }
+    };
+
+    // Also refetch on window focus (covers more navigation cases)
+    const handleFocus = () => {
+      getAllBoards();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [getAllBoards]);
+
   if (loading && boards.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen">
