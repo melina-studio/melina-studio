@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { ProcessingRequest } from "@/components/custom/Loader/ProcessingRequest";
 import { BoardsHeader } from "@/components/custom/Boards/BoardsHeader";
 import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
+import { CreationInput } from "@/components/custom/Boards/CreationInput";
 import type { Board } from "@/components/custom/Boards/types";
 import { useBoard } from "@/hooks/useBoard";
 
@@ -29,11 +30,29 @@ function Playground() {
     getActiveHref,
   } = useBoard();
 
+  const [isCreating, setIsCreating] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
   // Handle creating a new board
   async function handleCreateNewBoard() {
     const uuid = await createNewBoard();
     if (uuid) {
       router.push(`/playground/${uuid}`);
+    }
+  }
+
+  // Handle creation from the centered input
+  async function handleCreationSubmit(message: string) {
+    setIsCreating(true);
+    try {
+      const uuid = await createNewBoard();
+      if (uuid) {
+        // Navigate to the new board with the initial message as a query param
+        const encodedMessage = encodeURIComponent(message);
+        router.push(`/playground/${uuid}?initialMessage=${encodedMessage}`);
+      }
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -87,7 +106,7 @@ function Playground() {
   }
 
   return (
-    <div className="min-h-screen p-6 sm:p-8 md:p-12 max-w-7xl mx-auto">
+    <div className="min-h-screen p-6 md:px-12 sm:p-8 md:p-4 max-w-7xl mx-auto">
       <BoardsHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -95,27 +114,43 @@ function Playground() {
         onSortChange={setSortOption}
       />
 
-      {error && (
-        <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-          {error}
-        </div>
-      )}
+      {/* Creation Input - centered launcher */}
+      <div className="py-8 mb-8 border-b border-border/50">
+        <CreationInput
+          onSubmit={handleCreationSubmit}
+          isLoading={isCreating}
+          onFocusChange={setIsInputFocused}
+        />
+      </div>
 
-      <BoardGrid
-        boards={filteredAndSortedBoards}
-        onCreateNew={handleCreateNewBoard}
-        onOpenBoard={handleOpenBoard}
-        onDuplicateBoard={handleDuplicateBoard}
-        onDeleteBoard={handleDeleteBoard}
-      />
+      {/* Content below - dims when input is focused */}
+      <div
+        className={`transition-opacity duration-300 ${
+          isInputFocused ? "opacity-60" : "opacity-100"
+        }`}
+      >
+        {error && (
+          <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            {error}
+          </div>
+        )}
 
-      {filteredAndSortedBoards.length === 0 && !loading && (
-        <div className="text-center py-12 text-muted-foreground">
-          {searchQuery
-            ? "No boards found matching your search."
-            : "No boards yet. Create your first board to get started."}
-        </div>
-      )}
+        <BoardGrid
+          boards={filteredAndSortedBoards}
+          onCreateNew={handleCreateNewBoard}
+          onOpenBoard={handleOpenBoard}
+          onDuplicateBoard={handleDuplicateBoard}
+          onDeleteBoard={handleDeleteBoard}
+        />
+
+        {filteredAndSortedBoards.length === 0 && !loading && (
+          <div className="text-center py-12 text-muted-foreground">
+            {searchQuery
+              ? "No boards found matching your search."
+              : "No boards yet. Create your first board to get started."}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

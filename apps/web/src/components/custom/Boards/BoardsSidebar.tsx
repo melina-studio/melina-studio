@@ -226,7 +226,7 @@ export function BoardsSidebar() {
           </DropdownMenu>
 
           {/* Melina */}
-          <SidebarMenuButton
+          {/* <SidebarMenuButton
             onClick={handleMelinaClick}
             variant="default"
             tooltip="Melina"
@@ -234,7 +234,7 @@ export function BoardsSidebar() {
           >
             <Sparkles className="size-4" />
             <span>Melina</span>
-          </SidebarMenuButton>
+          </SidebarMenuButton> */}
         </div>
       </SidebarFooter>
     </Sidebar>

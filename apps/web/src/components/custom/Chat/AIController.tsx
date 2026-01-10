@@ -31,13 +31,20 @@ type ChatResponse = {
   };
 };
 
-function AIController({ chatHistory }: { chatHistory: Message[] }) {
+interface AIControllerProps {
+  chatHistory: Message[];
+  initialMessage?: string;
+  onInitialMessageSent?: () => void;
+}
+
+function AIController({ chatHistory, initialMessage, onInitialMessageSent }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [isMessageLoading, setIsMessageLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const params = useParams();
   const boardId = params?.id as string;
+  const initialMessageSentRef = useRef(false);
 
   const aiMessageIdRef = useRef<string | null>(null);
   const humanMessageIdRef = useRef<string | null>(null);
@@ -87,6 +94,54 @@ function AIController({ chatHistory }: { chatHistory: Message[] }) {
       return;
     }
   };
+
+  // Function to send a message programmatically (for initial message)
+  const sendMessageProgrammatically = (text: string) => {
+    if (!text.trim()) return;
+
+    // Add user message with temporary UUID
+    const humanMessageId = uuidv4();
+    humanMessageIdRef.current = humanMessageId;
+    setMessages((msgs) => [
+      ...msgs,
+      { uuid: humanMessageId, role: "user", content: text },
+    ]);
+
+    const settings = localStorage.getItem("settings");
+    if (!settings) return;
+    const settingsObj = JSON.parse(settings);
+    const { activeModel, temperature, maxTokens, theme } = settingsObj;
+
+    try {
+      sendMessage({
+        type: "chat_message",
+        data: {
+          board_id: boardId,
+          message: text,
+          active_model: activeModel,
+          temperature: temperature,
+          max_tokens: maxTokens,
+          active_theme: theme,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      humanMessageIdRef.current = null;
+    }
+  };
+
+  // Auto-send initial message if provided
+  useEffect(() => {
+    if (initialMessage && !initialMessageSentRef.current && boardId) {
+      // Small delay to ensure websocket is connected
+      const timer = setTimeout(() => {
+        sendMessageProgrammatically(initialMessage);
+        initialMessageSentRef.current = true;
+        onInitialMessageSent?.();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [initialMessage, boardId]);
 
   useEffect(() => {
     const unsubscribeChatStart = subscribe("chat_starting", (data) => {

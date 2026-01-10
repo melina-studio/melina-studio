@@ -1,6 +1,6 @@
 // app/playground/[id]/page.tsx
 "use client";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Download,
   Loader,
@@ -90,15 +90,20 @@ const cloneShapes = (s: Shape[]): Shape[] => {
 export default function BoardPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(true);
   const id = params.id;
+
+  // Get initial message from URL params (from creation input)
+  const initialMessage = searchParams.get("initialMessage");
+  const [initialMessageConsumed, setInitialMessageConsumed] = useState(false);
   const stageRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [activeTool, setActiveTool] = useState<string>(ACTIONS.SELECT);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showAiController, setShowAiController] = useState(false);
+  const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -201,6 +206,22 @@ export default function BoardPage() {
       unsubscribeChatCompleted();
     };
   }, [subscribe]);
+
+  // Ensure AI controller is visible when there's an initial message
+  useEffect(() => {
+    if (initialMessage && !initialMessageConsumed) {
+      setShowAiController(true);
+    }
+  }, [initialMessage, initialMessageConsumed]);
+
+  // Clear URL params after initial message is sent
+  const handleInitialMessageSent = () => {
+    setInitialMessageConsumed(true);
+    // Remove the initialMessage param from URL without navigation
+    const url = new URL(window.location.href);
+    url.searchParams.delete("initialMessage");
+    window.history.replaceState({}, "", url.pathname);
+  };
 
   // Keyboard shortcut for Command+K / Ctrl+K
   useEffect(() => {
@@ -537,7 +558,13 @@ export default function BoardPage() {
               : "opacity-0 translate-x-4 scale-95 pointer-events-none"
           }`}
         >
-          {showAiController && <AIController chatHistory={chatHistory} />}
+          {showAiController && (
+            <AIController
+              chatHistory={chatHistory}
+              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+              onInitialMessageSent={handleInitialMessageSent}
+            />
+          )}
         </div>
       </div>
     </div>
