@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutGrid,
@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Settings,
   LogOut,
-  Sparkles,
   Receipt,
   Moon,
   Sun,
@@ -37,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useBoard } from "@/hooks/useBoard";
+import Logo from "../General/Logo";
 
 type NavItem = {
   title: string;
@@ -98,16 +98,17 @@ export function BoardsSidebar() {
     }
   };
 
-  const handleMelinaClick = () => {
-    // TODO: Implement Melina chat panel opening
-    console.log("Open Melina chat panel");
-  };
-
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border px-2">
+        {/* Melina Studio Logo */}
+        <Logo />
+
+        {/* Divider */}
+        <div className="my-1.5 border-t border-sidebar-border/40" />
+
         {/* Workspace / Account Section */}
-        <div className="py-3">
+        <div className="pb-1">
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full">
               <div className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
@@ -121,7 +122,6 @@ export function BoardsSidebar() {
                 Workspace settings
               </DropdownMenuItem>
               <DropdownMenuItem disabled>
-                {/* <span className="size-4 mr-2" /> */}
                 <Receipt className="size-4 mr-2" />
                 Billing
               </DropdownMenuItem>
@@ -224,17 +224,13 @@ export function BoardsSidebar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
 
-          {/* Melina */}
-          {/* <SidebarMenuButton
-            onClick={handleMelinaClick}
-            variant="default"
-            tooltip="Melina"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
-          >
-            <Sparkles className="size-4" />
-            <span>Melina</span>
-          </SidebarMenuButton> */}
+        {/* Version info */}
+        <div className="px-2 pt-2 pb-1">
+          <p className="text-[10px] text-muted-foreground/50 font-medium">
+            Melina Studio · v0.1
+          </p>
         </div>
       </SidebarFooter>
     </Sidebar>

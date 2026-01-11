@@ -134,6 +134,13 @@ export function CreationInput({
         </kbd>{" "}
         for new line
       </p>
+
+      {/* Subtle brand signature */}
+      <p className="mt-4 text-[11px] text-muted-foreground/40 font-medium tracking-wide">
+        <span className="text-primary/50 underline">Melina</span>
+        <span> </span>
+        <span className="text-muted-foreground/40">is ready</span>
+      </p>
     </div>
   );
 }
