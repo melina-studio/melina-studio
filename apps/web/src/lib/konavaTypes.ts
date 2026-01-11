@@ -247,6 +247,6 @@ export const TOOL_CURSOR = {
   [ACTIONS.RECTANGLE]: "crosshair",
   [ACTIONS.ARROW]: "pointer", // clickable/select
   [ACTIONS.LINE]: "crosshair",
-  [ACTIONS.ERASER]: "url(/icons/eraser.svg) 4 4, auto", // custom image, fallback `auto`
+  [ACTIONS.ERASER]: "url(/icons/eraser.svg) 2 22, auto", // custom image with hotspot at bottom-left tip
   default: "default",
 };
