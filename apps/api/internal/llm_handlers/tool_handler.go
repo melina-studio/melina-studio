@@ -61,10 +61,11 @@ type ToolExecutionResult struct {
 
 // ImageContent contains image data extracted from tool results
 type ImageContent struct {
-	BoardID   string
+	BoardID     string
 	ImageBase64 string
-	Format    string
-	MediaType string
+	Format      string
+	MediaType   string
+	Shapes      []map[string]interface{}
 }
 
 // ExecuteTools executes a batch of tool calls and returns results
@@ -151,11 +152,26 @@ func ExecuteTools(ctx context.Context, toolCalls []ToolCall , streamCtx *Streami
 					mediaType = fmt.Sprintf("image/%s", format)
 				}
 
+				// Extract shapes array if present
+				var shapes []map[string]interface{}
+				if shapesRaw, ok := resultMap["shapes"].([]map[string]interface{}); ok {
+					shapes = shapesRaw
+				} else if shapesSlice, ok := resultMap["shapes"].([]interface{}); ok {
+					// Handle case where shapes come as []interface{}
+					shapes = make([]map[string]interface{}, 0, len(shapesSlice))
+					for _, s := range shapesSlice {
+						if shapeMap, ok := s.(map[string]interface{}); ok {
+							shapes = append(shapes, shapeMap)
+						}
+					}
+				}
+
 				result.ImageData = &ImageContent{
 					BoardID:     boardId,
 					ImageBase64: imageBase64,
 					Format:      format,
 					MediaType:   mediaType,
+					Shapes:      shapes,
 				}
 			}
 		}
@@ -194,11 +210,22 @@ func FormatAnthropicToolResult(result ToolExecutionResult) map[string]interface{
 	var content interface{}
 
 	if result.HasImage && result.ImageData != nil {
+		// Build text content with shapes info
+		textContent := fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID)
+
+		// Add shapes information if available
+		if len(result.ImageData.Shapes) > 0 {
+			shapesJSON, _ := json.Marshal(result.ImageData.Shapes)
+			textContent += fmt.Sprintf("\n\nCRITICAL: Shapes on the board. You MUST use these EXACT shapeIds when calling updateShape. Do NOT create or guess shapeIds.\n\nShapes array:\n%s\n\nIMPORTANT: Copy the 'id' field from the shapes above exactly as shown. Do not modify or generate new IDs.", string(shapesJSON))
+		} else {
+			textContent += "\n\nNo shapes found on this board."
+		}
+
 		// Format as array of content blocks (text + image) for Anthropic
 		content = []map[string]interface{}{
 			{
 				"type": "text",
-				"text": fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID),
+				"text": textContent,
 			},
 			{
 				"type": "image",
@@ -244,19 +271,29 @@ func FormatGeminiToolResult(result ToolExecutionResult) (functionResponse map[st
 	var resultJSON []byte
 
 	if result.HasImage && result.ImageData != nil {
-		// Return metadata in function response
+		// Return metadata in function response including shapes
 		metadata := map[string]interface{}{
 			"boardId": result.ImageData.BoardID,
 			"format":  result.ImageData.Format,
 			"message": fmt.Sprintf("Board image retrieved for boardId: %s", result.ImageData.BoardID),
+			"shapes":  result.ImageData.Shapes,
 		}
 		resultJSON, _ = json.Marshal(metadata)
+
+		// Build text content with shapes info
+		textContent := fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID)
+		if len(result.ImageData.Shapes) > 0 {
+			shapesJSON, _ := json.Marshal(result.ImageData.Shapes)
+			textContent += fmt.Sprintf("\n\nCRITICAL: Shapes on the board. You MUST use these EXACT shapeIds when calling updateShape. Do NOT create or guess shapeIds.\n\nShapes array:\n%s\n\nIMPORTANT: Copy the 'id' field from the shapes above exactly as shown. Do not modify or generate new IDs.", string(shapesJSON))
+		} else {
+			textContent += "\n\nNo shapes found on this board."
+		}
 
 		// Store image as content blocks to add separately
 		imageBlocks = append(imageBlocks,
 			map[string]interface{}{
 				"type": "text",
-				"text": fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID),
+				"text": textContent,
 			},
 			map[string]interface{}{
 				"type": "image",
@@ -293,14 +330,27 @@ func FormatLangChainToolResult(result ToolExecutionResult) (functionResponse map
 	if result.Error != nil {
 		resultText = fmt.Sprintf("Error: %v", result.Error)
 	} else if result.HasImage && result.ImageData != nil {
-		// Return simple message for image retrieval
+		// Build text content with shapes info
 		resultText = fmt.Sprintf("Board image retrieved for boardId: %s", result.ImageData.BoardID)
-		
+		if len(result.ImageData.Shapes) > 0 {
+			shapesJSON, _ := json.Marshal(result.ImageData.Shapes)
+			resultText += fmt.Sprintf("\n\nCRITICAL: Shapes on the board. You MUST use these EXACT shapeIds when calling updateShape. Do NOT create or guess shapeIds.\n\nShapes array:\n%s\n\nIMPORTANT: Copy the 'id' field from the shapes above exactly as shown. Do not modify or generate new IDs.", string(shapesJSON))
+		} else {
+			resultText += "\n\nNo shapes found on this board."
+		}
+
+		// Build text content with shapes for image blocks
+		textContent := fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID)
+		if len(result.ImageData.Shapes) > 0 {
+			shapesJSON, _ := json.Marshal(result.ImageData.Shapes)
+			textContent += fmt.Sprintf("\n\nCRITICAL: Shapes on the board. You MUST use these EXACT shapeIds when calling updateShape. Do NOT create or guess shapeIds.\n\nShapes array:\n%s\n\nIMPORTANT: Copy the 'id' field from the shapes above exactly as shown. Do not modify or generate new IDs.", string(shapesJSON))
+		}
+
 		// Store image as content blocks to add separately
 		imageBlocks = append(imageBlocks,
 			map[string]interface{}{
 				"type": "text",
-				"text": fmt.Sprintf("Board image for boardId: %s", result.ImageData.BoardID),
+				"text": textContent,
 			},
 			map[string]interface{}{
 				"type": "image",
