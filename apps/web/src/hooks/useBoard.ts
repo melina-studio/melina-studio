@@ -7,7 +7,7 @@ import {
   deleteBoard,
   updateBoard,
 } from "@/service/boardService";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { UpdateBoardPayload } from "@/components/custom/Boards/types";
 
@@ -23,7 +23,7 @@ export const useBoard = () => {
   const searchParams = useSearchParams();
 
   //   Get all boards
-  const getAllBoards = async () => {
+  const getAllBoards = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getBoards();
@@ -35,7 +35,7 @@ export const useBoard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   //   Create a new board
   const createNewBoard = async (title: string = "Untitled") => {
@@ -52,7 +52,7 @@ export const useBoard = () => {
   };
 
   //   Fetch starred boards
-  const fetchStarredBoards = async () => {
+  const fetchStarredBoards = useCallback(async () => {
     try {
       const data = await getStarredBoards(USER_ID);
       setStarredBoards(new Set(data.starredBoards || []));
@@ -61,7 +61,7 @@ export const useBoard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Get filter from URL params
   const filter = searchParams.get("filter") || "all";
