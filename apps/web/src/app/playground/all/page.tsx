@@ -134,50 +134,50 @@ function Playground() {
       <Ripple className="z-0" />
 
       <div className="relative z-10 p-6 md:px-12 sm:p-8 md:p-4 max-w-7xl mx-auto">
-      <BoardsHeader
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortOption={sortOption}
-        onSortChange={setSortOption}
-      />
-
-      {/* Creation Input - centered launcher */}
-      <div className="py-8 mb-8 border-b border-border/50">
-        <CreationInput
-          onSubmit={handleCreationSubmit}
-          isLoading={isCreating}
-          onFocusChange={setIsInputFocused}
-        />
-      </div>
-
-      {/* Content below - dims when input is focused */}
-      <div
-        className={`transition-opacity duration-300 ${
-          isInputFocused ? "opacity-60" : "opacity-100"
-        }`}
-      >
-        {error && (
-          <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-            {error}
-          </div>
-        )}
-
-        <BoardGrid
-          boards={filteredAndSortedBoards}
-          onCreateNew={handleCreateNewBoard}
-          onOpenBoard={handleOpenBoard}
-          onDuplicateBoard={handleDuplicateBoard}
-          onDeleteBoard={handleDeleteBoard}
+        <BoardsHeader
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
         />
 
-        {filteredAndSortedBoards.length === 0 && !loading && (
-          <div className="text-center py-12 text-muted-foreground">
-            {searchQuery
-              ? "No boards found matching your search."
-              : "No boards yet. Create your first board to get started."}
-          </div>
-        )}
-      </div>
+        {/* Creation Input - centered launcher */}
+        <div className="py-8 mb-8 border-b border-border/50">
+          <CreationInput
+            onSubmit={handleCreationSubmit}
+            isLoading={isCreating}
+            onFocusChange={setIsInputFocused}
+          />
+        </div>
+
+        {/* Content below - dims when input is focused */}
+        <div
+          className={`transition-opacity duration-300 ${
+            isInputFocused ? "opacity-60" : "opacity-100"
+          }`}
+        >
+          {error && (
+            <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
+          <BoardGrid
+            boards={filteredAndSortedBoards}
+            onCreateNew={handleCreateNewBoard}
+            onOpenBoard={handleOpenBoard}
+            onDuplicateBoard={handleDuplicateBoard}
+            onDeleteBoard={handleDeleteBoard}
+          />
+
+          {filteredAndSortedBoards.length === 0 && !loading && (
+            <div className="text-center py-12 text-muted-foreground">
+              {searchQuery
+                ? "No boards found matching your search."
+                : "No boards yet. Create your first board to get started."}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

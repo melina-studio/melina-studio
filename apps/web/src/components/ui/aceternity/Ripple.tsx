@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export const Ripple = ({
@@ -7,11 +7,13 @@ export const Ripple = ({
   cols = 27,
   cellSize = 56,
   className,
+  forwardClicks = false,
 }: {
   rows?: number;
   cols?: number;
   cellSize?: number;
   className?: string;
+  forwardClicks?: boolean;
 }) => {
   const [clickedCell, setClickedCell] = useState<{
     row: number;
@@ -19,6 +21,39 @@ export const Ripple = ({
   } | null>(null);
   const [rippleKey, setRippleKey] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+
+  const handleCellClick = useCallback(
+    (row: number, col: number, event: React.MouseEvent) => {
+      // Trigger the ripple animation
+      setClickedCell({ row, col });
+      setRippleKey((k) => k + 1);
+
+      // If forwardClicks is enabled, find and click the element underneath
+      if (forwardClicks) {
+        const { clientX, clientY } = event;
+        // Temporarily hide the ripple to find elements underneath
+        if (ref.current) {
+          ref.current.style.pointerEvents = "none";
+          const elementBelow = document.elementFromPoint(clientX, clientY);
+          ref.current.style.pointerEvents = "";
+
+          if (elementBelow && elementBelow !== event.target) {
+            // Dispatch a click event to the element underneath
+            elementBelow.dispatchEvent(
+              new MouseEvent("click", {
+                bubbles: true,
+                cancelable: true,
+                clientX,
+                clientY,
+                view: window,
+              })
+            );
+          }
+        }
+      }
+    },
+    [forwardClicks]
+  );
 
   return (
     <div
@@ -41,10 +76,7 @@ export const Ripple = ({
           borderColor="var(--cell-border-color)"
           fillColor="var(--cell-fill-color)"
           clickedCell={clickedCell}
-          onCellClick={(row, col) => {
-            setClickedCell({ row, col });
-            setRippleKey((k) => k + 1);
-          }}
+          onCellClick={handleCellClick}
           interactive
         />
       </div>
@@ -60,7 +92,7 @@ type DivGridProps = {
   borderColor: string;
   fillColor: string;
   clickedCell: { row: number; col: number } | null;
-  onCellClick?: (row: number, col: number) => void;
+  onCellClick?: (row: number, col: number, event: React.MouseEvent) => void;
   interactive?: boolean;
 };
 
@@ -126,7 +158,9 @@ const DivGrid = ({
               ...style,
             }}
             onClick={
-              interactive ? () => onCellClick?.(rowIdx, colIdx) : undefined
+              interactive
+                ? (e) => onCellClick?.(rowIdx, colIdx, e)
+                : undefined
             }
           />
         );
