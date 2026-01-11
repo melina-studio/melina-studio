@@ -3,8 +3,11 @@ package tools
 import (
 	"context"
 	"fmt"
+	"melina-studio-backend/internal/config"
 	"melina-studio-backend/internal/libraries"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
+	"melina-studio-backend/internal/models"
+	"melina-studio-backend/internal/repo"
 
 	"github.com/google/uuid"
 )
@@ -98,6 +101,24 @@ func GetAnthropicTools() []map[string]interface{} {
 				"required": []string{"boardId", "shapeType", "x", "y"},
 			},
 		},
+		{
+			"name": "renameBoard",
+			"description": "Renames a board by updating its title. Requires the board ID and the new name.",
+			"input_schema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"boardId": map[string]interface{}{
+						"type":        "string",
+						"description": "The UUID of the board to rename (e.g., '123e4567-e89b-12d3-a456-426614174000')",
+					},
+					"newName": map[string]interface{}{
+						"type":        "string",
+						"description": "The new name/title for the board",
+					},
+				},
+				"required": []string{"boardId", "newName"},
+			},
+		},
 	}
 }
 
@@ -188,6 +209,27 @@ func GetOpenAITools() []map[string]interface{} {
 						},
 					},
 					"required": []string{"boardId", "shapeType", "x", "y"},
+				},
+			},
+		},
+		{
+			"type": "function",
+			"function": map[string]interface{}{
+				"name":        "renameBoard",
+				"description": "Renames a board by updating its title. Requires the board ID and the new name.",
+				"parameters": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"boardId": map[string]interface{}{
+							"type":        "string",
+							"description": "The UUID of the board to rename (e.g., '123e4567-e89b-12d3-a456-426614174000')",
+						},
+						"newName": map[string]interface{}{
+							"type":        "string",
+							"description": "The new name/title for the board",
+						},
+					},
+					"required": []string{"boardId", "newName"},
 				},
 			},
 		},
@@ -348,8 +390,6 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		shape["strokeWidth"] = strokeWidth
 	}
 
-
-
 	// Emit WebSocket event
 	libraries.SendShapeCreatedMessage(streamCtx.Hub, streamCtx.Client, boardId, shape)
 
@@ -362,6 +402,57 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 	}, nil
 }
 
+// RenameBoardHandler is the handler for the RenameBoard tool
+func RenameBoardHandler(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+	boardIdStr , ok := input["boardId"].(string)
+	if !ok {
+		return nil, fmt.Errorf("boardId is required and must be a string")
+	}
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid boardId: %w", err)
+	}
+	
+	newName, ok := input["newName"].(string)
+	if !ok {
+		return nil, fmt.Errorf("newName is required and must be a string")
+	}
+	
+	// Get StreamingContext from context
+	streamCtxValue := ctx.Value("streamingContext")
+	if streamCtxValue == nil {
+		return nil, fmt.Errorf("streaming context not available - cannot send board renamed via WebSocket")
+	}
+
+	// Type assert to StreamingContext
+	streamCtx, ok := streamCtxValue.(*llmHandlers.StreamingContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid streaming context type")
+	}
+
+	// Access database via config and create repository
+	boardRepo := repo.NewBoardRepository(config.DB)
+	// Update the board
+	updatePayload := &models.Board{
+		Title: newName,
+	}
+	err = boardRepo.UpdateBoard(boardId, updatePayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update board: %w", err)
+	}
+
+	// Send WebSocket event
+	libraries.SendBoardRenamedMessage(streamCtx.Hub, streamCtx.Client, boardIdStr, newName)
+
+	// Return success response
+	return map[string]interface{}{
+		"success": true,
+		"boardId": boardIdStr,
+		"newName": newName,
+		"message": fmt.Sprintf("Board renamed successfully to '%s'", newName),
+	}, nil
+}
+
 // RegisterAllTools registers all tools with the toolHandlers registry
 func RegisterAllTools() {
 	llmHandlers.RegisterTool("getBoardData", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
@@ -370,5 +461,9 @@ func RegisterAllTools() {
 
 	llmHandlers.RegisterTool("addShape", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 		return AddShapeHandler(ctx, input)
+	})
+
+	llmHandlers.RegisterTool("renameBoard", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+		return RenameBoardHandler(ctx, input)
 	})
 }

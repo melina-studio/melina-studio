@@ -24,6 +24,7 @@ const (
 	WebSocketMessageTypeChatCompleted WebSocketMessageType = "chat_completed"
 	WebsocketShapeTypeStart WebSocketMessageType = "shape_start"
 	WebSocketMessageTypeShapeCreated WebSocketMessageType = "shape_created"
+	WebSocketMessageTypeBoardRenamed WebSocketMessageType = "board_renamed"
 )
 
 
@@ -78,6 +79,10 @@ type WorkflowConfig struct {
 	ActiveTheme string
 }
 
+type BoardRenamedPayload struct {
+	BoardId string `json:"board_id"`
+	NewName string `json:"new_name"`
+}
 
 func NewHub() *Hub {
 	return &Hub{
@@ -190,6 +195,24 @@ func SendShapeCreatedMessage(hub *Hub, client *Client, boardId string, shape map
 		return
 	}
 	hub.SendMessage(client, shapeCreatedBytes)
+}
+
+
+// SendBoardRenamedMessage sends a board renamed message to a client
+func SendBoardRenamedMessage(hub *Hub, client *Client, boardId string, newName string) {
+	boardRenamedResp := WebSocketMessage{
+		Type: WebSocketMessageTypeBoardRenamed,
+		Data: &BoardRenamedPayload{
+			BoardId: boardId,
+			NewName: newName,
+		},
+	}
+	boardRenamedBytes, err := json.Marshal(boardRenamedResp)
+	if err != nil {
+		log.Println("failed to marshal board renamed response:", err)
+		return
+	}
+	hub.SendMessage(client, boardRenamedBytes)
 }
 
 
