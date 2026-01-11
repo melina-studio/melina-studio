@@ -3,9 +3,9 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export const Ripple = ({
-  rows = 8,
-  cols = 27,
-  cellSize = 56,
+  rows = 10,
+  cols = 32,
+  cellSize = 48,
   className,
   forwardClicks = false,
 }: {
@@ -103,9 +103,9 @@ type CellStyle = React.CSSProperties & {
 
 const DivGrid = ({
   className,
-  rows = 7,
-  cols = 30,
-  cellSize = 56,
+  rows = 10,
+  cols = 32,
+  cellSize = 48,
   borderColor = "#3f3f46",
   fillColor = "rgba(14,165,233,0.3)",
   clickedCell = null,
@@ -158,9 +158,7 @@ const DivGrid = ({
               ...style,
             }}
             onClick={
-              interactive
-                ? (e) => onCellClick?.(rowIdx, colIdx, e)
-                : undefined
+              interactive ? (e) => onCellClick?.(rowIdx, colIdx, e) : undefined
             }
           />
         );

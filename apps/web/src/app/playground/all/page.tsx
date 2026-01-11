@@ -141,8 +141,12 @@ function Playground() {
           onSortChange={setSortOption}
         />
 
-        {/* Creation Input - centered launcher */}
-        <div className="py-8 mb-8 border-b border-border/50">
+        {/* Creation Input - centered launcher with spotlight effect */}
+        <div
+          className={`relative py-8 mb-8 border-b border-border/50 transition-all duration-300 ${
+            isInputFocused ? "before:opacity-100" : "before:opacity-0"
+          } before:absolute before:inset-0 before:-inset-x-12 before:-inset-y-8 before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,transparent_70%)] dark:before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)] before:pointer-events-none before:transition-opacity before:duration-300`}
+        >
           <CreationInput
             onSubmit={handleCreationSubmit}
             isLoading={isCreating}
@@ -152,8 +156,8 @@ function Playground() {
 
         {/* Content below - dims when input is focused */}
         <div
-          className={`transition-opacity duration-300 ${
-            isInputFocused ? "opacity-60" : "opacity-100"
+          className={`transition-all duration-300 ${
+            isInputFocused ? "opacity-50 scale-[0.995]" : "opacity-100 scale-100"
           }`}
         >
           {error && (
