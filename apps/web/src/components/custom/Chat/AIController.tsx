@@ -72,7 +72,14 @@ function AIController({
   const { sendMessage, subscribe } = useWebsocket();
 
   const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch by only using theme after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -164,7 +171,7 @@ function AIController({
   }, [initialMessage, boardId]);
 
   useEffect(() => {
-    const unsubscribeChatStart = subscribe("chat_starting", (data) => {
+    const unsubscribeChatStart = subscribe("chat_starting", () => {
       setIsMessageLoading(true);
       // Create temporary AI message ID, but don't create the message yet
       // Wait for first chunk to arrive before creating the message bubble
@@ -246,7 +253,7 @@ function AIController({
       }
     );
 
-    const unsubscribeChatError = subscribe("error", (data) => {
+    const unsubscribeChatError = subscribe("error", () => {
       setIsMessageLoading(false);
 
       // Remove the empty AI message if it exists

@@ -61,6 +61,14 @@ type ShapeCreatedEvent = {
   };
 };
 
+type ShapeUpdatedEvent = {
+  type: "shape_updated";
+  data: {
+    board_id: string;
+    shape: Shape;
+  };
+};
+
 export type Settings = {
   activeModel: string;
   temperature: number;
@@ -113,7 +121,9 @@ export default function BoardPage() {
   const boardIdRef = useRef(id);
 
   // Ref to store latest save function to avoid stale closures
-  const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(null);
+  const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(
+    null
+  );
   // Ref to track pending save and prevent duplicate API calls
   const pendingSaveRef = useRef<{
     timeoutId: NodeJS.Timeout | null;
@@ -208,9 +218,21 @@ export default function BoardPage() {
       setTimeout(() => setMelinaStatus("idle"), 2000);
     });
 
+    const unsubscribeBoardRename = subscribe(
+      "board_renamed",
+      (data: { data: { board_id: string; new_name: string } }) => {
+        setBoardInfo((prev: Board | null) =>
+          prev && prev.uuid === data.data.board_id
+            ? { ...prev, title: data.data.new_name }
+            : prev
+        );
+      }
+    );
+
     return () => {
       unsubscribeChatStart();
       unsubscribeChatCompleted();
+      unsubscribeBoardRename();
     };
   }, [subscribe]);
 
@@ -389,7 +411,11 @@ export default function BoardPage() {
         fd.append("image", blob, `board-${id}.png`);
 
         await saveBoardData(id, fd);
-        console.log("Board saved successfully with", filteredShapes.length, "shapes");
+        console.log(
+          "Board saved successfully with",
+          filteredShapes.length,
+          "shapes"
+        );
       } catch (error) {
         console.error("Save failed:", error);
         throw error;
@@ -445,6 +471,7 @@ export default function BoardPage() {
 
   // listen for board updates event
   useEffect(() => {
+    // listen for new shape created event
     const unsubscribeBoardUpdates = subscribe(
       "shape_created",
       (data: ShapeCreatedEvent) => {
@@ -489,8 +516,30 @@ export default function BoardPage() {
         });
       }
     );
+
+    // listen for shape updated event
+    const unsubscribeShapeUpdated = subscribe(
+      "shape_updated",
+      (data: ShapeUpdatedEvent) => {
+        console.log("Shape updated:", data);
+        const { shape } = data.data;
+        setHistory((cur) => {
+          const currentShapes = cloneShapes(cur.present);
+          const newShapes = currentShapes.map((s) =>
+            s.id === shape.id ? shape : s
+          );
+          return {
+            past: cur.past,
+            present: cloneShapes(newShapes),
+            future: cur.future,
+          };
+        });
+      }
+    );
+
     return () => {
       unsubscribeBoardUpdates();
+      unsubscribeShapeUpdated();
       // Clean up any pending save timeout on unmount
       if (pendingSaveRef.current.timeoutId) {
         clearTimeout(pendingSaveRef.current.timeoutId);
@@ -606,7 +655,9 @@ export default function BoardPage() {
             <AIController
               chatHistory={chatHistory}
               onMessagesChange={setChatHistory}
-              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+              initialMessage={
+                initialMessageConsumed ? undefined : initialMessage || undefined
+              }
               onInitialMessageSent={handleInitialMessageSent}
             />
           )}

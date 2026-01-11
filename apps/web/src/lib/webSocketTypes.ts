@@ -6,6 +6,10 @@ export type WebSocketMessage = {
     | "auth"
     | "error"
     | "chat_response"
-    | "chat_status";
+    | "chat_status"
+    | "board_renamed"
+    | "shape_created"
+    | "shape_start"
+    | "shape_updated";
   data: any;
 };
