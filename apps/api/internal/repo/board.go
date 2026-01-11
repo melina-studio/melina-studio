@@ -17,6 +17,9 @@ type BoardRepo struct {
 type BoardRepoInterface interface {
 	CreateBoard(board *models.Board) (uuid.UUID, error)
 	GetAllBoards() ([]models.Board, error)
+	GetBoardById(boardId uuid.UUID) (models.Board, error)
+	UpdateBoard(boardId uuid.UUID, board *models.Board) error
+	DeleteBoardByID(boardId uuid.UUID) error
 }
 
 func NewBoardRepository(db *gorm.DB) BoardRepoInterface {
@@ -31,6 +34,23 @@ func (r *BoardRepo) CreateBoard(board *models.Board) (uuid.UUID, error) {
 	board.UpdatedAt = time.Now()
 	err := r.db.Create(board).Error
 	return uuid, err
+}
+
+// GetBoardById returns a board by its ID
+func (r *BoardRepo) GetBoardById(boardId uuid.UUID) (models.Board, error) {
+	var board models.Board
+	err := r.db.Where(&models.Board{UUUID: boardId}).First(&board).Error
+	return board, err
+}
+
+// UpdateBoard updates a board in the database
+func (r *BoardRepo) UpdateBoard(boardId uuid.UUID, board *models.Board) error {
+	return r.db.Model(&models.Board{UUUID: boardId}).Updates(board).Error
+}
+
+// DeleteBoardByID deletes a board in the database
+func (r *BoardRepo) DeleteBoardByID(boardId uuid.UUID) error {
+	return r.db.Delete(&models.Board{UUUID: boardId}).Error
 }
 
 // GetAllBoards returns all boards in the database

@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"melina-studio-backend/internal/repo"
 	"os"
@@ -115,12 +118,6 @@ func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
 		})
 	}
 
-	// if len(shapes) == 0 {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"error": "No shapes provided",
-	// 	})
-	// }
-
 	// Collect UUIDs of shapes being saved
 	var shapeUUIDs []uuid.UUID
 
@@ -204,8 +201,17 @@ func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
 		})
 	}
 
+	boardInfo, err := h.repo.GetBoardById(boardId)
+	if err != nil {
+		log.Println(err, "Error getting board info")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get board info",
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"board": board,
+		"boardInfo": boardInfo,
 	})
 }
 
@@ -229,5 +235,98 @@ func (h *BoardHandler) ClearBoard(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Board cleared successfully",
+	})
+}
+
+// function to delete board by ID
+func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
+	boardIdStr := c.Params("boardId")
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid board ID",
+		})
+	}
+
+	err = h.repo.DeleteBoardByID(boardId)
+	if err != nil {
+		log.Println(err, "Error deleting board")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete board",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Board deleted successfully",
+	})
+}
+
+// function to update board by ID
+func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
+	boardIdStr := c.Params("boardId")
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid board ID",
+		})
+	}
+
+	var dto struct {
+		Title     *string `json:"title"`
+		Thumbnail *string `json:"thumbnail"`
+		Starred   *bool   `json:"starred"`
+		SaveThumbnail *bool   `json:"saveThumbnail"`
+	}
+
+	if err := c.BodyParser(&dto); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	payload := &models.Board{}
+	if dto.Title != nil {
+		payload.Title = *dto.Title
+	}
+	if dto.Thumbnail != nil {
+		payload.Thumbnail = *dto.Thumbnail
+	}
+	if dto.Starred != nil {
+		payload.Starred = *dto.Starred
+	}
+
+	if dto.SaveThumbnail != nil && *dto.SaveThumbnail {
+		// get the image from the temp/images directory
+		imagePath := "temp/images/" + boardId.String() + ".png"
+		image, err := os.ReadFile(imagePath)
+		if err != nil {
+			log.Println(err, "Error reading image file")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to read image",
+			})
+		}
+		// upload the image to gcs
+		url ,err := libraries.GetClients().Upload(context.Background(), boardId.String()+".png", bytes.NewReader(image), "image/png")
+		if err != nil {
+			log.Println(err, "Error uploading image to gcs")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to upload image to gcs",
+			})
+		}
+
+		// save the url to board thumbnail
+		payload.Thumbnail = url
+	}
+	
+	err = h.repo.UpdateBoard(boardId, payload)
+	if err != nil {
+		log.Println(err, "Error updating board")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update board",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Board updated successfully",
 	})
 }
