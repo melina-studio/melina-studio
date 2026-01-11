@@ -119,6 +119,14 @@ export default function BoardPage() {
   const [boardInfo, setBoardInfo] = useState<Board | null>(null);
   const { updateBoardById } = useBoard();
   const boardIdRef = useRef(id);
+  // Ref to prevent duplicate thumbnail saves
+  const thumbnailSaveCalledRef = useRef(false);
+  // Ref to track if page is being unloaded (refresh/close)
+  const isPageUnloadingRef = useRef(false);
+  // Ref to store updateBoardById to avoid dependency issues
+  const updateBoardByIdRef = useRef(updateBoardById);
+  // Ref to handle cleanup timeout for React Strict Mode
+  const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ref to store latest save function to avoid stale closures
   const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(
@@ -173,10 +181,57 @@ export default function BoardPage() {
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      // Fire and forget - cleanup cannot be async
-      updateBoardById(id, { saveThumbnail: true }).catch(console.error);
     };
   }, []);
+
+  // Keep updateBoardByIdRef in sync
+  useEffect(() => {
+    updateBoardByIdRef.current = updateBoardById;
+  }, [updateBoardById]);
+
+  // Handle thumbnail save only when navigating away (not on refresh/close)
+  useEffect(() => {
+    // Cancel any pending cleanup timeout from React Strict Mode remounting
+    if (cleanupTimeoutRef.current) {
+      clearTimeout(cleanupTimeoutRef.current);
+      cleanupTimeoutRef.current = null;
+    }
+
+    // Reset flags on mount
+    thumbnailSaveCalledRef.current = false;
+    isPageUnloadingRef.current = false;
+
+    // Detect when page is being unloaded (refresh/close)
+    const handleBeforeUnload = () => {
+      isPageUnloadingRef.current = true;
+      // Also clear any pending save timeout
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current);
+        cleanupTimeoutRef.current = null;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
+      // Don't save if page is being unloaded (refresh/close)
+      if (isPageUnloadingRef.current) {
+        return;
+      }
+
+      // Use a small delay to handle React Strict Mode double-mounting
+      // If component remounts quickly, the timeout will be cancelled on next mount
+      const currentId = id;
+      cleanupTimeoutRef.current = setTimeout(() => {
+        if (!thumbnailSaveCalledRef.current) {
+          thumbnailSaveCalledRef.current = true;
+          updateBoardByIdRef.current(currentId, { saveThumbnail: true }).catch(console.error);
+        }
+      }, 100);
+    };
+  }, [id]); // Only depend on id, use ref for updateBoardById
 
   // Fetch board data on mount
   useEffect(() => {
