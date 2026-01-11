@@ -17,7 +17,7 @@ import (
 func NewServer() *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: customErrorHandler,
-		AppName:      "Melina Studio Backend",
+		AppName:      "Melina Studio",
 	})
 
 	// Global middleware

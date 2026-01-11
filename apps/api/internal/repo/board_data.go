@@ -25,6 +25,8 @@ type BoardDataRepoInterface interface {
 	GetBoardData(boardId uuid.UUID) ([]models.BoardData, error)
 	ClearBoardData(boardId uuid.UUID) error
 	DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error
+	GetNextAnnotationNumber(boardId uuid.UUID) (int, error)
+	GetShapeByUUID(shapeUUID uuid.UUID) (*models.BoardData, error)
 }
 
 // NewBoardDataRepository returns a new instance of BoardDataRepo
@@ -133,24 +135,38 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 	}
 	jsonData := datatypes.JSON(bytes)
 
-	boardData := &models.BoardData{
-		UUID:      shapeUUID,
-		BoardId:   boardId,
-		Type:      models.Type(shapeData.Type),
-		Data:      jsonData,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// Check if shape exists, update or create
+	// Check if shape exists first to determine if we need a new annotation number
 	var existing models.BoardData
 	result := r.db.Where("uuid = ?", shapeUUID).First(&existing)
+
+	var annotationNumber int
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		// New shape - get the next annotation number
+		nextNum, err := r.GetNextAnnotationNumber(boardId)
+		if err != nil {
+			return fmt.Errorf("failed to get next annotation number: %w", err)
+		}
+		annotationNumber = nextNum
+	} else if result.Error != nil {
+		return result.Error
+	} else {
+		// Existing shape - preserve its annotation number
+		annotationNumber = existing.AnnotationNumber
+	}
+
+	boardData := &models.BoardData{
+		UUID:             shapeUUID,
+		BoardId:          boardId,
+		Type:             models.Type(shapeData.Type),
+		Data:             jsonData,
+		AnnotationNumber: annotationNumber,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
 
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// Create new
 		return r.db.Create(boardData).Error
-	} else if result.Error != nil {
-		return result.Error
 	}
 
 	// preserve original CreatedAt
@@ -177,4 +193,27 @@ func (r *BoardDataRepo) DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uu
 	}
 	// Delete shapes that belong to this board but are not in the provided list
 	return r.db.Where("board_id = ? AND uuid NOT IN ?", boardId, shapeUUIDs).Delete(&models.BoardData{}).Error
+}
+
+// GetNextAnnotationNumber returns the next available annotation number for a board
+func (r *BoardDataRepo) GetNextAnnotationNumber(boardId uuid.UUID) (int, error) {
+	var maxNumber int
+	err := r.db.Model(&models.BoardData{}).
+		Where("board_id = ?", boardId).
+		Select("COALESCE(MAX(annotation_number), 0)").
+		Scan(&maxNumber).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxNumber + 1, nil
+}
+
+// GetShapeByUUID returns a shape by its UUID
+func (r *BoardDataRepo) GetShapeByUUID(shapeUUID uuid.UUID) (*models.BoardData, error) {
+	var shape models.BoardData
+	err := r.db.Where("uuid = ?", shapeUUID).First(&shape).Error
+	if err != nil {
+		return nil, err
+	}
+	return &shape, nil
 }

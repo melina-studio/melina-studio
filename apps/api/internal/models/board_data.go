@@ -22,12 +22,13 @@ const (
 )
 
 type BoardData struct {
-	UUID      uuid.UUID      `gorm:"primarykey" json:"uuid"`
-	BoardId   uuid.UUID      `gorm:"not null" json:"board_id"`
-	Type      Type           `gorm:"default:'rect'" json:"type"`
-	Data      datatypes.JSON `json:"data"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	UUID             uuid.UUID      `gorm:"primarykey" json:"uuid"`
+	BoardId          uuid.UUID      `gorm:"not null" json:"board_id"`
+	Type             Type           `gorm:"default:'rect'" json:"type"`
+	Data             datatypes.JSON `json:"data"`
+	AnnotationNumber int            `gorm:"not null;default:0" json:"annotation_number"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
 }
 
 type Shape struct {

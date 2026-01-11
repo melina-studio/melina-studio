@@ -22,7 +22,7 @@ func GetAnthropicTools() []map[string]interface{} {
 	return []map[string]interface{}{
 		{
 			"name": "getBoardData",
-			"description": "Retrieves the current board data as an image for a given board id. Returns the base64 encoded image of the board and a list of all shapes with their IDs and properties. Use this to see what shapes exist on the board before updating them.",
+			"description": "Retrieves the current board data as an image for a given board id. Returns the base64 encoded image of the board with numbered badges overlaid on each shape (1, 2, 3...) and a list of all shapes with their IDs, numbers, and properties. Each shape in the array has a 'number' field that corresponds to the badge shown on that shape in the image. Use this to see what shapes exist on the board and identify which shape ID corresponds to which visual element before updating them.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -196,7 +196,7 @@ func GetOpenAITools() []map[string]interface{} {
 			"type": "function",
 			"function": map[string]interface{}{
 				"name":        "getBoardData",
-				"description": "Retrieves the current board image for a given board ID. Returns the base64-encoded PNG image of the board and a list of all shapes with their IDs and properties. Use this to see what shapes exist on the board before updating them.",
+				"description": "Retrieves the current board image for a given board ID. Returns the base64-encoded PNG image of the board with numbered badges overlaid on each shape (1, 2, 3...) and a list of all shapes with their IDs, numbers, and properties. Each shape in the array has a 'number' field that corresponds to the badge shown on that shape in the image. Use this to see what shapes exist on the board and identify which shape ID corresponds to which visual element before updating them.",
 				"parameters": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -386,32 +386,47 @@ func GetGroqTools() []map[string]interface{} {
 
 // GetBoardDataHandler is the handler for the GetBoardData tool
 // Returns a map with special key "_imageContent" that will be formatted as image content blocks
-// Also includes shape data with IDs so the LLM can identify shapes for updates
+// Also includes shape data with IDs and numbers so the LLM can identify shapes for updates
+// Each shape has a numbered badge on the image that matches the "number" field in the shapes array
+// Uses caching to avoid re-annotating images when shapes haven't changed
 func GetBoardDataHandler(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 	boardId, ok := input["boardId"].(string)
 	if !ok {
 		return nil, fmt.Errorf("boardId is required")
 	}
-	
-	// Get the image
-	boardData, err := GetBoardData(boardId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get board data: %w", err)
-	}
-	
-	// Get shape data from database
+
+	// Get shape data from database first (needed for annotation and caching)
 	boardIdUUID, err := uuid.Parse(boardId)
 	if err != nil {
 		return nil, fmt.Errorf("invalid boardId format: %w", err)
 	}
-	
+
 	boardDataRepo := repo.NewBoardDataRepository(config.DB)
 	shapesData, err := boardDataRepo.GetBoardData(boardIdUUID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shapes from database: %w", err)
 	}
-	
-	// Convert BoardData to Shape format for the LLM
+
+	// Get the original image
+	boardData, err := GetBoardData(boardId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get board data: %w", err)
+	}
+
+	imageBase64, ok := boardData["image"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid image data")
+	}
+
+	// Get or create annotated image (uses caching)
+	annotatedImage, err := GetOrCreateAnnotatedImage(boardId, shapesData, imageBase64)
+	if err != nil {
+		// If annotation fails, fall back to original image without numbers
+		fmt.Printf("Warning: Image annotation failed: %v\n", err)
+		annotatedImage = imageBase64
+	}
+
+	// Build the shapes array with annotation numbers from database
 	shapes := make([]map[string]interface{}, 0, len(shapesData))
 	for _, shapeData := range shapesData {
 		// Parse the JSON data field
@@ -420,30 +435,31 @@ func GetBoardDataHandler(ctx context.Context, input map[string]interface{}) (int
 			// Skip shapes with invalid data
 			continue
 		}
-		
-		// Build shape object with ID
+
+		// Build shape object with ID, type, and annotation number
 		shape := map[string]interface{}{
-			"id":   shapeData.UUID.String(),
-			"type": string(shapeData.Type),
+			"id":     shapeData.UUID.String(),
+			"type":   string(shapeData.Type),
+			"number": shapeData.AnnotationNumber, // Use stored annotation number
 		}
-		
+
 		// Copy all properties from dataMap
 		for k, v := range dataMap {
 			shape[k] = v
 		}
-		
+
 		shapes = append(shapes, shape)
 	}
-	
+
 	// Return a special structure that indicates this contains image content
 	// The anthropic handler will detect this and format it as content blocks
-	// Also include shapes array so LLM can see shape IDs
+	// Also include shapes array so LLM can correlate numbered badges with shape IDs
 	return map[string]interface{}{
 		"_imageContent": true,
 		"boardId":       boardData["boardId"],
-		"image":         boardData["image"],
+		"image":         annotatedImage, // Annotated image with numbered badges (cached)
 		"format":        boardData["format"],
-		"shapes":        shapes, // Include shape data with IDs
+		"shapes":        shapes, // Include shape data with IDs and annotation numbers
 	}, nil
 }
 
@@ -571,6 +587,14 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 
 	// Emit WebSocket event
 	libraries.SendShapeCreatedMessage(streamCtx.Hub, streamCtx.Client, boardId, shape)
+
+	// Invalidate the annotated image cache since a new shape was added
+	if boardIdUUID, err := uuid.Parse(boardId); err == nil {
+		if err := InvalidateAnnotatedImageCache(boardIdUUID); err != nil {
+			// Log but don't fail - cache invalidation is not critical
+			fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+		}
+	}
 
 	// Return success response
 	return map[string]interface{}{
@@ -831,6 +855,12 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	err = boardDataRepo.SaveShapeData(boardId, shape)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save updated shape: %w", err)
+	}
+
+	// Invalidate the annotated image cache since shape was updated
+	if err := InvalidateAnnotatedImageCache(boardId); err != nil {
+		// Log but don't fail - cache invalidation is not critical
+		fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
 	}
 
 	// Build shape map for WebSocket message (similar to addShape format)
