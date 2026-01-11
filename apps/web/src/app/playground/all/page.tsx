@@ -9,6 +9,7 @@ import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
 import { CreationInput } from "@/components/custom/Boards/CreationInput";
 import type { Board } from "@/components/custom/Boards/types";
 import { useBoard } from "@/hooks/useBoard";
+import { Ripple } from "@/components/ui/aceternity/Ripple";
 
 // Main Component
 function Playground() {
@@ -128,7 +129,11 @@ function Playground() {
   }
 
   return (
-    <div className="min-h-screen p-6 md:px-12 sm:p-8 md:p-4 max-w-7xl mx-auto">
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Background Ripple Effect */}
+      <Ripple className="z-0" />
+
+      <div className="relative z-10 p-6 md:px-12 sm:p-8 md:p-4 max-w-7xl mx-auto">
       <BoardsHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -172,6 +177,7 @@ function Playground() {
               : "No boards yet. Create your first board to get started."}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
