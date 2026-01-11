@@ -46,6 +46,14 @@ function AIController({
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
 
+  // Sync chatHistory from parent to local state when it changes
+  // This handles the case where API fetches messages after component mounts
+  useEffect(() => {
+    if (chatHistory.length > 0 && messages.length === 0) {
+      setMessages(chatHistory);
+    }
+  }, [chatHistory]);
+
   // Sync messages back to parent whenever they change
   useEffect(() => {
     onMessagesChange?.(messages);
