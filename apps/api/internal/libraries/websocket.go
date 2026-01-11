@@ -24,6 +24,7 @@ const (
 	WebSocketMessageTypeChatCompleted WebSocketMessageType = "chat_completed"
 	WebsocketShapeTypeStart WebSocketMessageType = "shape_start"
 	WebSocketMessageTypeShapeCreated WebSocketMessageType = "shape_created"
+	WebSocketMessageTypeShapeUpdated WebSocketMessageType = "shape_updated"
 	WebSocketMessageTypeBoardRenamed WebSocketMessageType = "board_renamed"
 )
 
@@ -66,6 +67,11 @@ type ChatMessageResponsePayload struct {
 
 // Add this new struct
 type ShapeCreatedPayload struct {
+	BoardId string                 `json:"board_id"`
+	Shape   map[string]interface{} `json:"shape"`
+}
+
+type ShapeUpdatedPayload struct {
 	BoardId string                 `json:"board_id"`
 	Shape   map[string]interface{} `json:"shape"`
 }
@@ -198,6 +204,23 @@ func SendShapeCreatedMessage(hub *Hub, client *Client, boardId string, shape map
 }
 
 
+// SendShapeUpdatedMessage sends a shape updated message to a client
+func SendShapeUpdatedMessage(hub *Hub, client *Client, boardId string, shape map[string]interface{}) {
+	shapeUpdatedResp := WebSocketMessage{
+		Type: WebSocketMessageTypeShapeUpdated,
+		Data: &ShapeUpdatedPayload{
+			BoardId: boardId,
+			Shape:   shape,
+		},
+	}
+	shapeUpdatedBytes, err := json.Marshal(shapeUpdatedResp)
+	if err != nil {
+		log.Println("failed to marshal shape updated response:", err)
+		return
+	}
+	hub.SendMessage(client, shapeUpdatedBytes)
+}
+
 // SendBoardRenamedMessage sends a board renamed message to a client
 func SendBoardRenamedMessage(hub *Hub, client *Client, boardId string, newName string) {
 	boardRenamedResp := WebSocketMessage{
@@ -241,6 +264,12 @@ func parseWebSocketMessage(msg []byte) (*WebSocketMessage, error) {
 			message.Data = &chatPayload
 		case WebSocketMessageTypeShapeCreated:
 			var shapePayload ShapeCreatedPayload
+			if err := json.Unmarshal(rawMessage.Data, &shapePayload); err != nil {
+				return nil, err
+			}
+			message.Data = &shapePayload
+		case WebSocketMessageTypeShapeUpdated:
+			var shapePayload ShapeUpdatedPayload
 			if err := json.Unmarshal(rawMessage.Data, &shapePayload); err != nil {
 				return nil, err
 			}

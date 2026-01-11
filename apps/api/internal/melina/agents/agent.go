@@ -77,7 +77,9 @@ func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
 // boardId can be empty string if no image should be included
 func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
 	// Build messages for the LLM
-	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId)
+	// Default to "light" theme if not provided (prompt expects 2 placeholders: boardId and activeTheme)
+	activeTheme := "light"
+	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
 	
 	// Build user message content - may include image if boardId is provided
 	var userContent interface{} = message
