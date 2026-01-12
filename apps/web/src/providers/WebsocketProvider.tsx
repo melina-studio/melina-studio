@@ -24,10 +24,15 @@ export const WebSocketContext = createContext<WebSocketContextType | null>(
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Map<string, Set<Callback>>>(new Map());
+  const mountedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (socketRef.current) return; // to avoid multiple connections
+    // if (socketRef.current) return; // to avoid multiple connections
+    // Prevent Strict Mode double-mount cleanup issues
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
     const ws = new WebSocket(process.env.NEXT_PUBLIC_WEBSOCKET_URL || "");
     socketRef.current = ws;
 
@@ -69,8 +74,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       console.error("WebSocket error", err);
     };
 
+    // ✅ Close WS only when the tab/window is ACTUALLY closing
+    const handleBeforeUnload = () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        console.log("Closing WebSocket");
+        ws.close();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
-      ws.close();
+      // ws.close();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
