@@ -21,7 +21,7 @@ type WebSocketContextType = {
 
 // Reconnection config
 const INITIAL_RETRY_DELAY = 1000; // 1 second
-const MAX_RETRY_DELAY = 30000; // 30 seconds max
+const MAX_RETRY_DELAY = 15000; // 30 seconds max
 const MAX_RETRY_ATTEMPTS = 10;
 
 export const WebSocketContext = createContext<WebSocketContextType | null>(
@@ -77,14 +77,21 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       socketRef.current = null;
 
       // Attempt reconnection if not intentionally closed
-      if (!intentionalCloseRef.current && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
+      if (
+        !intentionalCloseRef.current &&
+        retryCountRef.current < MAX_RETRY_ATTEMPTS
+      ) {
         const delay = Math.min(
           INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current),
           MAX_RETRY_DELAY
         );
         retryCountRef.current += 1;
         setIsReconnecting(true);
-        console.log(`🔄 Reconnecting in ${delay / 1000}s... (attempt ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`);
+        console.log(
+          `🔄 Reconnecting in ${delay / 1000}s... (attempt ${
+            retryCountRef.current
+          }/${MAX_RETRY_ATTEMPTS})`
+        );
 
         retryTimeoutRef.current = setTimeout(() => {
           connect();
@@ -151,7 +158,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <WebSocketContext.Provider
-      value={{ socket: socketRef.current, sendMessage, isConnected, isReconnecting, subscribe }}
+      value={{
+        socket: socketRef.current,
+        sendMessage,
+        isConnected,
+        isReconnecting,
+        subscribe,
+      }}
     >
       {children}
     </WebSocketContext.Provider>
