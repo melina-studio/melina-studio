@@ -267,12 +267,29 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         fontSize={t.fontSize}
         fontFamily={t.fontFamily}
         fill={t.fill}
-        draggable={activeTool === ACTIONS.SELECT}
-        onDragEnd={(e) => {
-          onDragMove(shape.id, e.target.x(), e.target.y());
-        }}
-        onDblClick={(e) => {
+        draggable={
+          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
+        }
+        onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+        onClick={(e) => onShapeClick(e, shape.id)}
+        onDblClick={() => {
           onTextDoubleClick(shape.id, { x: t.x, y: t.y });
+        }}
+        onMouseEnter={() => {
+          if (
+            (activeTool === ACTIONS.SELECT ||
+              activeTool === ACTIONS.MARQUEE_SELECT) &&
+            !isDraggingShape
+          ) {
+            setStageCursor("grab");
+            setIsDraggingStage(false);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!isDraggingShape && !isDraggingStage) {
+            setStageCursor(cursor);
+          }
         }}
       />
     );
@@ -289,16 +306,24 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       tension={0}
       lineCap="round"
       lineJoin="round"
-      draggable={activeTool === ACTIONS.SELECT}
+      draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
       onDragStart={(e) => onShapeDragStart(e, shape.id)}
       onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
       onClick={(e) => onShapeClick(e, shape.id)}
       onMouseEnter={() => {
-        if (activeTool === ACTIONS.SELECT && !isDraggingShape)
+        if (
+          (activeTool === ACTIONS.SELECT ||
+            activeTool === ACTIONS.MARQUEE_SELECT) &&
+          !isDraggingShape
+        ) {
           setStageCursor("grab");
+          setIsDraggingStage(false);
+        }
       }}
       onMouseLeave={() => {
-        if (!isDraggingShape && !isDraggingStage) setStageCursor(cursor);
+        if (!isDraggingShape && !isDraggingStage) {
+          setStageCursor(cursor);
+        }
       }}
     />
   );
