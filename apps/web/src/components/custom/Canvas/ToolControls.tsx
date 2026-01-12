@@ -5,6 +5,7 @@ import React, { useState } from "react";
 function ToolControls({
   toolbarToggle,
   activeTool,
+  activeColor,
   canUndo,
   canRedo,
   open,
@@ -16,6 +17,7 @@ function ToolControls({
 }: {
   toolbarToggle: any;
   activeTool: any;
+  activeColor: string;
   canUndo: any;
   canRedo: any;
   open: any;
@@ -119,11 +121,15 @@ function ToolControls({
                 <div
                   key={color.color}
                   style={{ backgroundColor: color.color }}
-                  className={`w-8 h-8 rounded cursor-pointer hover:scale-110 transition-transform ${color.color === "#ffffff" ? "border border-gray-300 dark:border-gray-600" : ""}`}
+                  className={`w-8 h-8 rounded cursor-pointer hover:scale-110 transition-transform ${
+                    color.color === "#ffffff" ? "border border-gray-300 dark:border-gray-600" : ""
+                  } ${
+                    activeColor === color.color ? "ring-2 ring-offset-2 ring-blue-500" : ""
+                  }`}
                   title={color.color}
                   onClick={() => {
                     handleActiveColor(color.color);
-                    handleActiveTool(ACTIONS.PENCIL);
+                    // Stay on COLOR tool to allow clicking shapes to fill them
                   }}
                 ></div>
               ))}

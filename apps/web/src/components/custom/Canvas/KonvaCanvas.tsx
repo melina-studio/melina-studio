@@ -16,6 +16,7 @@ function KonvaCanvas({
   canvasRef,
   setShapesWithHistory,
   strokeColor,
+  activeColor,
   shapes: externalShapes,
   handleSave,
   onCanvasTransform,
@@ -25,6 +26,7 @@ function KonvaCanvas({
   canvasRef: any;
   setShapesWithHistory: any;
   strokeColor: string;
+  activeColor: string;
   shapes: Shape[];
   handleSave: any;
   onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
@@ -433,6 +435,47 @@ function KonvaCanvas({
     // Add your AI logic here
   };
 
+  // Color tool handler - fill for closed shapes, stroke for lines
+  const handleColorClick = (e: any, shapeId: string) => {
+    if (activeTool !== ACTIONS.COLOR) return;
+
+    const isAltClick = e.evt?.altKey || e.evt?.metaKey;
+    const shape = shapes.find((s) => s.id === shapeId);
+    if (!shape) return;
+
+    // Mark that we're doing a local update
+    isLocalUpdateRef.current = true;
+
+    setShapes((currentShapes) => {
+      const updatedShapes = currentShapes.map((s) => {
+        if (s.id !== shapeId) return s;
+
+        // Closed shapes: rect, circle, ellipse, path (if closed)
+        const isClosedShape = ["rect", "circle", "ellipse"].includes(s.type);
+
+        if (isClosedShape) {
+          // Alt/Meta click changes stroke, normal click changes fill
+          if (isAltClick) {
+            return { ...s, stroke: activeColor };
+          } else {
+            return { ...s, fill: activeColor };
+          }
+        } else {
+          // Lines, pencil, arrows - change stroke color
+          return { ...s, stroke: activeColor };
+        }
+      });
+
+      // Defer history update and save
+      queueMicrotask(() => {
+        setShapesWithHistory(updatedShapes, { pushHistory: true });
+        handleSave(updatedShapes);
+      });
+
+      return updatedShapes;
+    });
+  };
+
   return (
     <div className="relative">
       {/* canvas */}
@@ -454,7 +497,6 @@ function KonvaCanvas({
             <ShapeRenderer
               key={s.id}
               shape={s}
-              strokeColor={strokeColor}
               activeTool={activeTool}
               isDraggingShape={isDraggingShape}
               isDraggingStage={isDraggingStage}
@@ -468,6 +510,7 @@ function KonvaCanvas({
               onEllipseTransform={onEllipseTransform}
               onImageTransform={onImageTransform}
               onTextDoubleClick={(id, pos) => openTextEditor(id, pos)}
+              onColorClick={handleColorClick}
               setStageCursor={setStageCursor}
               setIsDraggingStage={setIsDraggingStage}
             />

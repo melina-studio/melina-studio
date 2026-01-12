@@ -655,6 +655,7 @@ export default function BoardPage() {
       <ToolControls
         toolbarToggle={toolbarToggle}
         activeTool={activeTool}
+        activeColor={activeColor}
         canUndo={canUndo}
         canRedo={canRedo}
         open={open}
@@ -671,6 +672,7 @@ export default function BoardPage() {
         activeTool={activeTool}
         setShapesWithHistory={setShapesWithHistory}
         strokeColor={activeColor}
+        activeColor={activeColor}
         shapes={presentShapes}
         handleSave={handleSave}
         onCanvasTransform={setCanvasTransform}

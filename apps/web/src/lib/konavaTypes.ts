@@ -248,5 +248,6 @@ export const TOOL_CURSOR = {
   [ACTIONS.ARROW]: "pointer", // clickable/select
   [ACTIONS.LINE]: "crosshair",
   [ACTIONS.ERASER]: "url(/icons/eraser.svg) 2 22, auto", // custom image with hotspot at bottom-left tip
+  [ACTIONS.COLOR]: "url(/icons/paint-bucket.svg) 22 20, auto", // tilted paint bucket with hotspot at paint flow
   default: "default",
 };

@@ -50,7 +50,6 @@ const getThemeAwareColor = (color: string | undefined, isDarkMode: boolean, fall
 
 type ShapeRendererProps = {
   shape: Shape;
-  strokeColor: string;
   activeTool: string;
   isDraggingShape: boolean;
   isDraggingStage: boolean;
@@ -64,13 +63,13 @@ type ShapeRendererProps = {
   onEllipseTransform: (node: any, id: string) => void;
   onImageTransform: (node: any, id: string) => void;
   onTextDoubleClick: (id: string, pos: { x: number; y: number }) => void;
+  onColorClick: (e: any, id: string) => void;
   setStageCursor: (c: string) => void;
   setIsDraggingStage: (dragging: boolean) => void;
 };
 
 export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   shape,
-  strokeColor,
   activeTool,
   isDraggingShape,
   isDraggingStage,
@@ -84,10 +83,24 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   onEllipseTransform,
   onImageTransform,
   onTextDoubleClick,
+  onColorClick,
   setStageCursor,
   setIsDraggingStage,
 }) => {
+  // Handle click based on active tool
+  const handleClick = (e: any) => {
+    if (activeTool === ACTIONS.COLOR) {
+      onColorClick(e, shape.id);
+    } else {
+      onShapeClick(e, shape.id);
+    }
+  };
+  // Default theme color for shapes without stored stroke
+  const defaultStroke = isDarkMode ? "#fff" : "#111";
+
   if (shape.type === "rect") {
+    // Use shape's own stroke if stored, otherwise fallback to theme default
+    const rectStroke = shape.stroke || defaultStroke;
     return (
       <Rect
         key={shape.id}
@@ -97,7 +110,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         width={shape.w}
         height={shape.h}
         fill={shape.fill}
-        stroke={strokeColor}
+        stroke={rectStroke}
         cornerRadius={8}
         draggable={
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
@@ -105,15 +118,16 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onTransformEnd={(e) => onRectTransform(e.target, shape.id)}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           ) {
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
             setIsDraggingStage(false);
           }
         }}
@@ -127,6 +141,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   }
 
   if (shape.type === "circle") {
+    // Use shape's own stroke if stored, otherwise fallback to theme default
+    const circleStroke = shape.stroke || defaultStroke;
     return (
       <Circle
         key={shape.id}
@@ -135,21 +151,22 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         y={shape.y}
         radius={shape.r}
         fill={shape.fill}
-        stroke={strokeColor}
+        stroke={circleStroke}
         draggable={
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           )
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
         }}
         onMouseLeave={() => {
           if (!isDraggingShape && !isDraggingStage) setStageCursor(cursor);
@@ -169,7 +186,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         radiusX={e.radiusX}
         radiusY={e.radiusY}
         fill={e.fill}
-        stroke={e.stroke || strokeColor}
+        stroke={e.stroke || defaultStroke}
         strokeWidth={e.strokeWidth || 2}
         rotation={e.rotation || 0}
         draggable={
@@ -178,17 +195,18 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onTransformEnd={(e) => {
           onEllipseTransform(e.target, shape.id);
         }}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           ) {
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
             setIsDraggingStage(false);
           }
         }}
@@ -211,7 +229,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         y={p.y || 0}
         data={p.data}
         fill={p.fill}
-        stroke={p.stroke || strokeColor}
+        stroke={p.stroke || defaultStroke}
         strokeWidth={p.strokeWidth || 2}
         lineCap={p.lineCap || "round"}
         lineJoin={p.lineJoin || "round"}
@@ -221,14 +239,15 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           ) {
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
             setIsDraggingStage(false);
           }
         }}
@@ -276,17 +295,18 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onTransformEnd={(e) => {
           onImageTransform(e.target, shape.id);
         }}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           ) {
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
             setIsDraggingStage(false);
           }
         }}
@@ -302,7 +322,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   if (shape.type === "text") {
     const t = shape as any;
     // Adjust text color for visibility in current theme
-    const textColor = getThemeAwareColor(t.fill, isDarkMode, strokeColor);
+    const textColor = getThemeAwareColor(t.fill, isDarkMode, defaultStroke);
     return (
       <Text
         key={shape.id}
@@ -319,17 +339,18 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={(e) => onShapeClick(e, shape.id)}
+        onClick={handleClick}
         onDblClick={() => {
           onTextDoubleClick(shape.id, { x: t.x, y: t.y });
         }}
         onMouseEnter={() => {
           if (
             (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT) &&
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
             !isDraggingShape
           ) {
-            setStageCursor("grab");
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
             setIsDraggingStage(false);
           }
         }}
@@ -345,7 +366,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   // Default to Line for pencil, line, arrow, eraser
   const lineShape = shape as any;
   // Adjust stroke color for visibility in current theme
-  const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, strokeColor);
+  const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, defaultStroke);
   return (
     <Line
       key={shape.id}
@@ -362,14 +383,15 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       onDragStart={(e) => onShapeDragStart(e, shape.id)}
       onDragMove={(e) => onShapeDragMove(e, shape.id)}
       onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-      onClick={(e) => onShapeClick(e, shape.id)}
+      onClick={handleClick}
       onMouseEnter={() => {
         if (
           (activeTool === ACTIONS.SELECT ||
-            activeTool === ACTIONS.MARQUEE_SELECT) &&
+            activeTool === ACTIONS.MARQUEE_SELECT ||
+            activeTool === ACTIONS.COLOR) &&
           !isDraggingShape
         ) {
-          setStageCursor("grab");
+          setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
           setIsDraggingStage(false);
         }
       }}
