@@ -674,6 +674,7 @@ export default function BoardPage() {
         shapes={presentShapes}
         handleSave={handleSave}
         onCanvasTransform={setCanvasTransform}
+        isDarkMode={resolvedTheme === "dark"}
       />
 
       {/* Empty canvas state - grid and hint text */}

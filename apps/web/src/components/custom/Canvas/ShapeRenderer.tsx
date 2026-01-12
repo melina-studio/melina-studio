@@ -11,6 +11,43 @@ import {
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
 
+// Helper to get brightness of a color (0-255)
+const getColorBrightness = (color: string): number => {
+  if (!color) return 128;
+
+  // Handle hex colors
+  let hex = color.replace("#", "");
+  if (hex.length === 3) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+
+  // Perceived brightness formula
+  return (r * 299 + g * 587 + b * 114) / 1000;
+};
+
+// Adjust color for visibility based on theme
+const getThemeAwareColor = (color: string | undefined, isDarkMode: boolean, fallbackColor: string): string => {
+  if (!color) return fallbackColor;
+
+  const brightness = getColorBrightness(color);
+
+  // In dark mode, if color is too dark (< 50), make it light
+  if (isDarkMode && brightness < 50) {
+    return "#e5e5e5"; // Light gray
+  }
+
+  // In light mode, if color is too light (> 205), make it dark
+  if (!isDarkMode && brightness > 205) {
+    return "#1a1a1a"; // Dark gray
+  }
+
+  return color;
+};
+
 type ShapeRendererProps = {
   shape: Shape;
   strokeColor: string;
@@ -18,6 +55,7 @@ type ShapeRendererProps = {
   isDraggingShape: boolean;
   isDraggingStage: boolean;
   cursor: string;
+  isDarkMode: boolean;
   onShapeClick: (e: any, id: string) => void;
   onShapeDragStart: (e: any, id: string) => void;
   onShapeDragEnd: (e: any, id: string) => void;
@@ -37,6 +75,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   isDraggingShape,
   isDraggingStage,
   cursor,
+  isDarkMode,
   onShapeClick,
   onShapeDragStart,
   onShapeDragEnd,
@@ -262,6 +301,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
   if (shape.type === "text") {
     const t = shape as any;
+    // Adjust text color for visibility in current theme
+    const textColor = getThemeAwareColor(t.fill, isDarkMode, strokeColor);
     return (
       <Text
         key={shape.id}
@@ -271,7 +312,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         text={t.text}
         fontSize={t.fontSize}
         fontFamily={t.fontFamily}
-        fill={t.fill}
+        fill={textColor}
         draggable={
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
@@ -303,6 +344,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
   // Default to Line for pencil, line, arrow, eraser
   const lineShape = shape as any;
+  // Adjust stroke color for visibility in current theme
+  const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, strokeColor);
   return (
     <Line
       key={shape.id}
@@ -310,7 +353,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       x={lineShape.x || 0}
       y={lineShape.y || 0}
       points={lineShape.points}
-      stroke={lineShape.stroke || strokeColor}
+      stroke={lineStroke}
       strokeWidth={lineShape.strokeWidth || 2}
       tension={0}
       lineCap="round"

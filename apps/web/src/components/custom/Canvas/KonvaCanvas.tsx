@@ -19,6 +19,7 @@ function KonvaCanvas({
   shapes: externalShapes,
   handleSave,
   onCanvasTransform,
+  isDarkMode = false,
 }: {
   activeTool: any;
   canvasRef: any;
@@ -27,6 +28,7 @@ function KonvaCanvas({
   shapes: Shape[];
   handleSave: any;
   onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
+  isDarkMode?: boolean;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [shapes, setShapes] = useState<Shape[]>(externalShapes);
@@ -457,6 +459,7 @@ function KonvaCanvas({
               isDraggingShape={isDraggingShape}
               isDraggingStage={isDraggingStage}
               cursor={cursor}
+              isDarkMode={isDarkMode}
               onShapeClick={handleShapeClick}
               onShapeDragStart={onShapeDragStart}
               onShapeDragEnd={onShapeDragEnd}
