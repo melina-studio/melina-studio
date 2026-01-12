@@ -14,6 +14,19 @@ export const getRelativePointerPosition = (stage: any) => {
   return transform.point(pos);
 };
 
+// Helper to check if two rectangles intersect (overlap)
+const rectsIntersect = (
+  r1: { left: number; top: number; right: number; bottom: number },
+  r2: { left: number; top: number; right: number; bottom: number }
+): boolean => {
+  return !(
+    r1.right < r2.left ||
+    r1.left > r2.right ||
+    r1.bottom < r2.top ||
+    r1.top > r2.bottom
+  );
+};
+
 // Helper function to check if a shape intersects with selection box
 export const isShapeInSelectionBox = (
   shape: Shape,
@@ -24,84 +37,97 @@ export const isShapeInSelectionBox = (
     endY: number;
   }
 ): boolean => {
-  const minX = Math.min(box.startX, box.endX);
-  const maxX = Math.max(box.startX, box.endX);
-  const minY = Math.min(box.startY, box.endY);
-  const maxY = Math.max(box.startY, box.endY);
+  const selectionRect = {
+    left: Math.min(box.startX, box.endX),
+    right: Math.max(box.startX, box.endX),
+    top: Math.min(box.startY, box.endY),
+    bottom: Math.max(box.startY, box.endY),
+  };
 
   if (shape.type === "rect") {
-    const shapeRight = shape.x + shape.w;
-    const shapeBottom = shape.y + shape.h;
-    return (
-      shape.x >= minX &&
-      shape.y >= minY &&
-      shapeRight <= maxX &&
-      shapeBottom <= maxY
-    );
+    const shapeRect = {
+      left: shape.x,
+      top: shape.y,
+      right: shape.x + shape.w,
+      bottom: shape.y + shape.h,
+    };
+    return rectsIntersect(shapeRect, selectionRect);
   } else if (shape.type === "circle") {
-    const shapeRight = shape.x + shape.r * 2;
-    const shapeBottom = shape.y + shape.r * 2;
-    const shapeLeft = shape.x - shape.r * 2;
-    const shapeTop = shape.y - shape.r * 2;
-    return (
-      shapeLeft >= minX &&
-      shapeTop >= minY &&
-      shapeRight <= maxX &&
-      shapeBottom <= maxY
-    );
+    // Use bounding box for circle
+    const shapeRect = {
+      left: shape.x - shape.r,
+      top: shape.y - shape.r,
+      right: shape.x + shape.r,
+      bottom: shape.y + shape.r,
+    };
+    return rectsIntersect(shapeRect, selectionRect);
   } else if (shape.type === "ellipse") {
     const e = shape as any;
-    const shapeRight = shape.x + e.radiusX * 2;
-    const shapeBottom = shape.y + e.radiusY * 2;
-    const shapeLeft = shape.x - e.radiusX * 2;
-    const shapeTop = shape.y - e.radiusY * 2;
-    return (
-      shapeLeft >= minX &&
-      shapeTop >= minY &&
-      shapeRight <= maxX &&
-      shapeBottom <= maxY
-    );
+    const shapeRect = {
+      left: shape.x - e.radiusX,
+      top: shape.y - e.radiusY,
+      right: shape.x + e.radiusX,
+      bottom: shape.y + e.radiusY,
+    };
+    return rectsIntersect(shapeRect, selectionRect);
   } else if (shape.type === "path") {
-    // For paths, use a simple bounding box check
-    // This is a simplified check - for more accurate selection, parse the SVG path data
     const p = shape as any;
     const pathX = p.x || 0;
     const pathY = p.y || 0;
     // Use a default bounding box size as a fallback
-    // In a more sophisticated implementation, you'd parse the SVG path data
-    const defaultSize = 200; // Conservative estimate
-    const shapeRight = pathX + defaultSize;
-    const shapeBottom = pathY + defaultSize;
-    const shapeLeft = pathX - defaultSize;
-    const shapeTop = pathY - defaultSize;
-    return (
-      shapeLeft >= minX &&
-      shapeTop >= minY &&
-      shapeRight <= maxX &&
-      shapeBottom <= maxY
-    );
-  } else if (shape.type === "line" || shape.type === "pencil") {
-    // Check if all points are within the selection box
+    const defaultSize = 100;
+    const shapeRect = {
+      left: pathX,
+      top: pathY,
+      right: pathX + defaultSize,
+      bottom: pathY + defaultSize,
+    };
+    return rectsIntersect(shapeRect, selectionRect);
+  } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "arrow" || shape.type === "eraser") {
+    // Check if any point is within the selection box
     const points = (shape as any).points || [];
+    const offsetX = (shape as any).x || 0;
+    const offsetY = (shape as any).y || 0;
     for (let i = 0; i < points.length; i += 2) {
-      const px = points[i];
-      const py = points[i + 1];
-      if (px < minX || px > maxX || py < minY || py > maxY) {
-        return false;
+      const px = points[i] + offsetX;
+      const py = points[i + 1] + offsetY;
+      if (
+        px >= selectionRect.left &&
+        px <= selectionRect.right &&
+        py >= selectionRect.top &&
+        py <= selectionRect.bottom
+      ) {
+        return true; // At least one point is inside
       }
     }
-    return points.length > 0;
-  } else if (shape.type === "text" || shape.type === "image") {
-    const shapeWidth = (shape as any).width || 100;
-    const shapeHeight = (shape as any).height || 100;
-    const shapeRight = shape.x + shapeWidth;
-    const shapeBottom = shape.y + shapeHeight;
-    return (
-      shape.x >= minX &&
-      shape.y >= minY &&
-      shapeRight <= maxX &&
-      shapeBottom <= maxY
-    );
+    return false;
+  } else if (shape.type === "text") {
+    // For text, use a generous bounding box based on fontSize
+    const t = shape as any;
+    const fontSize = t.fontSize || 16;
+    const text = t.text || "";
+    // Count lines in text (for multiline text)
+    const lines = text.split("\n");
+    const maxLineLength = Math.max(...lines.map((line: string) => line.length));
+    // More generous estimates for width and height
+    const estimatedWidth = Math.max(maxLineLength * fontSize * 0.7, 50);
+    const estimatedHeight = lines.length * fontSize * 1.4;
+    const shapeRect = {
+      left: shape.x - 5, // Small padding
+      top: shape.y - 5,
+      right: shape.x + estimatedWidth + 10,
+      bottom: shape.y + estimatedHeight + 10,
+    };
+    return rectsIntersect(shapeRect, selectionRect);
+  } else if (shape.type === "image") {
+    const img = shape as any;
+    const shapeRect = {
+      left: shape.x,
+      top: shape.y,
+      right: shape.x + (img.width || 150),
+      bottom: shape.y + (img.height || 150),
+    };
+    return rectsIntersect(shapeRect, selectionRect);
   }
   return false;
 };

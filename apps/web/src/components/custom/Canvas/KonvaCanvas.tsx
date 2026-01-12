@@ -34,6 +34,9 @@ function KonvaCanvas({
   const [isDraggingShape, setIsDraggingShape] = useState(false);
   const [isEraserFinalizing, setIsEraserFinalizing] = useState(false);
 
+  // Ref to track if we're updating shapes locally (to skip external sync)
+  const isLocalUpdateRef = useRef(false);
+
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
 
   // Initialize dimensions
@@ -106,11 +109,13 @@ function KonvaCanvas({
   );
 
   // Sync local shapes state with external shapes (from history)
-  // Only sync when NOT drawing and NOT finalizing eraser to avoid interrupting active operations
+  // Only sync when NOT drawing, NOT finalizing eraser, and NOT in local update to avoid interrupting active operations
   useEffect(() => {
-    if (!isDrawing && !isEraserFinalizing) {
+    if (!isDrawing && !isEraserFinalizing && !isLocalUpdateRef.current) {
       setShapes(externalShapes);
     }
+    // Reset the flag after checking
+    isLocalUpdateRef.current = false;
   }, [externalShapes, isDrawing, isEraserFinalizing]);
 
   // Notify parent of canvas transform changes (for background parallax effect)
@@ -271,55 +276,6 @@ function KonvaCanvas({
     finishDrawing(handleSave);
   };
 
-  // Move/resize handlers for Rect/Circle
-  const onDragMove = (id: string, x: number, y: number) => {
-    let updatedShapes: Shape[] | null = null;
-
-    setShapes((arr) => {
-      const shape = arr.find((s) => s.id === id);
-      if (!shape) return arr;
-
-      // Only shapes with x and y properties can be dragged
-      if (!("x" in shape) || !("y" in shape)) return arr;
-
-      const shapeX = (shape as any).x;
-      const shapeY = (shape as any).y;
-
-      // Calculate the offset if this is part of a multi-select drag
-      const dx = x - shapeX;
-      const dy = y - shapeY;
-
-      let updated;
-      // If multiple shapes are selected, move all of them
-      if (selectedIds.length > 1 && selectedIds.includes(id)) {
-        updated = arr.map((s) => {
-          if (selectedIds.includes(s.id) && "x" in s && "y" in s) {
-            // For the dragged shape, use the new position directly
-            if (s.id === id) {
-              return { ...s, x, y };
-            }
-            // For other selected shapes, apply the offset
-            return { ...s, x: (s as any).x + dx, y: (s as any).y + dy };
-          }
-          return s;
-        });
-      } else {
-        // Single shape drag
-        updated = arr.map((s) => (s.id === id ? { ...s, x, y } : s));
-      }
-
-      updatedShapes = updated;
-      return updated;
-    });
-
-    // Defer setShapesWithHistory to avoid calling setState during render
-    if (updatedShapes) {
-      queueMicrotask(() => {
-        setShapesWithHistory(updatedShapes!, { pushHistory: true });
-      });
-    }
-  };
-
   const onRectTransform = (node: any, id: string) => {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
@@ -420,7 +376,7 @@ function KonvaCanvas({
   };
 
   // Shape drag handler
-  const onShapeDragStart = (e: any, id: string) => {
+  const onShapeDragStart = (_e: any, id: string) => {
     setIsDraggingShape(true);
     setStageCursor("grabbing");
     if (!selectedIds.includes(id)) {
@@ -428,12 +384,36 @@ function KonvaCanvas({
     }
   };
 
+  // Shape drag move - for now just a no-op, single shape drag handled by Konva
+  const onShapeDragMove = (_e: any, _id: string) => {
+    // No-op for single shape drag - Konva handles the visual
+  };
+
   // Shape drag end
   const onShapeDragEnd = (e: any, id: string) => {
     setIsDraggingShape(false);
-    // update shape position
     const node = e.target;
-    onDragMove(id, node.x(), node.y());
+    const finalX = node.x();
+    const finalY = node.y();
+
+    // Mark that we're doing a local update to skip external sync
+    isLocalUpdateRef.current = true;
+
+    // Update the dragged shape's position using callback to get latest state
+    setShapes((currentShapes) => {
+      const updatedShapes = currentShapes.map((s) =>
+        s.id === id ? { ...s, x: finalX, y: finalY } : s
+      );
+
+      // Push to history after state update
+      queueMicrotask(() => {
+        setShapesWithHistory(updatedShapes, { pushHistory: true });
+        handleSave();
+      });
+
+      return updatedShapes;
+    });
+
     // restore stage cursor to grab if SELECT tool and not panning
     if (
       (activeTool === ACTIONS.SELECT ||
@@ -442,9 +422,6 @@ function KonvaCanvas({
     )
       setStageCursor("grab");
     else setStageCursor(cursor);
-
-    // Trigger save after drag ends (shapes were modified)
-    handleSave();
   };
 
   // AI button handler
@@ -483,7 +460,7 @@ function KonvaCanvas({
               onShapeClick={handleShapeClick}
               onShapeDragStart={onShapeDragStart}
               onShapeDragEnd={onShapeDragEnd}
-              onDragMove={onDragMove}
+              onShapeDragMove={onShapeDragMove}
               onRectTransform={onRectTransform}
               onEllipseTransform={onEllipseTransform}
               onImageTransform={onImageTransform}

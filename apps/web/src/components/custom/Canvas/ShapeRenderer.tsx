@@ -21,7 +21,7 @@ type ShapeRendererProps = {
   onShapeClick: (e: any, id: string) => void;
   onShapeDragStart: (e: any, id: string) => void;
   onShapeDragEnd: (e: any, id: string) => void;
-  onDragMove: (id: string, x: number, y: number) => void;
+  onShapeDragMove: (e: any, id: string) => void;
   onRectTransform: (node: any, id: string) => void;
   onEllipseTransform: (node: any, id: string) => void;
   onImageTransform: (node: any, id: string) => void;
@@ -40,7 +40,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   onShapeClick,
   onShapeDragStart,
   onShapeDragEnd,
-  onDragMove,
+  onShapeDragMove,
   onRectTransform,
   onEllipseTransform,
   onImageTransform,
@@ -64,6 +64,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onTransformEnd={(e) => onRectTransform(e.target, shape.id)}
@@ -100,6 +101,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onMouseEnter={() => {
@@ -135,6 +137,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onTransformEnd={(e) => {
@@ -177,6 +180,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onMouseEnter={() => {
@@ -231,6 +235,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onTransformEnd={(e) => {
@@ -271,6 +276,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
         }
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
         onClick={(e) => onShapeClick(e, shape.id)}
         onDblClick={() => {
@@ -296,18 +302,22 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   }
 
   // Default to Line for pencil, line, arrow, eraser
+  const lineShape = shape as any;
   return (
     <Line
       key={shape.id}
       id={shape.id}
-      points={(shape as any).points}
-      stroke={(shape as any).stroke || strokeColor}
-      strokeWidth={(shape as any).strokeWidth || 2}
+      x={lineShape.x || 0}
+      y={lineShape.y || 0}
+      points={lineShape.points}
+      stroke={lineShape.stroke || strokeColor}
+      strokeWidth={lineShape.strokeWidth || 2}
       tension={0}
       lineCap="round"
       lineJoin="round"
       draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
       onDragStart={(e) => onShapeDragStart(e, shape.id)}
+      onDragMove={(e) => onShapeDragMove(e, shape.id)}
       onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
       onClick={(e) => onShapeClick(e, shape.id)}
       onMouseEnter={() => {
