@@ -502,7 +502,47 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	return lastResp, fmt.Errorf("max iterations reached (%d) while resolving tools", maxIterations)
+	// Max iterations reached - tools were executed but LLM didn't finish responding.
+	// Instead of failing, make one final call WITHOUT tools for a text summary.
+	fmt.Printf("[langchain] Max iterations (%d) reached. Making final call for text response.\n", maxIterations)
+
+	// Temporarily disable tools for final call
+	originalTools := c.Tools
+	c.Tools = nil
+
+	var finalStreamCtx *StreamingContext
+	if streamCtx != nil && streamCtx.Client != nil {
+		finalStreamCtx = &StreamingContext{
+			Hub:            streamCtx.Hub,
+			Client:         streamCtx.Client,
+			BoardId:        streamCtx.BoardId,
+			BufferedChunks: make([]string, 0),
+			ShouldStream:   true, // Stream the final response immediately
+		}
+	}
+
+	finalResp, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, finalStreamCtx)
+	c.Tools = originalTools
+
+	if err != nil {
+		fmt.Printf("[langchain] Warning: final summary call failed: %v. Returning last response.\n", err)
+		return lastResp, nil
+	}
+
+	// Send any buffered chunks from final response
+	if finalStreamCtx != nil && len(finalStreamCtx.BufferedChunks) > 0 {
+		for _, chunk := range finalStreamCtx.BufferedChunks {
+			payload := &libraries.ChatMessageResponsePayload{
+				Message: chunk,
+			}
+			if finalStreamCtx.BoardId != "" {
+				payload.BoardId = finalStreamCtx.BoardId
+			}
+			libraries.SendChatMessageResponse(finalStreamCtx.Hub, finalStreamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+		}
+	}
+
+	return finalResp, nil
 }
 
 func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {

@@ -474,7 +474,22 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	return lastResp, fmt.Errorf("max iterations reached (%d) while resolving tools", maxIterations)
+	// Max iterations reached - tools were executed but Gemini didn't finish responding.
+	// Instead of failing, make one final call WITHOUT tools for a text summary.
+	fmt.Printf("[gemini] Max iterations (%d) reached. Making final call for text response.\n", maxIterations)
+
+	// Temporarily disable tools for final call
+	originalTools := v.Tools
+	v.Tools = nil
+	finalResp, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+	v.Tools = originalTools
+
+	if err != nil {
+		fmt.Printf("[gemini] Warning: final summary call failed: %v. Returning last response.\n", err)
+		return lastResp, nil
+	}
+
+	return finalResp, nil
 }
 
 func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {

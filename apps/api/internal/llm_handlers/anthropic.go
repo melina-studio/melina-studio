@@ -712,5 +712,25 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	return lastResp, fmt.Errorf("max iterations reached (%d) while resolving tools", maxIterations)
+	// Max iterations reached - tools were executed but Claude didn't finish responding.
+	// Instead of failing (which would lose all work), make one final call WITHOUT tools
+	// so Claude can provide a text summary of what was done.
+	fmt.Printf("[anthropic] Max iterations (%d) reached. Making final call for text response.\n", maxIterations)
+
+	// Make one final call without tools to get a text summary
+	var finalResp *ClaudeResponse
+	var err error
+	if streamCtx != nil && streamCtx.Client != nil {
+		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens)
+	} else {
+		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens)
+	}
+
+	if err != nil {
+		// If final call fails, return what we have with a warning (not an error)
+		fmt.Printf("[anthropic] Warning: final summary call failed: %v. Returning last response.\n", err)
+		return lastResp, nil
+	}
+
+	return finalResp, nil
 }
