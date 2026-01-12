@@ -193,3 +193,15 @@
   animation: charFadeIn 0.2s ease-out;
   display: inline;
 }
+
+/* Blinking cursor animation for typewriter effect */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

@@ -9,6 +9,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// Placeholder suggestions that cycle through
+const PLACEHOLDER_SUGGESTIONS = [
+  "Design a system architecture diagram",
+  "Create a user flow for checkout process",
+  "Sketch a mobile app wireframe",
+  "Map out a database schema",
+  "Draw a component hierarchy tree",
+  "Plan a microservices architecture",
+  "Illustrate a CI/CD pipeline",
+  "Design a landing page layout",
+];
+
 interface CreationInputProps {
   onSubmit: (message: string) => void;
   isLoading?: boolean;
@@ -24,10 +36,63 @@ export function CreationInput({
   const [isFocused, setIsFocused] = useState(false);
   const [value, setValue] = useState("");
 
+  // Animated placeholder state
+  const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
+  const [displayedPlaceholder, setDisplayedPlaceholder] = useState("");
+  const [isTyping, setIsTyping] = useState(true);
+
   // Notify parent of focus changes
   useEffect(() => {
     onFocusChange?.(isFocused);
   }, [isFocused, onFocusChange]);
+
+  // Typewriter animation effect
+  useEffect(() => {
+    // Don't animate if there's user input
+    if (value) return;
+
+    const currentText = PLACEHOLDER_SUGGESTIONS[currentPlaceholderIndex];
+    let charIndex = 0;
+    let timeoutId: NodeJS.Timeout;
+
+    if (isTyping) {
+      // Typing phase
+      const typeNextChar = () => {
+        if (charIndex <= currentText.length) {
+          setDisplayedPlaceholder(currentText.slice(0, charIndex));
+          charIndex++;
+          timeoutId = setTimeout(typeNextChar, 50 + Math.random() * 30); // Variable typing speed
+        } else {
+          // Pause at the end before erasing
+          timeoutId = setTimeout(() => setIsTyping(false), 2000);
+        }
+      };
+      typeNextChar();
+    } else {
+      // Erasing phase
+      let eraseIndex = currentText.length;
+      const eraseNextChar = () => {
+        if (eraseIndex >= 0) {
+          setDisplayedPlaceholder(currentText.slice(0, eraseIndex));
+          eraseIndex--;
+          timeoutId = setTimeout(eraseNextChar, 25); // Faster erasing
+        } else {
+          // Move to next placeholder
+          setCurrentPlaceholderIndex(
+            (prev) => (prev + 1) % PLACEHOLDER_SUGGESTIONS.length
+          );
+          setIsTyping(true);
+        }
+      };
+      eraseNextChar();
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [currentPlaceholderIndex, isTyping, value]);
+
+  // Get the full current placeholder for Tab completion
+  const currentFullPlaceholder =
+    PLACEHOLDER_SUGGESTIONS[currentPlaceholderIndex];
 
   const handleSubmit = useCallback(() => {
     const text = value.trim();
@@ -44,6 +109,23 @@ export function CreationInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+    // Tab to fill in the current placeholder
+    if (e.key === "Tab" && !value) {
+      e.preventDefault();
+      setValue(currentFullPlaceholder);
+      // Adjust textarea height for the new content
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.style.height = `${Math.min(
+              textareaRef.current.scrollHeight,
+              150
+            )}px`;
+          }
+        }, 0);
+      }
     }
   };
 
@@ -84,18 +166,34 @@ export function CreationInput({
               )}
             />
           </div>
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Design a system architecture diagram."
-            className="flex-1 bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground min-h-[24px] max-h-[150px] py-0.5"
-            rows={1}
-            disabled={isLoading}
-          />
+          <div className="flex-1 relative flex items-center">
+            {/* Animated placeholder overlay */}
+            {!value && (
+              <div className="absolute inset-0 flex items-center pointer-events-none text-sm text-muted-foreground">
+                <span>{displayedPlaceholder}</span>
+                <span
+                  className={cn(
+                    "inline-block w-[2px] h-[1.1em] bg-muted-foreground/60 ml-[1px]",
+                    "animate-pulse"
+                  )}
+                  style={{
+                    animation: "blink 1s step-end infinite",
+                  }}
+                />
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className="w-full bg-transparent text-sm resize-none outline-none min-h-[24px] max-h-[150px]"
+              rows={1}
+              disabled={isLoading}
+            />
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -125,6 +223,10 @@ export function CreationInput({
       {/* Hint text */}
       <p className="mt-3 text-xs text-muted-foreground">
         Press{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
+          Tab
+        </kbd>{" "}
+        to use suggestion &bull;{" "}
         <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
           Enter
         </kbd>{" "}
