@@ -112,6 +112,12 @@ export default function BoardPage() {
   const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Canvas transform state for background parallax effect
+  const [canvasTransform, setCanvasTransform] = useState({
+    position: { x: 0, y: 0 },
+    scale: 1,
+  });
   const [settings, setSettings] = useState<Settings | null>(null);
   const [melinaStatus, setMelinaStatus] = useState<
     "idle" | "thinking" | "editing"
@@ -611,10 +617,22 @@ export default function BoardPage() {
     }
   };
 
+  // Add canvas-page class to body for scrollbar hiding
+  useEffect(() => {
+    document.body.classList.add("canvas-page");
+    return () => {
+      document.body.classList.remove("canvas-page");
+    };
+  }, []);
+
   return (
     <div className="relative bg-transparent">
       <div className="fixed inset-0 -z-10">
-        <DotBackground />
+        <DotBackground
+          offsetX={canvasTransform.position.x}
+          offsetY={canvasTransform.position.y}
+          scale={canvasTransform.scale}
+        />
       </div>
       {/* header */}
 
@@ -655,6 +673,7 @@ export default function BoardPage() {
         strokeColor={activeColor}
         shapes={presentShapes}
         handleSave={handleSave}
+        onCanvasTransform={setCanvasTransform}
       />
 
       {/* Empty canvas state - grid and hint text */}

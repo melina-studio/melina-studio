@@ -205,3 +205,17 @@
     opacity: 0;
   }
 }
+
+/* Hide scrollbars for infinite canvas experience */
+.canvas-page {
+  overflow: hidden;
+}
+
+.canvas-page::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.canvas-page {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

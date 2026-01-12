@@ -18,6 +18,7 @@ function KonvaCanvas({
   strokeColor,
   shapes: externalShapes,
   handleSave,
+  onCanvasTransform,
 }: {
   activeTool: any;
   canvasRef: any;
@@ -25,6 +26,7 @@ function KonvaCanvas({
   strokeColor: string;
   shapes: Shape[];
   handleSave: any;
+  onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [shapes, setShapes] = useState<Shape[]>(externalShapes);
@@ -42,12 +44,14 @@ function KonvaCanvas({
   // Zoom functionality
   const {
     scale,
+    position,
     handleWheel,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
     zoomIn,
     zoomOut,
+    handleStageDrag,
   } = useCanvasZoom(canvasRef, dimensions);
 
   // Selection functionality
@@ -108,6 +112,19 @@ function KonvaCanvas({
       setShapes(externalShapes);
     }
   }, [externalShapes, isDrawing, isEraserFinalizing]);
+
+  // Notify parent of canvas transform changes (for background parallax effect)
+  // Using a ref to track previous values and avoid infinite loops
+  const prevTransformRef = useRef({ position: { x: 0, y: 0 }, scale: 1 });
+
+  useEffect(() => {
+    const prev = prevTransformRef.current;
+    // Only call if values actually changed
+    if (prev.position.x !== position.x || prev.position.y !== position.y || prev.scale !== scale) {
+      prevTransformRef.current = { position, scale };
+      onCanvasTransform?.({ position, scale });
+    }
+  }, [position, scale, onCanvasTransform]);
 
   // Open text editor when pending text edit is set
   useEffect(() => {
@@ -171,7 +188,10 @@ function KonvaCanvas({
 
   const handlePointerMove = (e: any) => {
     // if stage is dragging we don't want to draw; let Konva move the stage
-    if (isDraggingStage) return;
+    if (isDraggingStage) {
+      handleStageDrag(); // Update position for real-time background parallax
+      return;
+    }
 
     if (!isDrawing) {
       // Handle marquee selection box update
@@ -203,6 +223,7 @@ function KonvaCanvas({
     if (isDraggingStage) {
       setIsDraggingStage(false);
       stage.draggable(false);
+      handleStageDrag(); // Update position for background parallax
       if (activeTool === ACTIONS.SELECT) setStageCursor("grab");
       else setStageCursor(cursor);
     }
@@ -252,6 +273,8 @@ function KonvaCanvas({
 
   // Move/resize handlers for Rect/Circle
   const onDragMove = (id: string, x: number, y: number) => {
+    let updatedShapes: Shape[] | null = null;
+
     setShapes((arr) => {
       const shape = arr.find((s) => s.id === id);
       if (!shape) return arr;
@@ -285,9 +308,16 @@ function KonvaCanvas({
         updated = arr.map((s) => (s.id === id ? { ...s, x, y } : s));
       }
 
-      setShapesWithHistory(updated, { pushHistory: true });
+      updatedShapes = updated;
       return updated;
     });
+
+    // Defer setShapesWithHistory to avoid calling setState during render
+    if (updatedShapes) {
+      queueMicrotask(() => {
+        setShapesWithHistory(updatedShapes!, { pushHistory: true });
+      });
+    }
   };
 
   const onRectTransform = (node: any, id: string) => {
@@ -295,6 +325,8 @@ function KonvaCanvas({
     const scaleY = node.scaleY();
     node.scaleX(1);
     node.scaleY(1);
+    let updatedShapes: Shape[] | null = null;
+
     setShapes((arr) => {
       const updated = arr.map((s) =>
         s.id === id
@@ -307,11 +339,18 @@ function KonvaCanvas({
             }
           : s
       );
-      setShapesWithHistory(updated, { pushHistory: true });
+      updatedShapes = updated;
       return updated;
     });
-    // Trigger save after transform (shapes were modified)
-    handleSave();
+
+    // Defer setShapesWithHistory to avoid calling setState during render
+    queueMicrotask(() => {
+      if (updatedShapes) {
+        setShapesWithHistory(updatedShapes, { pushHistory: true });
+      }
+      // Trigger save after transform (shapes were modified)
+      handleSave();
+    });
   };
 
   const onEllipseTransform = (node: any, id: string) => {
@@ -319,6 +358,8 @@ function KonvaCanvas({
     const scaleY = node.scaleY();
     node.scaleX(1);
     node.scaleY(1);
+    let updatedShapes: Shape[] | null = null;
+
     setShapes((arr) => {
       const updated = arr.map((s) =>
         s.id === id
@@ -331,11 +372,18 @@ function KonvaCanvas({
             }
           : s
       );
-      setShapesWithHistory(updated, { pushHistory: true });
+      updatedShapes = updated;
       return updated;
     });
-    // Trigger save after transform (shapes were modified)
-    handleSave();
+
+    // Defer setShapesWithHistory to avoid calling setState during render
+    queueMicrotask(() => {
+      if (updatedShapes) {
+        setShapesWithHistory(updatedShapes, { pushHistory: true });
+      }
+      // Trigger save after transform (shapes were modified)
+      handleSave();
+    });
   };
 
   const onImageTransform = (node: any, id: string) => {
@@ -343,6 +391,8 @@ function KonvaCanvas({
     const scaleY = node.scaleY();
     node.scaleX(1);
     node.scaleY(1);
+    let updatedShapes: Shape[] | null = null;
+
     setShapes((arr) => {
       const updated = arr.map((s) =>
         s.id === id
@@ -355,11 +405,18 @@ function KonvaCanvas({
             }
           : s
       );
-      setShapesWithHistory(updated, { pushHistory: true });
+      updatedShapes = updated;
       return updated;
     });
-    // Trigger save after transform (shapes were modified)
-    handleSave();
+
+    // Defer setShapesWithHistory to avoid calling setState during render
+    queueMicrotask(() => {
+      if (updatedShapes) {
+        setShapesWithHistory(updatedShapes, { pushHistory: true });
+      }
+      // Trigger save after transform (shapes were modified)
+      handleSave();
+    });
   };
 
   // Shape drag handler
@@ -411,6 +468,7 @@ function KonvaCanvas({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onDragMove={handleStageDrag}
       >
         <Layer>
           {shapes.map((s) => (

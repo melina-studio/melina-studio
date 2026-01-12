@@ -39,41 +39,48 @@ export const useCanvasZoom = (
   dimensions: { width: number; height: number }
 ) => {
   const [scale, setScale] = useState(STAGE_DEFAULT_SCALE);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const pinchRef = useRef({ lastDist: 0 });
 
   useEffect(() => {
     const stage = canvasRef?.current;
     if (!stage) return;
-    // initialize scale from stage if available
+    // initialize scale and position from stage if available
     setScale(stage.scaleX() || STAGE_DEFAULT_SCALE);
+    setPosition({ x: stage.x() || 0, y: stage.y() || 0 });
   }, [canvasRef]);
 
   const handleWheel = (e: any) => {
     const evt = e.evt;
-
-    // IMPORTANT: Only treat wheel as pinch when ctrlKey is true (common for touchpad pinch)
-    // This prevents two-finger horizontal/vertical scrolling from zooming.
-    if (!evt.ctrlKey) {
-      // allow page or stage scroll/pan to continue
-      return;
-    }
-
-    evt.preventDefault(); // when pinch detected, prevent page zoom/scroll
+    evt.preventDefault(); // Prevent default scroll behavior
 
     const stage = canvasRef.current;
-    // pointer position in container coords (fallback to client coords)
-    const pointer = stage.getPointerPosition() || {
-      x: evt.clientX,
-      y: evt.clientY,
-    };
+    if (!stage) return;
 
-    if (!pointer) return;
-    // how fast to zoom
-    const zoomIntensity = 1.05;
-    const scaleBy = e.evt.deltaY > 0 ? 1 / zoomIntensity : zoomIntensity;
+    // Ctrl + scroll = zoom (pinch-to-zoom on trackpad)
+    if (evt.ctrlKey) {
+      const pointer = stage.getPointerPosition() || {
+        x: evt.clientX,
+        y: evt.clientY,
+      };
 
-    zoomStage(stage, pointer, scaleBy);
-    setScale(stage.scaleX()); // Update scale state after zoom
+      if (!pointer) return;
+
+      const zoomIntensity = 1.05;
+      const scaleBy = evt.deltaY > 0 ? 1 / zoomIntensity : zoomIntensity;
+
+      zoomStage(stage, pointer, scaleBy);
+      setScale(stage.scaleX());
+      setPosition({ x: stage.x(), y: stage.y() });
+    } else {
+      // Regular scroll = pan the canvas
+      const newX = stage.x() - evt.deltaX;
+      const newY = stage.y() - evt.deltaY;
+
+      stage.position({ x: newX, y: newY });
+      stage.batchDraw();
+      setPosition({ x: newX, y: newY });
+    }
   };
 
   const handleTouchStart = (e: any) => {
@@ -102,6 +109,7 @@ export const useCanvasZoom = (
     };
     zoomStage(stage, touchCenter, scaleBy);
     setScale(stage.scaleX()); // Update scale state after pinch zoom
+    setPosition({ x: stage.x(), y: stage.y() }); // Update position after pinch zoom
     pinchRef.current.lastDist = dist;
   };
 
@@ -125,6 +133,7 @@ export const useCanvasZoom = (
 
     zoomStage(stage, pointer, scaleBy);
     setScale(newScale);
+    setPosition({ x: stage.x(), y: stage.y() });
   };
 
   const zoomOut = () => {
@@ -143,15 +152,25 @@ export const useCanvasZoom = (
 
     zoomStage(stage, pointer, scaleBy);
     setScale(newScale);
+    setPosition({ x: stage.x(), y: stage.y() });
+  };
+
+  // Handler for stage drag/pan - call this on stage's onDragMove or onDragEnd
+  const handleStageDrag = () => {
+    const stage = canvasRef.current;
+    if (!stage) return;
+    setPosition({ x: stage.x(), y: stage.y() });
   };
 
   return {
     scale,
+    position,
     handleWheel,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
     zoomIn,
     zoomOut,
+    handleStageDrag,
   };
 };
