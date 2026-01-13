@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/melina/agents"
 	"melina-studio-backend/internal/repo"
@@ -140,8 +142,14 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
+	// Safety net: if aiResponse is empty, provide a default message to prevent database issues
+	if strings.TrimSpace(aiResponse) == "" {
+		log.Printf("Warning: AI response is empty after processing, providing default message")
+		aiResponse = "I processed your request but was unable to generate a text response. Please check the board for any changes that were made."
+	}
+
 	// after get successful response, create a chat in the database
-	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
+	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
 		return

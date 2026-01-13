@@ -478,6 +478,12 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	// Instead of failing, make one final call WITHOUT tools for a text summary.
 	fmt.Printf("[gemini] Max iterations (%d) reached. Making final call for text response.\n", maxIterations)
 
+	// Add a user message asking for a summary of what was done
+	workingMessages = append(workingMessages, Message{
+		Role:    "user",
+		Content: "You have reached the maximum number of tool iterations. Please provide a summary of what you have accomplished so far and what remains to be done (if anything). Do not attempt to call any more tools.",
+	})
+
 	// Temporarily disable tools for final call
 	originalTools := v.Tools
 	v.Tools = nil
@@ -487,6 +493,16 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	if err != nil {
 		fmt.Printf("[gemini] Warning: final summary call failed: %v. Returning last response.\n", err)
 		return lastResp, nil
+	}
+
+	// Fallback: if final response has no text content, return lastResp or default message
+	if len(finalResp.TextContent) == 0 || (len(finalResp.TextContent) == 1 && strings.TrimSpace(finalResp.TextContent[0]) == "") {
+		fmt.Printf("[gemini] Final response has no text content. Returning last response.\n")
+		if lastResp != nil && len(lastResp.TextContent) > 0 {
+			return lastResp, nil
+		}
+		// If lastResp also has no text, add a default message
+		finalResp.TextContent = []string{"I completed several operations but reached the maximum iteration limit. Please check the board for the results."}
 	}
 
 	return finalResp, nil
