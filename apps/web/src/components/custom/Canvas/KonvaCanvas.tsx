@@ -10,6 +10,7 @@ import { useCanvasExport } from "@/hooks/useCanvasExport";
 import { ShapeRenderer } from "./ShapeRenderer";
 import { ZoomControls } from "./ZoomControls";
 import { SelectionButtons } from "./SelectionButtons";
+import { addSelectionAction } from "@/store/useSelection";
 
 function KonvaCanvas({
   activeTool,
@@ -29,7 +30,10 @@ function KonvaCanvas({
   activeColor: string;
   shapes: Shape[];
   handleSave: any;
-  onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
+  onCanvasTransform?: (transform: {
+    position: { x: number; y: number };
+    scale: number;
+  }) => void;
   isDarkMode?: boolean;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -129,7 +133,11 @@ function KonvaCanvas({
   useEffect(() => {
     const prev = prevTransformRef.current;
     // Only call if values actually changed
-    if (prev.position.x !== position.x || prev.position.y !== position.y || prev.scale !== scale) {
+    if (
+      prev.position.x !== position.x ||
+      prev.position.y !== position.y ||
+      prev.scale !== scale
+    ) {
       prevTransformRef.current = { position, scale };
       onCanvasTransform?.({ position, scale });
     }
@@ -148,8 +156,11 @@ function KonvaCanvas({
   }, [pendingTextEdit, shapes]);
 
   // Export functionality
-  const { exportSelectedShapesJSON, exportSelectedShapesImage } =
-    useCanvasExport(getSelectedShapes);
+  const {
+    exportSelectedShapesJSON,
+    exportSelectedShapesImage,
+    captureSelectedShapesSnapshot,
+  } = useCanvasExport(getSelectedShapes);
 
   // Helper function to edit cursor
   const setStageCursor = (c: string) => {
@@ -429,10 +440,9 @@ function KonvaCanvas({
   };
 
   // AI button handler
-  const handleAIClick = () => {
-    const selectedShapes = getSelectedShapes();
-    console.log("AI button clicked with shapes:", selectedShapes);
-    // Add your AI logic here
+  const handleAIClick = async () => {
+    const selection = await captureSelectedShapesSnapshot();
+    addSelectionAction(selection);
   };
 
   // Color tool handler - fill for closed shapes, stroke for lines

@@ -252,8 +252,224 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
     }
   };
 
+  const captureSelectedShapesSnapshot = async () => {
+    const selectedShapes = getSelectedShapes();
+
+    if (!selectedShapes || selectedShapes.length === 0) {
+      throw new Error("No shapes selected");
+    }
+
+    // --------------------------------------------------
+    // 1. Compute bounding box of selected shapes
+    // --------------------------------------------------
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    let hasValidShape = false;
+
+    selectedShapes.forEach((shape) => {
+      // Shapes with x/y
+      if ("x" in shape && "y" in shape) {
+        const x = (shape as any).x;
+        const y = (shape as any).y;
+
+        if (shape.type === "rect") {
+          const w = (shape as any).w || 0;
+          const h = (shape as any).h || 0;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x + w);
+          maxY = Math.max(maxY, y + h);
+          hasValidShape = true;
+        } else if (shape.type === "circle") {
+          const r = (shape as any).r || 0;
+          minX = Math.min(minX, x - r);
+          minY = Math.min(minY, y - r);
+          maxX = Math.max(maxX, x + r);
+          maxY = Math.max(maxY, y + r);
+          hasValidShape = true;
+        } else if (shape.type === "text" || shape.type === "image") {
+          const w = (shape as any).width || 120;
+          const h = (shape as any).height || 40;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x + w);
+          maxY = Math.max(maxY, y + h);
+          hasValidShape = true;
+        }
+      }
+
+      // Line / Pencil / Eraser (points[])
+      else if (
+        shape.type === "line" ||
+        shape.type === "pencil" ||
+        shape.type === "eraser"
+      ) {
+        const points = (shape as any).points || [];
+        for (let i = 0; i < points.length; i += 2) {
+          minX = Math.min(minX, points[i]);
+          minY = Math.min(minY, points[i + 1]);
+          maxX = Math.max(maxX, points[i]);
+          maxY = Math.max(maxY, points[i + 1]);
+        }
+        hasValidShape = true;
+      }
+    });
+
+    if (!hasValidShape || minX === Infinity || minY === Infinity) {
+      throw new Error("Failed to calculate bounds for selection");
+    }
+
+    // --------------------------------------------------
+    // 2. Add padding & final dimensions
+    // --------------------------------------------------
+    const padding = 20;
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    if (contentWidth <= 0 || contentHeight <= 0) {
+      throw new Error("Invalid selection dimensions");
+    }
+
+    const finalWidth = contentWidth + padding * 2;
+    const finalHeight = contentHeight + padding * 2;
+
+    // --------------------------------------------------
+    // 3. Create off-screen Konva stage
+    // --------------------------------------------------
+    const Konva = (await import("konva")).default;
+
+    const tempStage = new Konva.Stage({
+      container: document.createElement("div"),
+      width: finalWidth,
+      height: finalHeight,
+    });
+
+    const tempLayer = new Konva.Layer();
+    tempStage.add(tempLayer);
+
+    const offsetX = -minX + padding;
+    const offsetY = -minY + padding;
+
+    const strokeColor = theme === "dark" ? "#ffffff" : "#111111";
+
+    // --------------------------------------------------
+    // 4. Re-render selected shapes onto temp stage
+    // --------------------------------------------------
+    for (const shape of selectedShapes) {
+      if (shape.type === "rect") {
+        tempLayer.add(
+          new Konva.Rect({
+            x: (shape as any).x + offsetX,
+            y: (shape as any).y + offsetY,
+            width: (shape as any).w,
+            height: (shape as any).h,
+            fill: (shape as any).fill,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+            cornerRadius: 8,
+          })
+        );
+      } else if (shape.type === "circle") {
+        tempLayer.add(
+          new Konva.Circle({
+            x: (shape as any).x + offsetX,
+            y: (shape as any).y + offsetY,
+            radius: (shape as any).r,
+            fill: (shape as any).fill,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+          })
+        );
+      } else if (
+        shape.type === "line" ||
+        shape.type === "pencil" ||
+        shape.type === "eraser"
+      ) {
+        const pts = (shape as any).points || [];
+        const offsetPts: number[] = [];
+        for (let i = 0; i < pts.length; i += 2) {
+          offsetPts.push(pts[i] + offsetX, pts[i + 1] + offsetY);
+        }
+
+        tempLayer.add(
+          new Konva.Line({
+            points: offsetPts,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+            lineCap: "round",
+            lineJoin: "round",
+          })
+        );
+      } else if (shape.type === "text") {
+        tempLayer.add(
+          new Konva.Text({
+            x: (shape as any).x + offsetX,
+            y: (shape as any).y + offsetY,
+            text: (shape as any).text,
+            fontSize: (shape as any).fontSize || 16,
+            fontFamily: (shape as any).fontFamily || "Arial",
+            fill: (shape as any).fill || strokeColor,
+          })
+        );
+      } else if (shape.type === "image") {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            tempLayer.add(
+              new Konva.Image({
+                x: (shape as any).x + offsetX,
+                y: (shape as any).y + offsetY,
+                image: img,
+                width: (shape as any).width || 150,
+                height: (shape as any).height || 150,
+              })
+            );
+            resolve();
+          };
+          img.src = (shape as any).src;
+        });
+      }
+    }
+
+    tempLayer.draw();
+
+    // --------------------------------------------------
+    // 5. Export snapshot (image only, no download)
+    // --------------------------------------------------
+    const dataURL = tempStage.toDataURL({ pixelRatio: 2 });
+    const blob = await (await fetch(dataURL)).blob();
+
+    tempStage.destroy();
+
+    // --------------------------------------------------
+    // 6. Return AI-ready payload
+    // --------------------------------------------------
+    return {
+      shapes: selectedShapes, // structured JSON for Melina
+      image: {
+        blob, // for upload
+        dataURL, // optional preview
+        mimeType: "image/png",
+      },
+      bounds: {
+        minX,
+        minY,
+        maxX,
+        maxY,
+        width: finalWidth,
+        height: finalHeight,
+        padding,
+      },
+    };
+  };
+
   return {
     exportSelectedShapesJSON,
     exportSelectedShapesImage,
+    captureSelectedShapesSnapshot,
   };
 };

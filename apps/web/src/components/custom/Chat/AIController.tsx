@@ -1,4 +1,4 @@
-import { Bot, SendHorizontal } from "lucide-react";
+import { Bot, SendHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -6,6 +6,9 @@ import TypingLoader from "./TypingLoader";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 import { useWebsocket } from "@/hooks/useWebsocket";
+import { selectSelections, useSelectionStore } from "@/store/useSelection";
+import SelectionPill from "./SelectionPill";
+import { uploadSelectionImageToBackend } from "@/service/boardService";
 
 type Message = {
   uuid: string;
@@ -73,6 +76,19 @@ function AIController({
 
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const selections = useSelectionStore(selectSelections);
+  const clearSelectionById = useSelectionStore(
+    (state) => state.clearSelectionById
+  );
+  const selectionsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to latest selection
+  useEffect(() => {
+    if (selectionsContainerRef.current && selections.length > 0) {
+      selectionsContainerRef.current.scrollLeft =
+        selectionsContainerRef.current.scrollWidth;
+    }
+  }, [selections]);
 
   // Avoid hydration mismatch by only using theme after mount
   useEffect(() => {
@@ -102,6 +118,38 @@ function AIController({
     if (!settings) return;
     const settingsObj = JSON.parse(settings);
     const { activeModel, temperature, maxTokens, theme } = settingsObj;
+
+    // Upload images for each shape in selections that don't already have an imageUrl
+    // Backend saves imageUrl per shape, so if a selection has 2 shapes, we upload 2 times
+    let shapeImageUrls: { shapeId: string; url: string }[] = [];
+
+    if (selections.length > 0) {
+      try {
+        // Flatten all shapes from all selections and upload for each
+        const uploadPromises = selections.flatMap((selection) =>
+          selection.shapes.map(async (shape) => {
+            // Skip upload if shape already has an imageUrl
+            if (shape.imageUrl) {
+              return { shapeId: shape.id, url: shape.imageUrl };
+            }
+
+            // Upload to backend and get URL (backend saves to this shape)
+            const response = await uploadSelectionImageToBackend(
+              boardId,
+              shape.id,
+              selection.image.dataURL
+            );
+
+            return { shapeId: shape.id, url: response.url };
+          })
+        );
+
+        shapeImageUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        console.log("Error uploading selection images:", error);
+      }
+    }
+
     try {
       sendMessage({
         type: "chat_message",
@@ -112,6 +160,7 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
+          shape_image_urls: shapeImageUrls,
         },
       });
     } catch (error) {
@@ -123,7 +172,7 @@ function AIController({
   };
 
   // Function to send a message programmatically (for initial message)
-  const sendMessageProgrammatically = (text: string) => {
+  const sendMessageProgrammatically = async (text: string) => {
     if (!text.trim()) return;
 
     // Add user message with temporary UUID
@@ -139,6 +188,36 @@ function AIController({
     const settingsObj = JSON.parse(settings);
     const { activeModel, temperature, maxTokens, theme } = settingsObj;
 
+    // Upload images for each shape in selections that don't already have an imageUrl
+    // Backend saves imageUrl per shape, so if a selection has 2 shapes, we upload 2 times
+    let shapeImageUrls: { shapeId: string; url: string }[] = [];
+
+    if (selections.length > 0) {
+      try {
+        const uploadPromises = selections.flatMap((selection) =>
+          selection.shapes.map(async (shape) => {
+            // Skip upload if shape already has an imageUrl
+            if (shape.imageUrl) {
+              return { shapeId: shape.id, url: shape.imageUrl };
+            }
+
+            // Upload to backend and get URL (backend saves to this shape)
+            const response = await uploadSelectionImageToBackend(
+              boardId,
+              shape.id,
+              selection.image.dataURL
+            );
+
+            return { shapeId: shape.id, url: response.url };
+          })
+        );
+
+        shapeImageUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        console.log("Error uploading selection images:", error);
+      }
+    }
+
     try {
       sendMessage({
         type: "chat_message",
@@ -149,6 +228,7 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
+          shape_image_urls: shapeImageUrls,
         },
       });
     } catch (error) {
@@ -337,48 +417,69 @@ function AIController({
       </div>
 
       {/* text input */}
-      <div
-        className="sticky bottom-0 flex items-end border-t p-4 rounded-b-md backdrop-blur-md gap-2 z-10"
-        style={{
-          background: isDark
-            ? "rgba(50, 51, 50, 0.9)"
-            : "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "saturate(180%) blur(10px)",
-          WebkitBackdropFilter: "saturate(180%) blur(10px)",
-          borderColor: isDark
-            ? "rgba(107, 114, 128, 0.5)"
-            : "rgba(229, 231, 235, 0.5)",
-        }}
-      >
-        <form onSubmit={handleSubmit} className="flex-1">
-          <textarea
-            ref={textareaRef}
-            name="message"
-            placeholder="Type your message here..."
-            className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px]"
-            rows={1}
-            onInput={(e) => {
-              const el = e.target as HTMLTextAreaElement;
-              el.style.height = "auto";
-              el.style.height = `${el.scrollHeight}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-              }
-            }}
-          />
-        </form>
+      <div className="sticky bottom-0 p-3 z-10">
         <div
-          onClick={(e: React.MouseEvent<HTMLDivElement>) =>
-            handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
-          }
+          className="flex flex-col rounded-md border"
+          style={{
+            background: isDark
+              ? "rgba(40, 40, 40, 0.9)"
+              : "rgba(255, 255, 255, 0.9)",
+            borderColor: isDark
+              ? "rgba(107, 114, 128, 0.4)"
+              : "rgba(209, 213, 219, 0.6)",
+          }}
         >
-          <SendHorizontal
-            className="w-6 h-6 cursor-pointer shrink-0 mb-1"
-            color="gray"
-          />
+          {/* Selection pills */}
+          {selections.length > 0 && (
+            <div
+              ref={selectionsContainerRef}
+              className="flex gap-2 px-2 pt-2 overflow-x-auto scrollbar-hide"
+            >
+              {selections.map((selection) => (
+                <SelectionPill
+                  key={selection.id}
+                  selection={selection}
+                  isDark={isDark}
+                  clearSelectionById={clearSelectionById}
+                />
+              ))}
+            </div>
+          )}
+          {/* Input area */}
+          <div className="flex items-end px-4 py-3 gap-2">
+            <form onSubmit={handleSubmit} className="flex-1">
+              <textarea
+                ref={textareaRef}
+                name="message"
+                placeholder="Plan, @ for context, / for commands"
+                className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px] placeholder:text-gray-500"
+                rows={1}
+                onInput={(e) => {
+                  const el = e.target as HTMLTextAreaElement;
+                  el.style.height = "auto";
+                  el.style.height = `${el.scrollHeight}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(
+                      e as unknown as React.FormEvent<HTMLFormElement>
+                    );
+                  }
+                }}
+              />
+            </form>
+            <div
+              onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+                handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
+              }
+            >
+              <SendHorizontal
+                className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
+                color="gray"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
