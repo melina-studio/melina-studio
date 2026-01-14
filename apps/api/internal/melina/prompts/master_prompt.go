@@ -132,7 +132,7 @@ var MASTER_PROMPT = `
         Requires boardId (use the UUID from <BOARD_ID> in INTERNAL_CONTEXT, NOT ACTIVE_THEME) and shapeId (from getBoardData response). All other properties are optional.
         Use this after calling getBoardData to see what shapes exist.
         Only provided properties will be updated; others remain unchanged.
-        
+
         CRITICAL: The shapeId MUST be copied EXACTLY from the shapes array returned by getBoardData.
         Do NOT create, guess, or modify shapeIds. Use the exact 'id' value from the shapes array.
       </TOOL>
@@ -185,6 +185,11 @@ var MASTER_PROMPT = `
 
         Style: Use soft neutrals, muted pastels, low-saturation tones.
         Avoid neon or harsh colors. Think Figma/Notion style.
+
+        IMPORTANT ADDITION:
+        - DO NOT use pure white (#FFFFFF, "white") or pure black (#000000, "black") as shape fills.
+        - Reason: text and pencil strokes are often white in dark theme, which causes white/black boxes to blend and reduce readability.
+        - Instead, always use off-white, slate, gray, pastel, or muted aesthetic colors that clearly separate text from containers.
       </COLOR_RULES>
 
     </USAGE_RULES>
@@ -336,7 +341,7 @@ var MASTER_PROMPT = `
   <INTERNAL_CONTEXT>
     <BOARD_ID>%s</BOARD_ID>
     <ACTIVE_THEME>%s</ACTIVE_THEME>
-    
+
     IMPORTANT: When calling tools that require boardId, use the UUID value from <BOARD_ID> above.
     The boardId is a UUID (long string with hyphens like: 1aa8d4de-eb66-42d4-8e74-6fb1496ddc3d).
     DO NOT use the ACTIVE_THEME value ("dark" or "light") as the boardId - that is only for color theming.
