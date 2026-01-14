@@ -30,7 +30,7 @@ const Logo = () => {
         height={18}
         className="size-[18px] mr-1"
       />
-      <span className="text-sm font-medium text-foreground/80 tracking-wide">
+      <span className="text-sm font-semibold text-foreground tracking-wide">
         Melina Studio
       </span>
     </div>
