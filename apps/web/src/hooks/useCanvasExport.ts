@@ -1,6 +1,39 @@
 import { useTheme } from "next-themes";
 import { Shape } from "@/lib/konavaTypes";
 
+// Helper to parse SVG path data and extract bounding box
+const parseSvgPathBounds = (
+  pathData: string,
+  offsetX = 0,
+  offsetY = 0
+): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+  if (!pathData) return null;
+
+  // Extract all numbers from path data (handles M, L, C, Q, A, etc.)
+  const numbers = pathData.match(/-?\d+\.?\d*/g);
+  if (!numbers || numbers.length < 2) return null;
+
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+
+  // Parse coordinates in pairs (x, y)
+  for (let i = 0; i < numbers.length - 1; i += 2) {
+    const x = parseFloat(numbers[i]) + offsetX;
+    const y = parseFloat(numbers[i + 1]) + offsetY;
+    if (!isNaN(x) && !isNaN(y)) {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (minX === Infinity) return null;
+  return { minX, minY, maxX, maxY };
+};
+
 export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
   const { theme } = useTheme();
 
@@ -33,8 +66,48 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
     let hasValidShape = false;
 
     selectedShapes.forEach((shape) => {
-      // Handle shapes with x, y, width, height (rect, circle, text, image)
-      if ("x" in shape && "y" in shape) {
+      // Handle path shapes first (they have x/y but need special handling)
+      if (shape.type === "path") {
+        const pathData = (shape as any).data;
+        const shapeX = (shape as any).x || 0;
+        const shapeY = (shape as any).y || 0;
+        const bounds = parseSvgPathBounds(pathData, shapeX, shapeY);
+        if (bounds) {
+          minX = Math.min(minX, bounds.minX);
+          minY = Math.min(minY, bounds.minY);
+          maxX = Math.max(maxX, bounds.maxX);
+          maxY = Math.max(maxY, bounds.maxY);
+          hasValidShape = true;
+        } else {
+          // Fallback for paths without data
+          minX = Math.min(minX, shapeX);
+          minY = Math.min(minY, shapeY);
+          maxX = Math.max(maxX, shapeX + 100);
+          maxY = Math.max(maxY, shapeY + 100);
+          hasValidShape = true;
+        }
+      }
+      // Handle line/pencil shapes (they have points array)
+      else if (
+        shape.type === "line" ||
+        shape.type === "pencil" ||
+        shape.type === "eraser"
+      ) {
+        const points = (shape as any).points || [];
+        if (points.length >= 2) {
+          for (let i = 0; i < points.length; i += 2) {
+            const px = points[i];
+            const py = points[i + 1];
+            minX = Math.min(minX, px);
+            minY = Math.min(minY, py);
+            maxX = Math.max(maxX, px);
+            maxY = Math.max(maxY, py);
+          }
+          hasValidShape = true;
+        }
+      }
+      // Handle shapes with x, y (rect, circle, text, image)
+      else if ("x" in shape && "y" in shape) {
         const x = (shape as any).x;
         const y = (shape as any).y;
 
@@ -63,25 +136,6 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
           minY = Math.min(minY, y);
           maxX = Math.max(maxX, x + width);
           maxY = Math.max(maxY, y + height);
-          hasValidShape = true;
-        }
-      }
-      // Handle line/pencil shapes (they have points array)
-      else if (
-        shape.type === "line" ||
-        shape.type === "pencil" ||
-        shape.type === "eraser"
-      ) {
-        const points = (shape as any).points || [];
-        if (points.length >= 2) {
-          for (let i = 0; i < points.length; i += 2) {
-            const px = points[i];
-            const py = points[i + 1];
-            minX = Math.min(minX, px);
-            minY = Math.min(minY, py);
-            maxX = Math.max(maxX, px);
-            maxY = Math.max(maxY, py);
-          }
           hasValidShape = true;
         }
       }
@@ -270,8 +324,44 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
     let hasValidShape = false;
 
     selectedShapes.forEach((shape) => {
-      // Shapes with x/y
-      if ("x" in shape && "y" in shape) {
+      // Path shapes (SVG path data) - check first since they have x/y too
+      if (shape.type === "path") {
+        const pathData = (shape as any).data;
+        const shapeX = (shape as any).x || 0;
+        const shapeY = (shape as any).y || 0;
+        const bounds = parseSvgPathBounds(pathData, shapeX, shapeY);
+        if (bounds) {
+          minX = Math.min(minX, bounds.minX);
+          minY = Math.min(minY, bounds.minY);
+          maxX = Math.max(maxX, bounds.maxX);
+          maxY = Math.max(maxY, bounds.maxY);
+          hasValidShape = true;
+        } else {
+          // Fallback for paths without data - use position with default size
+          minX = Math.min(minX, shapeX);
+          minY = Math.min(minY, shapeY);
+          maxX = Math.max(maxX, shapeX + 100);
+          maxY = Math.max(maxY, shapeY + 100);
+          hasValidShape = true;
+        }
+      }
+      // Line / Pencil / Eraser (points[])
+      else if (
+        shape.type === "line" ||
+        shape.type === "pencil" ||
+        shape.type === "eraser"
+      ) {
+        const points = (shape as any).points || [];
+        for (let i = 0; i < points.length; i += 2) {
+          minX = Math.min(minX, points[i]);
+          minY = Math.min(minY, points[i + 1]);
+          maxX = Math.max(maxX, points[i]);
+          maxY = Math.max(maxY, points[i + 1]);
+        }
+        hasValidShape = true;
+      }
+      // Shapes with x/y (rect, circle, text, image)
+      else if ("x" in shape && "y" in shape) {
         const x = (shape as any).x;
         const y = (shape as any).y;
 
@@ -299,22 +389,6 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
           maxY = Math.max(maxY, y + h);
           hasValidShape = true;
         }
-      }
-
-      // Line / Pencil / Eraser (points[])
-      else if (
-        shape.type === "line" ||
-        shape.type === "pencil" ||
-        shape.type === "eraser"
-      ) {
-        const points = (shape as any).points || [];
-        for (let i = 0; i < points.length; i += 2) {
-          minX = Math.min(minX, points[i]);
-          minY = Math.min(minY, points[i + 1]);
-          maxX = Math.max(maxX, points[i]);
-          maxY = Math.max(maxY, points[i + 1]);
-        }
-        hasValidShape = true;
       }
     });
 
@@ -401,6 +475,22 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
             strokeWidth: (shape as any).strokeWidth || 2,
             lineCap: "round",
             lineJoin: "round",
+          })
+        );
+      } else if (shape.type === "path") {
+        // For path shapes, we need to offset the path by modifying coordinates
+        const shapeX = (shape as any).x || 0;
+        const shapeY = (shape as any).y || 0;
+        tempLayer.add(
+          new Konva.Path({
+            x: shapeX + offsetX,
+            y: shapeY + offsetY,
+            data: (shape as any).data,
+            fill: (shape as any).fill,
+            stroke: (shape as any).stroke || strokeColor,
+            strokeWidth: (shape as any).strokeWidth || 2,
+            lineCap: (shape as any).lineCap || "round",
+            lineJoin: (shape as any).lineJoin || "round",
           })
         );
       } else if (shape.type === "text") {
