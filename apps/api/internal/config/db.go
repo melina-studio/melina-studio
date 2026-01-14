@@ -18,8 +18,12 @@ func ConnectDB() error {
 	dsn := os.Getenv("DB_URL")
 
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+	DB, err = gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // disables implicit prepared statement usage
+	}), &gorm.Config{
+		Logger:      logger.Default.LogMode(logger.Info),
+		PrepareStmt: false,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

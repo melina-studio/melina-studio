@@ -185,28 +185,20 @@ func (r *BoardDataRepo) UpdateShapeImageUrl(shapeId string, imageUrl string) err
 		return err
 	}
 
-	var existing models.BoardData
-	if err := r.db.Where("uuid = ?", shapeUUID).First(&existing).Error; err != nil {
-		return err
+	result := r.db.Model(&models.BoardData{}).
+		Where("uuid = ?", shapeUUID).
+		Updates(map[string]any{
+			"image_url":  imageUrl,
+			"updated_at": time.Now(),
+		})
+
+	if result.Error != nil {
+		return result.Error
 	}
-
-	// Parse existing data, add imageUrl, and save back
-	var dataMap map[string]interface{}
-	if err := json.Unmarshal(existing.Data, &dataMap); err != nil {
-		dataMap = make(map[string]interface{})
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shape not found")
 	}
-
-	dataMap["imageUrl"] = imageUrl
-
-	bytes, err := json.Marshal(dataMap)
-	if err != nil {
-		return err
-	}
-
-	return r.db.Model(&existing).Updates(map[string]interface{}{
-		"data":       datatypes.JSON(bytes),
-		"updated_at": time.Now(),
-	}).Error
+	return nil
 }
 
 func (r *BoardDataRepo) GetBoardData(boardId uuid.UUID) ([]models.BoardData, error) {

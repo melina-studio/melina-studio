@@ -26,6 +26,7 @@ type BoardData struct {
 	BoardId          uuid.UUID      `gorm:"not null" json:"board_id"`
 	Type             Type           `gorm:"default:'rect'" json:"type"`
 	Data             datatypes.JSON `json:"data"`
+	ImageUrl         *string        `json:"image_url,omitempty"`
 	AnnotationNumber int            `gorm:"not null;default:0" json:"annotation_number"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
@@ -46,5 +47,4 @@ type Shape struct {
 	Text        *string    `json:"text,omitempty"`
 	FontSize    *float64   `json:"fontSize,omitempty"`
 	FontFamily  *string    `json:"fontFamily,omitempty"`
-	ImageUrl    *string    `json:"imageUrl,omitempty"`
 }
