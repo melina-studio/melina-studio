@@ -48,13 +48,32 @@ type WebSocketMessage struct {
 	Data interface{}          `json:"data,omitempty"`
 }
 
+type SelectionBounds struct {
+	MinX    float64 `json:"minX"`
+	MinY    float64 `json:"minY"`
+	Width   float64 `json:"width"`
+	Height  float64 `json:"height"`
+	Padding float64 `json:"padding"`
+}
+
+type ShapeImageUrl struct {
+	ShapeId string           `json:"shapeId"`
+	Url     string           `json:"url"`
+	Bounds  *SelectionBounds `json:"bounds,omitempty"`
+}
+
+type ChatMessageMetadata struct {
+	ShapeImageUrls []ShapeImageUrl `json:"shape_image_urls"`
+}
+
 type ChatMessagePayload struct {
-	BoardId string `json:"board_id,omitempty"`
-	Message string `json:"message"`
-	ActiveModel string `json:"active_model"`
-	Temperature *float32 `json:"temperature"`
-	MaxTokens *int `json:"max_tokens"`
-	ActiveTheme string `json:"active_theme"`
+	BoardId     string               `json:"board_id,omitempty"`
+	Message     string               `json:"message"`
+	ActiveModel string               `json:"active_model"`
+	Temperature *float32             `json:"temperature"`
+	MaxTokens   *int                 `json:"max_tokens"`
+	ActiveTheme string               `json:"active_theme"`
+	Metadata    *ChatMessageMetadata `json:"metadata,omitempty"`
 }
 
 type ChatMessageResponsePayload struct {

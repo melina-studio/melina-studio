@@ -46,4 +46,5 @@ type Shape struct {
 	Text        *string    `json:"text,omitempty"`
 	FontSize    *float64   `json:"fontSize,omitempty"`
 	FontFamily  *string    `json:"fontFamily,omitempty"`
+	ImageUrl    *string    `json:"imageUrl,omitempty"`
 }

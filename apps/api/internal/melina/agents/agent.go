@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+
 	"melina-studio-backend/internal/libraries"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
 	"melina-studio-backend/internal/melina/prompts"
@@ -14,6 +16,23 @@ import (
 
 type Agent struct {
 	llmClient llmHandlers.Client
+}
+
+// ShapeImage represents a base64-encoded shape image with shape metadata
+type ShapeImage struct {
+	ShapeId   string
+	MimeType  string
+	Data      string                 // base64 encoded (may be annotated)
+	ShapeData map[string]interface{} // full shape properties from DB
+	Number    int                    // annotation number (1-based)
+}
+
+// AnnotatedSelection represents an annotated image with its shapes
+type AnnotatedSelection struct {
+	AnnotatedImage string       // base64 annotated image
+	MimeType       string
+	Shapes         []ShapeImage // shapes in this selection
+	ShapeMetadata  string       // TOON-formatted shape data for LLM
 }
 
 func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
@@ -108,16 +127,31 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 // ProcessRequestStream processes a user message with optional board image
 // boardId can be empty string if no image should be included
 // client can be nil if streaming is not needed
-func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string, activeTheme string) (string, error) {
+// selections contains annotated selection images with shape data (can be nil or empty)
+func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string, activeTheme string, selections interface{}) (string, error) {
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
-	
-	// Build user message content - may include image if boardId is provided
-	var userContent interface{} = message
-	
+
+	// Build user message content - may include annotated images if selections provided
+	var userContent interface{}
+
+	// Check if we have annotated selections to include
+	if annotatedSelections, ok := selections.([]AnnotatedSelection); ok && len(annotatedSelections) > 0 {
+		// Build multimodal content with annotated images and gotoon data
+		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections)
+		log.Printf("Built multimodal content with %d annotated selections", len(annotatedSelections))
+	} else if images, ok := selections.([]ShapeImage); ok && len(images) > 0 {
+		// Fallback: Build multimodal content with plain images (no annotation)
+		userContent = buildMultimodalContent(message, images)
+		log.Printf("Built multimodal content with %d shape images (no annotation)", len(images))
+	} else {
+		// Plain text message
+		userContent = message
+	}
+
 	messages := []llmHandlers.Message{}
 
-	if len(chatHistory) >0 {
+	if len(chatHistory) > 0 {
 		messages = append(messages, chatHistory...)
 	}
 
@@ -133,5 +167,102 @@ func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, cl
 	}
 
 	return response, nil
+}
+
+// buildMultimodalContentWithAnnotations creates content with annotated images and TOON-formatted shape data
+func buildMultimodalContentWithAnnotations(message string, selections []AnnotatedSelection) []map[string]interface{} {
+	content := []map[string]interface{}{}
+
+	// Combine all shape metadata (TOON format)
+	var allMetadata []string
+	for _, sel := range selections {
+		if sel.ShapeMetadata != "" {
+			allMetadata = append(allMetadata, sel.ShapeMetadata)
+		}
+	}
+
+	// Add context prefix with TOON-formatted shape data
+	contextText := "The user has selected shapes on the canvas. Each shape is marked with a numbered badge in the image(s) below."
+	if len(allMetadata) > 0 {
+		contextText += "\n\nShape data (use shapeIds with updateShape tool):\n" + strings.Join(allMetadata, "\n\n")
+	}
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": contextText,
+	})
+
+	// Add annotated images
+	for _, sel := range selections {
+		if sel.AnnotatedImage != "" {
+			content = append(content, map[string]interface{}{
+				"type": "image",
+				"source": map[string]interface{}{
+					"type":       "base64",
+					"media_type": sel.MimeType,
+					"data":       sel.AnnotatedImage,
+				},
+			})
+		}
+	}
+
+	// Add user's actual message
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": message,
+	})
+
+	return content
+}
+
+// buildMultimodalContent creates a content array with text prefix, shape metadata, images, and user message
+func buildMultimodalContent(message string, images []ShapeImage) []map[string]interface{} {
+	content := []map[string]interface{}{}
+
+	// Build shape metadata summary
+	shapeDescriptions := []string{}
+	for i, img := range images {
+		if img.ShapeData != nil {
+			shapeType := "unknown"
+			if t, ok := img.ShapeData["type"].(string); ok {
+				shapeType = t
+			}
+			shapeDescriptions = append(shapeDescriptions, fmt.Sprintf("#%d: %s (id: %s)", i+1, shapeType, img.ShapeId))
+		}
+	}
+
+	// Add context prefix with shape metadata
+	contextText := "The user has selected these shapes for context:"
+	if len(shapeDescriptions) > 0 {
+		contextText += "\n" + strings.Join(shapeDescriptions, "\n")
+		contextText += "\n\nYou can use these shapeIds directly with updateShape tool to modify them."
+	}
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": contextText,
+	})
+
+	// Add unique images (dedupe by URL since same image may be shared by multiple shapes)
+	seenData := make(map[string]bool)
+	for _, img := range images {
+		if !seenData[img.Data] {
+			seenData[img.Data] = true
+			content = append(content, map[string]interface{}{
+				"type": "image",
+				"source": map[string]interface{}{
+					"type":       "base64",
+					"media_type": img.MimeType,
+					"data":       img.Data,
+				},
+			})
+		}
+	}
+
+	// Add user's actual message
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": message,
+	})
+
+	return content
 }
 

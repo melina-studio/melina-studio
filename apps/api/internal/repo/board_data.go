@@ -22,11 +22,13 @@ type BoardDataRepo struct {
 type BoardDataRepoInterface interface {
 	CreateBoardData(boardData *models.BoardData) error
 	SaveShapeData(boardId uuid.UUID, shapeData *models.Shape) error
+	UpdateShapeImageUrl(shapeId string, imageUrl string) error
 	GetBoardData(boardId uuid.UUID) ([]models.BoardData, error)
 	ClearBoardData(boardId uuid.UUID) error
 	DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error
 	GetNextAnnotationNumber(boardId uuid.UUID) (int, error)
 	GetShapeByUUID(shapeUUID uuid.UUID) (*models.BoardData, error)
+	GetShapesByUUIDs(shapeUUIDs []uuid.UUID) ([]models.BoardData, error)
 }
 
 // NewBoardDataRepository returns a new instance of BoardDataRepo
@@ -176,6 +178,36 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 	return r.db.Model(&existing).Updates(boardData).Error
 }
 
+func (r *BoardDataRepo) UpdateShapeImageUrl(shapeId string, imageUrl string) error {
+	shapeUUID, err := uuid.Parse(shapeId)
+	if err != nil {
+		return err
+	}
+
+	var existing models.BoardData
+	if err := r.db.Where("uuid = ?", shapeUUID).First(&existing).Error; err != nil {
+		return err
+	}
+
+	// Parse existing data, add imageUrl, and save back
+	var dataMap map[string]interface{}
+	if err := json.Unmarshal(existing.Data, &dataMap); err != nil {
+		dataMap = make(map[string]interface{})
+	}
+
+	dataMap["imageUrl"] = imageUrl
+
+	bytes, err := json.Marshal(dataMap)
+	if err != nil {
+		return err
+	}
+
+	return r.db.Model(&existing).Updates(map[string]interface{}{
+		"data":       datatypes.JSON(bytes),
+		"updated_at": time.Now(),
+	}).Error
+}
+
 func (r *BoardDataRepo) GetBoardData(boardId uuid.UUID) ([]models.BoardData, error) {
 	var boardData []models.BoardData
 	err := r.db.Where("board_id = ?", boardId).Find(&boardData).Error
@@ -216,4 +248,14 @@ func (r *BoardDataRepo) GetShapeByUUID(shapeUUID uuid.UUID) (*models.BoardData, 
 		return nil, err
 	}
 	return &shape, nil
+}
+
+// GetShapesByUUIDs returns multiple shapes by their UUIDs in a single query
+func (r *BoardDataRepo) GetShapesByUUIDs(shapeUUIDs []uuid.UUID) ([]models.BoardData, error) {
+	if len(shapeUUIDs) == 0 {
+		return []models.BoardData{}, nil
+	}
+	var shapes []models.BoardData
+	err := r.db.Where("uuid IN ?", shapeUUIDs).Find(&shapes).Error
+	return shapes, err
 }

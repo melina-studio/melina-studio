@@ -23,13 +23,14 @@ func init() {
 func registerChat(app fiber.Router) {
 
 	chatRepo := repo.NewChatRepository(config.DB)
+	boardDataRepo := repo.NewBoardDataRepository(config.DB)
 	chatHandler := handlers.NewChatHandler(chatRepo)
-	workflow := workflow.NewWorkflow(chatRepo)
+	workflow := workflow.NewWorkflow(chatRepo, boardDataRepo)
 
 	// No initialization needed - everything happens on request
 	app.Post("/chat/:boardId", workflow.TriggerChatWorkflow)
 	app.Get("/chat/:boardId", chatHandler.GetChatsByBoardId)
-	
+
 	// Use the Hub-based WebSocket handler
 	app.Get("/ws", libraries.WebSocketHandler(hub , workflow))
 }

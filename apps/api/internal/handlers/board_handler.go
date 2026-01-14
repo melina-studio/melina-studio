@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -328,5 +329,59 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Board updated successfully",
+	})
+}
+
+// function to upload selection image to gcp and storing the url of those shapes to the shape ids of that board
+func (h *BoardHandler) UploadSelectionImage(c *fiber.Ctx) error {
+	boardIdStr := c.Params("boardId")
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid board ID",
+		})
+	}
+	type Payload struct {
+		SelectionShapeId string `json:"selection_id"`
+		Blob             string `json:"blob"` // Expecting a base64-encoded image string
+	}
+
+	var body Payload
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid body",
+		})
+	}
+
+	// Decode the base64-encoded image string
+	decodedImage, err := base64.StdEncoding.DecodeString(body.Blob)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid blob",
+		})
+	}
+
+	// Upload the image to gcp
+	key := fmt.Sprintf("%s/%s.png", boardId.String(), body.SelectionShapeId)
+	url, err := libraries.GetClients().Upload(context.Background(), key, bytes.NewReader(decodedImage), "image/png")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to upload image to gcp",
+		})
+	}
+
+	// save the url to board selection image
+	err = h.boardDataRepo.UpdateShapeImageUrl(body.SelectionShapeId, url)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to update board selection image",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Selection image uploaded successfully",
+		"shapeId": body.SelectionShapeId,
+		"url": url,
 	})
 }
