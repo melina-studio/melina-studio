@@ -140,11 +140,11 @@ const CanvasHeader = ({
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
       {/* Floating control bar with blur */}
-      <div className="flex items-center gap-3 px-4 py-2 rounded-full backdrop-blur-md bg-white/80 dark:bg-[#323332] border border-gray-200/50 dark:border-[#565656FF] shadow-lg">
+      <div className="flex items-center gap-3 px-4 py-2 rounded-full backdrop-blur-sm bg-transparent dark:bg-[#323332]/50 border border-gray-200/50 dark:border-[#565656FF] shadow-lg">
         {/* Back button */}
         <button
           onClick={handleBack}
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#565656FF] rounded-full transition-colors"
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#565656FF] rounded-full transition-colors cursor-pointer"
         >
           <StepBack className="w-4 h-4 text-gray-600 dark:text-gray-300" />
         </button>

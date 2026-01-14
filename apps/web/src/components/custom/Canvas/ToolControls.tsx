@@ -30,11 +30,15 @@ function ToolControls({
   return (
     <div>
       <div className="fixed left-7 top-1/2 -translate-y-1/2 flex gap-4 z-2 max-h-[80vh]">
-        <div className="flex flex-col bg-white dark:bg-[#323332] h-min p-1 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] border border-gray-100 dark:border-gray-700 max-h-full overflow-y-auto">
+        <div className="flex flex-col bg-transparent dark:bg-[#323332]/50 backdrop-blur-sm h-min p-1 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] border border-gray-100 dark:border-gray-700 max-h-full overflow-y-auto">
           <div
             className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
-          ${open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "bg-[#9AC2FEFF] dark:bg-[#000000]"} 
+          ${
+            open
+              ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]"
+              : "bg-[#9AC2FEFF] dark:bg-[#000000]"
+          } 
         `}
             onClick={toolbarToggle}
             aria-expanded={open}
@@ -50,7 +54,9 @@ function ToolControls({
             />
           </div>
           <div
-            className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+            className={`border-b border-gray-300 dark:border-gray-700  ${
+              !open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "
+            }`}
           ></div>
           <div
             className={`
@@ -64,7 +70,11 @@ function ToolControls({
                 className={`
               cursor-pointer p-2 rounded-md
               hover:bg-[#cce0ff] dark:hover:bg-[#000000] transition-colors
-            ${activeTool === button.value ? "bg-[#9AC2FEFF] dark:bg-[#000000]" : "bg-transparent "}
+            ${
+              activeTool === button.value
+                ? "bg-[#9AC2FEFF] dark:bg-[#000000]"
+                : "bg-transparent "
+            }
             `}
                 aria-label={button.label}
                 onClick={() => handleActiveTool(button.value)}
@@ -74,7 +84,9 @@ function ToolControls({
             ))}
           </div>
           <div
-            className={`border-b border-gray-300 dark:border-gray-700  ${!open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "}`}
+            className={`border-b border-gray-300 dark:border-gray-700  ${
+              !open ? "opacity-0 " : "opacity-100 mt-2 mb-2 "
+            }`}
           ></div>
           {/* undo button */}
           <button
@@ -122,9 +134,13 @@ function ToolControls({
                   key={color.color}
                   style={{ backgroundColor: color.color }}
                   className={`w-8 h-8 rounded cursor-pointer hover:scale-110 transition-transform ${
-                    color.color === "#ffffff" ? "border border-gray-300 dark:border-gray-600" : ""
+                    color.color === "#ffffff"
+                      ? "border border-gray-300 dark:border-gray-600"
+                      : ""
                   } ${
-                    activeColor === color.color ? "ring-2 ring-offset-2 ring-blue-500" : ""
+                    activeColor === color.color
+                      ? "ring-2 ring-offset-2 ring-blue-500"
+                      : ""
                   }`}
                   title={color.color}
                   onClick={() => {
