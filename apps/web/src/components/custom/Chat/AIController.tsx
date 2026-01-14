@@ -6,7 +6,11 @@ import TypingLoader from "./TypingLoader";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 import { useWebsocket } from "@/hooks/useWebsocket";
-import { selectSelections, useSelectionStore } from "@/store/useSelection";
+import {
+  clearSelectionsAction,
+  selectSelections,
+  useSelectionStore,
+} from "@/store/useSelection";
 import SelectionPill from "./SelectionPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
 import { Spinner } from "@/components/ui/spinner";
@@ -97,6 +101,10 @@ function AIController({
   // Avoid hydration mismatch by only using theme after mount
   useEffect(() => {
     setMounted(true);
+
+    return () => {
+      clearSelectionsAction();
+    };
   }, []);
 
   const isDark = mounted && theme === "dark";
@@ -138,8 +146,8 @@ function AIController({
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
+    setLoading(true);
     if (selections.length > 0) {
-      setLoading(true);
       try {
         // Flatten all shapes from all selections and upload for each
         const uploadPromises = selections.flatMap((selection) =>
@@ -184,8 +192,6 @@ function AIController({
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
       } catch (error) {
         console.log("Error uploading selection images:", error);
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -209,6 +215,9 @@ function AIController({
       // setIsMessageLoading(false);
       humanMessageIdRef.current = null;
       return;
+    } finally {
+      setLoading(false);
+      clearSelectionsAction();
     }
   };
 
@@ -244,8 +253,8 @@ function AIController({
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
+    setLoading(true);
     if (selections.length > 0) {
-      setLoading(true);
       try {
         const uploadPromises = selections.flatMap((selection) =>
           selection.shapes.map(
@@ -289,8 +298,6 @@ function AIController({
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
       } catch (error) {
         console.log("Error uploading selection images:", error);
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -309,9 +316,13 @@ function AIController({
           }),
         },
       });
+      // after sending the message clear the selection
+      clearSelectionsAction();
     } catch (error) {
       console.log(error);
       humanMessageIdRef.current = null;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -341,6 +352,7 @@ function AIController({
       "chat_completed",
       (data: ChatResponse) => {
         setIsMessageLoading(false);
+        setLoading(false);
 
         const { ai_message_id, human_message_id } = data.data;
 
@@ -377,6 +389,7 @@ function AIController({
     const unsubscribeChatResponse = subscribe(
       "chat_response",
       (data: ChatResponse) => {
+        setLoading(true);
         const { message } = data.data;
 
         const currentAiId = aiMessageIdRef.current;
@@ -413,6 +426,7 @@ function AIController({
 
     const unsubscribeChatError = subscribe("error", () => {
       setIsMessageLoading(false);
+      setLoading(false);
 
       // Remove the empty AI message if it exists
       if (aiMessageIdRef.current) {
@@ -532,6 +546,7 @@ function AIController({
                 placeholder="Plan, @ for context, / for commands"
                 className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px] placeholder:text-gray-500"
                 rows={1}
+                disabled={loading}
                 onInput={(e) => {
                   const el = e.target as HTMLTextAreaElement;
                   el.style.height = "auto";
@@ -551,16 +566,22 @@ function AIController({
               onClick={(e: React.MouseEvent<HTMLDivElement>) =>
                 handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
               }
-              className="bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center"
+              className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              style={{
+                opacity: loading ? 0.5 : 1,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
             >
               {loading ? (
                 <Spinner
-                  className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
+                  className="w-4 h-4 shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
                   color="gray"
                 />
               ) : (
                 <SendHorizontal
-                  className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
+                  className="w-4 h-4 shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
                   color="gray"
                 />
               )}

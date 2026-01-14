@@ -38,6 +38,8 @@ import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
 import CanvasHeader from "@/components/custom/General/CanvasHeader";
 import { useBoard } from "@/hooks/useBoard";
 import type { Board } from "@/lib/types";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // types
 type History = {
@@ -292,10 +294,18 @@ export default function BoardPage() {
       }
     );
 
+    const unsubscribeError = subscribe(
+      "error",
+      (data: { data: { message: string } }) => {
+        toast.error(data.data.message);
+      }
+    );
+
     return () => {
       unsubscribeChatStart();
       unsubscribeChatCompleted();
       unsubscribeBoardRename();
+      unsubscribeError();
     };
   }, [subscribe]);
 
@@ -661,6 +671,9 @@ export default function BoardPage() {
         handleGetBoardState={handleGetBoardState}
         melinaStatus={melinaStatus}
       />
+      <div className="fixed top-13 left-1/2 -translate-x-1/2 z-50">
+        <Toaster position="top-center" />
+      </div>
 
       {/* controls */}
 
