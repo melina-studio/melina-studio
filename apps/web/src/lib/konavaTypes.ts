@@ -154,6 +154,7 @@ export type Shape =
       fill?: string;
       stroke?: string;
       strokeWidth?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -165,6 +166,7 @@ export type Shape =
       stroke?: string;
       strokeWidth?: number;
       cornerRadius?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -177,6 +179,7 @@ export type Shape =
       stroke?: string;
       strokeWidth?: number;
       rotation?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -189,6 +192,7 @@ export type Shape =
       strokeWidth?: number;
       lineCap?: "round" | "butt" | "square";
       lineJoin?: "round" | "bevel" | "miter";
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -197,6 +201,7 @@ export type Shape =
       stroke?: string;
       strokeWidth?: number;
       tension?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -204,6 +209,7 @@ export type Shape =
       points: number[];
       stroke?: string;
       strokeWidth?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -211,6 +217,7 @@ export type Shape =
       points: number[];
       stroke?: string;
       strokeWidth?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -221,6 +228,7 @@ export type Shape =
       fontSize?: number;
       fontFamily?: string;
       fill?: string;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -230,6 +238,7 @@ export type Shape =
       y: number;
       width?: number;
       height?: number;
+      imageUrl?: string;
     }
   | {
       id: string;
@@ -237,6 +246,7 @@ export type Shape =
       points: number[];
       stroke?: string;
       strokeWidth?: number;
+      imageUrl?: string;
     };
 
 export const TOOL_CURSOR = {

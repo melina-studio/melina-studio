@@ -118,3 +118,46 @@ export const updateBoard = async (
     throw new Error(error?.error || "Error updating board");
   }
 };
+
+// upload a selection image to backend
+// Backend expects base64-encoded image string (see backend Payload struct)
+// Accepts either a blob (will be converted) or a dataURL (base64 already included)
+export const uploadSelectionImageToBackend = async (
+  boardId: string,
+  selectionId: string,
+  blobOrDataURL: Blob | string
+) => {
+  try {
+    let base64String: string;
+
+    // If it's already a dataURL (base64 string), extract the base64 part
+    if (typeof blobOrDataURL === "string") {
+      // Remove data URL prefix (e.g., "data:image/png;base64,")
+      base64String = blobOrDataURL.split(",")[1];
+    } else {
+      // Convert blob to base64 string
+      base64String = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // Remove data URL prefix (e.g., "data:image/png;base64,")
+          const base64 = (reader.result as string).split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blobOrDataURL);
+      });
+    }
+
+    const response = await axios.post(
+      `${BaseURL}/api/v1/boards/${boardId}/upload-selection-image`,
+      {
+        selection_id: selectionId,
+        blob: base64String, // Send as base64-encoded string
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error uploading selection image");
+    throw new Error(error?.error || "Error uploading selection image");
+  }
+};
