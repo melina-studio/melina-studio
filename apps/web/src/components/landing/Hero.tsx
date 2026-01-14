@@ -24,36 +24,44 @@ export default function Hero() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: "power4.out" } });
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      // Animate title characters
-      const chars = document.querySelectorAll(".hero-char");
-      tl.from(chars, {
+      // Slow, controlled sequence - presence, not bounce
+      // 1. "This is Melina" fades in first
+      tl.from(".hero-intro", {
         opacity: 0,
-        y: 100,
-        rotateX: -90,
-        stagger: 0.02,
-        duration: 1,
+        duration: 1.2,
       });
 
-      // Animate subtitle
+      // 2. Then headline characters
+      const chars = document.querySelectorAll(".hero-char");
+      tl.from(
+        chars,
+        {
+          opacity: 0,
+          y: 40,
+          stagger: 0.03,
+          duration: 0.8,
+        },
+        "-=0.4"
+      );
+
+      // 3. Then subtitle
       tl.from(
         ".hero-subtitle",
         {
           opacity: 0,
-          y: 30,
-          duration: 0.8,
+          duration: 1,
         },
-        "-=0.5"
+        "-=0.3"
       );
 
-      // Animate CTA
+      // 4. Then buttons
       tl.from(
         ".hero-cta",
         {
           opacity: 0,
-          y: 20,
-          duration: 0.6,
+          duration: 0.8,
         },
         "-=0.4"
       );
@@ -90,6 +98,43 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-hidden">
+      {/* Giant ghosted background text - abstract, immersive */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Main text - massive, bleeding off all edges */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <span
+            className="block text-[45vw] md:text-[35vw] lg:text-[30vw] font-black whitespace-nowrap select-none tracking-tighter blur-[1px]"
+            style={{
+              background:
+                "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.03) 20%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.03) 80%, transparent 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            CURSOR
+          </span>
+        </div>
+        {/* Second layer - offset, even more abstract */}
+        <div className="absolute top-[60%] left-1/2 -translate-x-[40%] -translate-y-1/2">
+          <span
+            className="block text-[40vw] md:text-[32vw] lg:text-[28vw] font-black whitespace-nowrap select-none tracking-tighter blur-[2px]"
+            style={{
+              background:
+                "linear-gradient(180deg, transparent 10%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.03) 60%, transparent 90%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            CANVAS
+          </span>
+        </div>
+        {/* Soft edge masks */}
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-50" />
+      </div>
+
       {/* Light rays background */}
       <div className="absolute inset-0 h-screen opacity-40">
         <LightRays
@@ -112,39 +157,49 @@ export default function Hero() {
         <div className="orb absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl" />
       </div>
 
+      {/* Mystery element - Melina's observing presence */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="relative">
+          {/* Outer glow - pulsing */}
+          <div className="absolute inset-0 w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-b from-violet-500/20 to-transparent blur-3xl animate-pulse" />
+          {/* Inner core - subtle */}
+          <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-b from-violet-400/5 to-transparent blur-2xl" />
+        </div>
+      </div>
+
       <ContainerScroll
         titleComponent={
           <div ref={headerRef} className="relative z-10">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 rounded-full border border-border/50 bg-background/50 backdrop-blur-sm">
+            {/* Introduction - intentional, not a label */}
+            <div className="hero-intro inline-flex items-center gap-3 mb-8 border border-white/50 dark:border-white/10 rounded-md px-2 py-1 backdrop-blur-lg">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400/60 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-400/80" />
               </span>
-              <span className="text-sm text-muted-foreground">
-                Meet Melina, your design assistant
+              <span className="text-xs text-muted-foreground/60 tracking-[0.1em] uppercase">
+                This is Melina
               </span>
             </div>
 
-            {/* Title */}
+            {/* Title - with more breathing room */}
             <h1
-              className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6"
+              className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8"
               style={{ perspective: "1000px" }}
             >
               {titleChars}
             </h1>
 
-            {/* Subtitle */}
-            <p className="hero-subtitle text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-10">
-              Just describe what you want and watch Melina bring your ideas to life on the canvas.
+            {/* Subtitle - confident, not tutorial-ish */}
+            <p className="hero-subtitle text-sm md:text-base text-muted-foreground/80 max-w-md mx-auto mb-16 leading-relaxed tracking-[0.1em]">
+              Describe your intent. Melina handles the canvas.
             </p>
 
-            {/* CTA */}
+            {/* CTA - more vertical space */}
             <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/playground/all">
                 <Button
                   size="lg"
-                  className="text-md px-8 py-6 rounded-md group cursor-pointer w-[150px]"
+                  className="text-md px-8 py-6 rounded-md group cursor-pointer w-[150px] font-semibold"
                 >
                   Get Started
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -157,10 +212,10 @@ export default function Hero() {
               >
                 <Button
                   size="lg"
-                  variant="secondary"
-                  className="text-md px-8 py-6 rounded-md group cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white w-[150px]"
+                  variant="ghost"
+                  className="text-md px-8 py-6 rounded-md font-semibold group cursor-pointer border border-white/50 hover:border-white/20 hover:bg-transparent backdrop-blur-sm text-white/70 hover:text-white/80 w-[150px]"
                 >
-                  <Github className="mr-2 h-5 w-5" />
+                  <Github className="mr-2 h-4 w-4" />
                   GitHub
                 </Button>
               </Link>

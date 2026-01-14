@@ -3,14 +3,7 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import {
-  MessageSquare,
-  Eye,
-  Zap,
-  RefreshCw,
-  Moon,
-  Save,
-} from "lucide-react";
+import { MessageSquare, Eye, Zap, RefreshCw, Moon, Save } from "lucide-react";
 import { CometCard } from "@/components/ui/comet-card";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -18,49 +11,49 @@ gsap.registerPlugin(ScrollTrigger);
 const features = [
   {
     icon: MessageSquare,
-    title: "Talk to Melina",
+    title: "Describe Your Intent",
     description:
-      '"Make it blue", "Add a circle" - just tell Melina what you want in plain English.',
+      "Speak naturally. Tell Melina what you want to change, create, or explore — she handles the canvas.",
     gradient: "from-blue-500/20 to-cyan-500/20",
     iconColor: "text-blue-400",
   },
   {
     icon: Eye,
-    title: "Melina Sees Your Canvas",
+    title: "Canvas-Aware by Design",
     description:
-      "Select shapes and ask questions. Melina understands what you're working on.",
+      "Melina sees what’s on your board — shapes, structure, and visual context — not just text prompts.",
     gradient: "from-purple-500/20 to-pink-500/20",
     iconColor: "text-purple-400",
   },
   {
     icon: Zap,
-    title: "Multi-LLM Powered",
+    title: "Choose How Melina Thinks",
     description:
-      "Melina works with Claude, GPT-4, Gemini, and Groq. Choose your preferred brain.",
+      "Switch between Claude, GPT-4, Gemini, or Groq depending on the task. One canvas, different minds.",
     gradient: "from-yellow-500/20 to-orange-500/20",
     iconColor: "text-yellow-400",
   },
   {
     icon: RefreshCw,
-    title: "Real-time Sync",
+    title: "Instant, Visible Changes",
     description:
-      "WebSocket-powered instant updates. See Melina's changes as they happen.",
+      "When Melina edits the canvas, you see it happen immediately — no refresh, no lag.",
     gradient: "from-green-500/20 to-emerald-500/20",
     iconColor: "text-green-400",
   },
   {
     icon: Moon,
-    title: "Dark Mode",
+    title: "Designed for Focus",
     description:
-      "Beautiful in any lighting. Melina adapts to your system preference.",
+      "A calm, distraction-free canvas that adapts to your system and your working style.",
     gradient: "from-indigo-500/20 to-violet-500/20",
     iconColor: "text-indigo-400",
   },
   {
     icon: Save,
-    title: "Auto-save",
+    title: "Nothing Gets Lost",
     description:
-      "Never lose your work. Melina automatically saves your canvas as you create.",
+      "Every change is saved as you work — so you can think freely without worrying about state.",
     gradient: "from-rose-500/20 to-red-500/20",
     iconColor: "text-rose-400",
   },
@@ -88,15 +81,21 @@ export default function Features() {
   }, []);
 
   return (
-    <section id="features" ref={sectionRef} data-theme="dark" className="py-24 px-6 bg-gradient-to-b from-zinc-900 via-black to-zinc-900">
+    <section
+      id="features"
+      ref={sectionRef}
+      data-theme="dark"
+      className="py-24 px-6 bg-gradient-to-b from-zinc-900 via-black to-zinc-900"
+    >
       <div className="max-w-6xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
-            Everything Melina can do for you
+            What Melina understands
           </h2>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto">
-            Powerful features that make designing with Melina effortless.
+          <p className="text-white/60 text-md max-w-2xl mx-auto">
+            Melina doesn’t just respond — she understands what’s on your canvas
+            and acts on it.
           </p>
         </div>
 

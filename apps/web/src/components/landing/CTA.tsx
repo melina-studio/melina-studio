@@ -57,9 +57,11 @@ export default function CTA() {
 
           {/* Content */}
           <div className="relative px-8 py-16 md:px-16 md:py-20 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full bg-primary/10 border border-primary/20">
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-md bg-white/10 border border-primary/20 backdrop-blur-lg">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Free to use</span>
+              <span className="text-sm font-medium text-primary ">
+                Free to use
+              </span>
             </div>
 
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
@@ -75,7 +77,10 @@ export default function CTA() {
               <div className="cta-glow absolute -inset-4 bg-primary/20 rounded-full blur-xl" />
 
               <Link href="/playground/all">
-                <Button size="lg" className="relative text-lg px-10 py-6 rounded-full group">
+                <Button
+                  size="lg"
+                  className="relative text-lg px-10 py-6 rounded-md group font-semibold"
+                >
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>

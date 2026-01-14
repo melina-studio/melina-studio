@@ -52,6 +52,11 @@ export default function Footer() {
             Built with <span className="text-red-500">&hearts;</span>
           </p>
         </div>
+
+        {/* Easter egg */}
+        <p className="text-center mt-6 text-[10px] text-zinc-700 italic">
+          Melina is always watching the canvas.
+        </p>
       </div>
 
       {/* Large watermark text */}

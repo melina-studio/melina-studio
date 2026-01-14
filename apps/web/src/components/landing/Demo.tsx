@@ -55,10 +55,10 @@ export default function Demo() {
         {/* Section header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            See Melina in action
+            Watch Melina think with you
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Tell Melina what you want, watch her create it
+            One prompt. Instant creation.
           </p>
         </div>
 
