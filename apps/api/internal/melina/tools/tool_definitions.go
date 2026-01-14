@@ -135,6 +135,24 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
+			"name": "deleteShape",
+			"description": "Deletes a shape from the board. Use this to remove shapes, or when transforming a shape to a different type (delete old shape, then add new shape with addShape).",
+			"input_schema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"boardId": map[string]interface{}{
+						"type":        "string",
+						"description": "The UUID of the board containing the shape",
+					},
+					"shapeId": map[string]interface{}{
+						"type":        "string",
+						"description": "The UUID of the shape to delete",
+					},
+				},
+				"required": []string{"boardId", "shapeId"},
+			},
+		},
+		{
 			"name": "updateShape",
 			"description": "Updates an existing shape on the board. Requires boardId and shapeId. All other properties are optional and only provided properties will be updated.",
 			"input_schema": map[string]interface{}{
@@ -335,6 +353,27 @@ func GetOpenAITools() []map[string]interface{} {
 		{
 			"type": "function",
 			"function": map[string]interface{}{
+				"name":        "deleteShape",
+				"description": "Deletes a shape from the board. Use this to remove shapes, or when transforming a shape to a different type (delete old shape, then add new shape with addShape).",
+				"parameters": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"boardId": map[string]interface{}{
+							"type":        "string",
+							"description": "The UUID of the board containing the shape",
+						},
+						"shapeId": map[string]interface{}{
+							"type":        "string",
+							"description": "The UUID of the shape to delete",
+						},
+					},
+					"required": []string{"boardId", "shapeId"},
+				},
+			},
+		},
+		{
+			"type": "function",
+			"function": map[string]interface{}{
 				"name":        "updateShape",
 				"description": "Updates an existing shape on the board. Requires boardId and shapeId. All other properties are optional and only provided properties will be updated.",
 				"parameters": map[string]interface{}{
@@ -518,6 +557,8 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 	if streamCtx == nil || streamCtx.Hub == nil || streamCtx.Client == nil {
 		return nil, fmt.Errorf("WebSocket connection not available - cannot send shape")
 	}
+
+	libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeShapeStart)
 
 	boardId, ok := input["boardId"].(string)
 	if !ok || boardId == "" {
@@ -710,6 +751,8 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	if streamCtx == nil || streamCtx.Hub == nil || streamCtx.Client == nil {
 		return nil, fmt.Errorf("WebSocket connection not available - cannot send shape update")
 	}
+
+	libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeShapeUpdateStart)
 
 	// Validate and extract boardId
 	boardIdStr, ok := input["boardId"].(string)
@@ -996,6 +1039,72 @@ func GetShapeDetailsHandler(ctx context.Context, input map[string]interface{}) (
 	return result, nil
 }
 
+// DeleteShapeHandler deletes a shape from the board
+func DeleteShapeHandler(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+	// Validate input
+	if len(input) == 0 {
+		return nil, fmt.Errorf("tool input is empty - boardId and shapeId are required")
+	}
+
+	// Get StreamingContext from context
+	streamCtxValue := ctx.Value("streamingContext")
+	if streamCtxValue == nil {
+		return nil, fmt.Errorf("streaming context not available - cannot send shape deletion via WebSocket")
+	}
+
+	streamCtx, ok := streamCtxValue.(*llmHandlers.StreamingContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid streaming context type")
+	}
+
+	if streamCtx == nil || streamCtx.Hub == nil || streamCtx.Client == nil {
+		return nil, fmt.Errorf("WebSocket connection not available - cannot send shape deletion")
+	}
+
+	// Validate boardId
+	boardIdStr, ok := input["boardId"].(string)
+	if !ok || boardIdStr == "" {
+		return nil, fmt.Errorf("boardId is required and must be a non-empty string")
+	}
+
+	boardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid boardId format: %w", err)
+	}
+
+	// Validate shapeId
+	shapeIdStr, ok := input["shapeId"].(string)
+	if !ok || shapeIdStr == "" {
+		return nil, fmt.Errorf("shapeId is required and must be a non-empty string")
+	}
+
+	shapeId, err := uuid.Parse(shapeIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid shapeId format: %w", err)
+	}
+
+	// Delete from database
+	boardDataRepo := repo.NewBoardDataRepository(config.DB)
+	err = boardDataRepo.DeleteShape(boardId, shapeId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete shape: %w", err)
+	}
+
+	// Invalidate annotated image cache
+	if err := InvalidateAnnotatedImageCache(boardId); err != nil {
+		fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+	}
+
+	// Send WebSocket message
+	libraries.SendShapeDeletedMessage(streamCtx.Hub, streamCtx.Client, boardIdStr, shapeIdStr)
+
+	return map[string]interface{}{
+		"success": true,
+		"shapeId": shapeIdStr,
+		"message": "Shape deleted successfully",
+	}, nil
+}
+
 // RegisterAllTools registers all tools with the toolHandlers registry
 func RegisterAllTools() {
 	llmHandlers.RegisterTool("getBoardData", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
@@ -1016,5 +1125,9 @@ func RegisterAllTools() {
 
 	llmHandlers.RegisterTool("getShapeDetails", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 		return GetShapeDetailsHandler(ctx, input)
+	})
+
+	llmHandlers.RegisterTool("deleteShape", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+		return DeleteShapeHandler(ctx, input)
 	})
 }

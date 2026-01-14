@@ -25,6 +25,7 @@ type BoardDataRepoInterface interface {
 	UpdateShapeImageUrl(shapeId string, imageUrl string) error
 	GetBoardData(boardId uuid.UUID) ([]models.BoardData, error)
 	ClearBoardData(boardId uuid.UUID) error
+	DeleteShape(boardId uuid.UUID, shapeId uuid.UUID) error
 	DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error
 	GetNextAnnotationNumber(boardId uuid.UUID) (int, error)
 	GetShapeByUUID(shapeUUID uuid.UUID) (*models.BoardData, error)
@@ -216,6 +217,18 @@ func (r *BoardDataRepo) GetBoardData(boardId uuid.UUID) ([]models.BoardData, err
 
 func (r *BoardDataRepo) ClearBoardData(boardId uuid.UUID) error {
 	return r.db.Where("board_id = ?", boardId).Delete(&models.BoardData{}).Error
+}
+
+// DeleteShape deletes a single shape by its UUID
+func (r *BoardDataRepo) DeleteShape(boardId uuid.UUID, shapeId uuid.UUID) error {
+	result := r.db.Where("board_id = ? AND uuid = ?", boardId, shapeId).Delete(&models.BoardData{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("shape not found")
+	}
+	return nil
 }
 
 func (r *BoardDataRepo) DeleteShapesNotInList(boardId uuid.UUID, shapeUUIDs []uuid.UUID) error {

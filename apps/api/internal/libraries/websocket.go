@@ -22,9 +22,11 @@ const (
 	WebSocketMessageTypeChatResponse WebSocketMessageType = "chat_response"
 	WebSocketMessageTypeChatStarting WebSocketMessageType = "chat_starting"
 	WebSocketMessageTypeChatCompleted WebSocketMessageType = "chat_completed"
-	WebsocketShapeTypeStart WebSocketMessageType = "shape_start"
+	WebSocketMessageTypeShapeStart WebSocketMessageType = "shape_start"
 	WebSocketMessageTypeShapeCreated WebSocketMessageType = "shape_created"
+	WebSocketMessageTypeShapeUpdateStart WebSocketMessageType = "shape_update_start"
 	WebSocketMessageTypeShapeUpdated WebSocketMessageType = "shape_updated"
+	WebSocketMessageTypeShapeDeleted WebSocketMessageType = "shape_deleted"
 	WebSocketMessageTypeBoardRenamed WebSocketMessageType = "board_renamed"
 )
 
@@ -93,6 +95,11 @@ type ShapeCreatedPayload struct {
 type ShapeUpdatedPayload struct {
 	BoardId string                 `json:"board_id"`
 	Shape   map[string]interface{} `json:"shape"`
+}
+
+type ShapeDeletedPayload struct {
+	BoardId string `json:"board_id"`
+	ShapeId string `json:"shape_id"`
 }
 
 type WorkflowConfig struct {
@@ -238,6 +245,23 @@ func SendShapeUpdatedMessage(hub *Hub, client *Client, boardId string, shape map
 		return
 	}
 	hub.SendMessage(client, shapeUpdatedBytes)
+}
+
+// SendShapeDeletedMessage sends a shape deleted message to a client
+func SendShapeDeletedMessage(hub *Hub, client *Client, boardId string, shapeId string) {
+	shapeDeletedResp := WebSocketMessage{
+		Type: WebSocketMessageTypeShapeDeleted,
+		Data: &ShapeDeletedPayload{
+			BoardId: boardId,
+			ShapeId: shapeId,
+		},
+	}
+	shapeDeletedBytes, err := json.Marshal(shapeDeletedResp)
+	if err != nil {
+		log.Println("failed to marshal shape deleted response:", err)
+		return
+	}
+	hub.SendMessage(client, shapeDeletedBytes)
 }
 
 // SendBoardRenamedMessage sends a board renamed message to a client

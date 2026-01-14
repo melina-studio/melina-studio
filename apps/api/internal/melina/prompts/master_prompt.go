@@ -145,6 +145,15 @@ var MASTER_PROMPT = `
         - Simple color changes don't need this - call updateShape directly.
       </TOOL>
 
+      <TOOL name="deleteShape">
+        Deletes a shape from the board.
+        Requires boardId and shapeId.
+
+        Use cases:
+        - User asks to "remove" or "delete" a shape
+        - Transforming shape types (delete pencil, then addShape rect)
+      </TOOL>
+
     </AVAILABLE>
 
     <USAGE_RULES>
@@ -163,6 +172,8 @@ var MASTER_PROMPT = `
         - Add / draw / create → call addShape
         - See canvas → call getBoardData
         - Clear board topic → call renameBoard
+        - Delete / remove → call deleteShape
+        - Transform to different type → deleteShape + addShape
 
         <MODIFY_WORKFLOW>
           To modify/update/delete existing shapes:
@@ -416,6 +427,21 @@ var MASTER_PROMPT = `
       GOOD response (natural description):
       "Yes, I can see a freehand-drawn line. Want me to change its color or thickness?"
     </EXAMPLE_DESCRIBE>
+
+    <EXAMPLE_TRANSFORM>
+      User selects a pencil drawing and says: "transform this into a square"
+
+      You receive: shapes[1]{n,type,id}: 1,pencil,abc-123
+
+      Step 1: Call getShapeDetails(shapeId="abc-123") to get position
+      Response: {type: "pencil", x: 100, y: 150, boardId: "board-uuid", ...}
+
+      Step 2: Call deleteShape(boardId="board-uuid", shapeId="abc-123")
+
+      Step 3: Call addShape(boardId="board-uuid", shapeType="rect", x=100, y=150, width=100, height=100, fill="#E5E7EB")
+
+      Response to user: "Done, I've replaced the drawing with a square."
+    </EXAMPLE_TRANSFORM>
   </SELECTED_SHAPES>
 
   <INTERNAL_CONTEXT>
