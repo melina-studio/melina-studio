@@ -44,7 +44,9 @@ interface AIControllerProps {
   onMessagesChange?: (messages: Message[]) => void;
   initialMessage?: string;
   onInitialMessageSent?: () => void;
-  onShapeImageUrlUpdate?: (shapeId: string, imageUrl: string) => void;
+  onBatchShapeImageUrlUpdate?: (
+    updates: { shapeId: string; imageUrl: string }[]
+  ) => void;
 }
 
 function AIController({
@@ -52,7 +54,7 @@ function AIController({
   onMessagesChange,
   initialMessage,
   onInitialMessageSent,
-  onShapeImageUrlUpdate,
+  onBatchShapeImageUrlUpdate,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -143,6 +145,7 @@ function AIController({
         height: number;
         padding: number;
       };
+      wasNewlyUploaded: boolean;
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
@@ -154,6 +157,7 @@ function AIController({
           selection.shapes.map(
             async (shape): Promise<ShapeImageData | null> => {
               let url = shape.imageUrl;
+              const wasNewlyUploaded = !url;
 
               // Upload if shape doesn't already have an imageUrl
               if (!url) {
@@ -167,11 +171,6 @@ function AIController({
 
               if (!url) return null; // Skip if still no URL
 
-              // Update local shape state with the new imageUrl (only if we just uploaded)
-              if (!shape.imageUrl) {
-                onShapeImageUrlUpdate?.(shape.id, url);
-              }
-
               // Include selection bounds for image annotation on backend
               return {
                 shapeId: shape.id,
@@ -183,6 +182,7 @@ function AIController({
                   height: selection.bounds.height,
                   padding: selection.bounds.padding,
                 },
+                wasNewlyUploaded,
               };
             }
           )
@@ -190,6 +190,18 @@ function AIController({
 
         const results = await Promise.all(uploadPromises);
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
+
+        // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
+        const newlyUploadedShapes = shapeImageUrls.filter(
+          (r) => r.wasNewlyUploaded
+        );
+        if (newlyUploadedShapes.length > 0) {
+          const updates = newlyUploadedShapes.map((r) => ({
+            shapeId: r.shapeId,
+            imageUrl: r.url,
+          }));
+          onBatchShapeImageUrlUpdate?.(updates);
+        }
       } catch (error) {
         console.log("Error uploading selection images:", error);
       }
@@ -210,6 +222,8 @@ function AIController({
           }),
         },
       });
+      // Clear selections after successful send
+      clearSelectionsAction();
     } catch (error) {
       console.log(error);
       // setIsMessageLoading(false);
@@ -217,7 +231,6 @@ function AIController({
       return;
     } finally {
       setLoading(false);
-      clearSelectionsAction();
     }
   };
 
@@ -250,6 +263,7 @@ function AIController({
         height: number;
         padding: number;
       };
+      wasNewlyUploaded: boolean;
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
@@ -260,6 +274,7 @@ function AIController({
           selection.shapes.map(
             async (shape): Promise<ShapeImageData | null> => {
               let url = shape.imageUrl;
+              const wasNewlyUploaded = !url;
 
               // Upload if shape doesn't already have an imageUrl
               if (!url) {
@@ -273,11 +288,6 @@ function AIController({
 
               if (!url) return null; // Skip if still no URL
 
-              // Update local shape state with the new imageUrl (only if we just uploaded)
-              if (!shape.imageUrl) {
-                onShapeImageUrlUpdate?.(shape.id, url);
-              }
-
               // Include selection bounds for image annotation on backend
               return {
                 shapeId: shape.id,
@@ -289,6 +299,7 @@ function AIController({
                   height: selection.bounds.height,
                   padding: selection.bounds.padding,
                 },
+                wasNewlyUploaded,
               };
             }
           )
@@ -296,6 +307,18 @@ function AIController({
 
         const results = await Promise.all(uploadPromises);
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
+
+        // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
+        const newlyUploadedShapes = shapeImageUrls.filter(
+          (r) => r.wasNewlyUploaded
+        );
+        if (newlyUploadedShapes.length > 0) {
+          const updates = newlyUploadedShapes.map((r) => ({
+            shapeId: r.shapeId,
+            imageUrl: r.url,
+          }));
+          onBatchShapeImageUrlUpdate?.(updates);
+        }
       } catch (error) {
         console.log("Error uploading selection images:", error);
       }
@@ -316,7 +339,7 @@ function AIController({
           }),
         },
       });
-      // after sending the message clear the selection
+      // Clear selections after successful send
       clearSelectionsAction();
     } catch (error) {
       console.log(error);

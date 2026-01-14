@@ -15,6 +15,7 @@ export const buildShapes = (data: any): Shape[] => {
       const baseShape = {
         id: shape.uuid,
         type: shape.type,
+        imageUrl: shape.image_url, // Map from backend snake_case to frontend camelCase
       };
 
       if (shape.type === "rect") {

@@ -414,13 +414,17 @@ export default function BoardPage() {
     });
   };
 
-  // Update a shape's imageUrl after uploading to backend
-  const handleShapeImageUrlUpdate = (shapeId: string, imageUrl: string) => {
+  // Batch update multiple shapes' imageUrls at once (avoids race conditions)
+  const handleBatchShapeImageUrlUpdate = (
+    updates: { shapeId: string; imageUrl: string }[]
+  ) => {
+    if (updates.length === 0) return;
     setHistory((cur) => ({
       ...cur,
-      present: cur.present.map((shape) =>
-        shape.id === shapeId ? { ...shape, imageUrl } : shape
-      ),
+      present: cur.present.map((shape) => {
+        const update = updates.find((u) => u.shapeId === shape.id);
+        return update ? { ...shape, imageUrl: update.imageUrl } : shape;
+      }),
     }));
   };
 
@@ -806,7 +810,7 @@ export default function BoardPage() {
                 initialMessageConsumed ? undefined : initialMessage || undefined
               }
               onInitialMessageSent={handleInitialMessageSent}
-              onShapeImageUrlUpdate={handleShapeImageUrlUpdate}
+              onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
             />
           )}
         </div>
