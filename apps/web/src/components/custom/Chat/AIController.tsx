@@ -14,6 +14,7 @@ import {
 import SelectionPill from "./SelectionPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 
 type Message = {
   uuid: string;
@@ -203,7 +204,10 @@ function AIController({
           onBatchShapeImageUrlUpdate?.(updates);
         }
       } catch (error) {
-        console.log("Error uploading selection images:", error);
+        console.error("Error uploading selection images:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to upload images"
+        );
       }
     }
 
@@ -225,8 +229,10 @@ function AIController({
       // Clear selections after successful send
       clearSelectionsAction();
     } catch (error) {
-      console.log(error);
-      // setIsMessageLoading(false);
+      console.error("Error sending message:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send message"
+      );
       humanMessageIdRef.current = null;
       return;
     } finally {
@@ -320,7 +326,10 @@ function AIController({
           onBatchShapeImageUrlUpdate?.(updates);
         }
       } catch (error) {
-        console.log("Error uploading selection images:", error);
+        console.error("Error uploading selection images:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to upload images"
+        );
       }
     }
 
@@ -342,7 +351,10 @@ function AIController({
       // Clear selections after successful send
       clearSelectionsAction();
     } catch (error) {
-      console.log(error);
+      console.error("Error sending message:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send message"
+      );
       humanMessageIdRef.current = null;
     } finally {
       setLoading(false);

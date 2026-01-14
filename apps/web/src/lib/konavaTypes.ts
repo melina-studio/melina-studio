@@ -2,7 +2,7 @@ import {
   Circle,
   Eraser,
   Hand,
-  Minus,
+  Slash,
   MoveUpRight,
   PencilLine,
   Square,
@@ -64,21 +64,21 @@ export const ACTION_BUTTONS = [
   //   label: "Arrow",
   //   value: ACTIONS.ARROW,
   // },
-  // {
-  //   icon: Minus,
-  //   label: "Line",
-  //   value: ACTIONS.LINE,
-  // },
+  {
+    icon: Slash,
+    label: "Line",
+    value: ACTIONS.LINE,
+  },
   {
     icon: TypeOutline,
     label: "Text",
     value: ACTIONS.TEXT,
   },
-  {
-    icon: Image,
-    label: "Image",
-    value: ACTIONS.IMAGE,
-  },
+  // {
+  //   icon: Image,
+  //   label: "Image",
+  //   value: ACTIONS.IMAGE,
+  // },
   {
     icon: Eraser,
     label: "Eraser",

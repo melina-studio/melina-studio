@@ -245,7 +245,14 @@ export default function BoardPage() {
           thumbnailSaveCalledRef.current = true;
           updateBoardByIdRef
             .current(currentId, { saveThumbnail: true })
-            .catch(console.error);
+            .catch((error) => {
+              console.error("Thumbnail save failed:", error);
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to save thumbnail"
+              );
+            });
         }
       }, 100);
     };
@@ -273,6 +280,9 @@ export default function BoardPage() {
         setChatHistory(chatHistory?.chats);
       } catch (error) {
         console.error("Failed fetching board data:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load board data"
+        );
       }
     };
 
@@ -513,6 +523,9 @@ export default function BoardPage() {
         );
       } catch (error) {
         console.error("Save failed:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to save board"
+        );
         throw error;
       } finally {
         pendingSaveRef.current.isSaving = false;
@@ -684,7 +697,10 @@ export default function BoardPage() {
       await clearBoardData(id);
       setShapesWithHistory([]);
     } catch (error) {
-      console.error(error);
+      console.error("Clear board failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to clear board"
+      );
     }
   };
 

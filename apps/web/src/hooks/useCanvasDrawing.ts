@@ -169,6 +169,12 @@ export const useCanvasDrawing = (
         const r = Math.hypot(dx, dy);
         return [...arr.slice(0, -1), { ...last, r }];
       }
+      if (last.type === "line" || last.type === "arrow") {
+        // For line/arrow, update to draw from start point to current point
+        const startX = last.points[0];
+        const startY = last.points[1];
+        return [...arr.slice(0, -1), { ...last, points: [startX, startY, pos.x, pos.y] }];
+      }
       return arr;
     });
 
@@ -195,11 +201,13 @@ export const useCanvasDrawing = (
           const r = Math.hypot(dx, dy);
           return [...arr.slice(0, -1), { ...last, r }];
         }
-        if (
-          last.type === "line" ||
-          last.type === "arrow" ||
-          last.type === "eraser"
-        ) {
+        if (last.type === "line" || last.type === "arrow") {
+          // For line/arrow, update to draw from start point to current point (straight line)
+          const startX = last.points[0];
+          const startY = last.points[1];
+          return [...arr.slice(0, -1), { ...last, points: [startX, startY, pos.x, pos.y] }];
+        }
+        if (last.type === "eraser") {
           const newPoints = (last.points || []).concat([pos.x, pos.y]);
           return [...arr.slice(0, -1), { ...last, points: newPoints }];
         }
