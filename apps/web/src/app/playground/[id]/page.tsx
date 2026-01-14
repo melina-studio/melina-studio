@@ -396,6 +396,16 @@ export default function BoardPage() {
     });
   };
 
+  // Update a shape's imageUrl after uploading to backend
+  const handleShapeImageUrlUpdate = (shapeId: string, imageUrl: string) => {
+    setHistory((cur) => ({
+      ...cur,
+      present: cur.present.map((shape) =>
+        shape.id === shapeId ? { ...shape, imageUrl } : shape
+      ),
+    }));
+  };
+
   const undo = () => {
     setHistory((cur) => {
       if (cur.past.length === 0) return cur;
@@ -738,6 +748,7 @@ export default function BoardPage() {
                 initialMessageConsumed ? undefined : initialMessage || undefined
               }
               onInitialMessageSent={handleInitialMessageSent}
+              onShapeImageUrlUpdate={handleShapeImageUrlUpdate}
             />
           )}
         </div>

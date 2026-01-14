@@ -24,7 +24,7 @@ export const SelectionButtons: React.FC<SelectionButtonsProps> = ({
         left: `${buttonPosition.x}px`,
         top: `${buttonPosition.y}px`,
         transform: "translateY(-50%)",
-        zIndex: 40,
+        zIndex: 5,
       }}
       className="
         flex flex-col items-center gap-0.5

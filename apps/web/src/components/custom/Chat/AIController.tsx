@@ -1,4 +1,4 @@
-import { Bot, SendHorizontal, X } from "lucide-react";
+import { Bot, Loader2, SendHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -9,6 +9,7 @@ import { useWebsocket } from "@/hooks/useWebsocket";
 import { selectSelections, useSelectionStore } from "@/store/useSelection";
 import SelectionPill from "./SelectionPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
+import { Spinner } from "@/components/ui/spinner";
 
 type Message = {
   uuid: string;
@@ -39,6 +40,7 @@ interface AIControllerProps {
   onMessagesChange?: (messages: Message[]) => void;
   initialMessage?: string;
   onInitialMessageSent?: () => void;
+  onShapeImageUrlUpdate?: (shapeId: string, imageUrl: string) => void;
 }
 
 function AIController({
@@ -46,8 +48,10 @@ function AIController({
   onMessagesChange,
   initialMessage,
   onInitialMessageSent,
+  onShapeImageUrlUpdate,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
+  const [loading, setLoading] = useState(false);
 
   // Sync chatHistory from parent to local state when it changes
   // This handles the case where API fetches messages after component mounts
@@ -120,33 +124,68 @@ function AIController({
     const { activeModel, temperature, maxTokens, theme } = settingsObj;
 
     // Upload images for each shape in selections that don't already have an imageUrl
-    // Backend saves imageUrl per shape, so if a selection has 2 shapes, we upload 2 times
-    let shapeImageUrls: { shapeId: string; url: string }[] = [];
+    // Backend will annotate images and fetch full shape data from DB
+    type ShapeImageData = {
+      shapeId: string;
+      url: string;
+      bounds: {
+        minX: number;
+        minY: number;
+        width: number;
+        height: number;
+        padding: number;
+      };
+    };
+    let shapeImageUrls: ShapeImageData[] = [];
 
     if (selections.length > 0) {
+      setLoading(true);
       try {
         // Flatten all shapes from all selections and upload for each
         const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(async (shape) => {
-            // Skip upload if shape already has an imageUrl
-            if (shape.imageUrl) {
-              return { shapeId: shape.id, url: shape.imageUrl };
+          selection.shapes.map(
+            async (shape): Promise<ShapeImageData | null> => {
+              let url = shape.imageUrl;
+
+              // Upload if shape doesn't already have an imageUrl
+              if (!url) {
+                const response = await uploadSelectionImageToBackend(
+                  boardId,
+                  shape.id,
+                  selection.image.dataURL
+                );
+                url = response.url;
+              }
+
+              if (!url) return null; // Skip if still no URL
+
+              // Update local shape state with the new imageUrl (only if we just uploaded)
+              if (!shape.imageUrl) {
+                onShapeImageUrlUpdate?.(shape.id, url);
+              }
+
+              // Include selection bounds for image annotation on backend
+              return {
+                shapeId: shape.id,
+                url,
+                bounds: {
+                  minX: selection.bounds.minX,
+                  minY: selection.bounds.minY,
+                  width: selection.bounds.width,
+                  height: selection.bounds.height,
+                  padding: selection.bounds.padding,
+                },
+              };
             }
-
-            // Upload to backend and get URL (backend saves to this shape)
-            const response = await uploadSelectionImageToBackend(
-              boardId,
-              shape.id,
-              selection.image.dataURL
-            );
-
-            return { shapeId: shape.id, url: response.url };
-          })
+          )
         );
 
-        shapeImageUrls = await Promise.all(uploadPromises);
+        const results = await Promise.all(uploadPromises);
+        shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
       } catch (error) {
         console.log("Error uploading selection images:", error);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -160,7 +199,9 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
-          shape_image_urls: shapeImageUrls,
+          ...(shapeImageUrls.length > 0 && {
+            metadata: { shape_image_urls: shapeImageUrls },
+          }),
         },
       });
     } catch (error) {
@@ -189,32 +230,67 @@ function AIController({
     const { activeModel, temperature, maxTokens, theme } = settingsObj;
 
     // Upload images for each shape in selections that don't already have an imageUrl
-    // Backend saves imageUrl per shape, so if a selection has 2 shapes, we upload 2 times
-    let shapeImageUrls: { shapeId: string; url: string }[] = [];
+    // Backend will annotate images and fetch full shape data from DB
+    type ShapeImageData = {
+      shapeId: string;
+      url: string;
+      bounds: {
+        minX: number;
+        minY: number;
+        width: number;
+        height: number;
+        padding: number;
+      };
+    };
+    let shapeImageUrls: ShapeImageData[] = [];
 
     if (selections.length > 0) {
+      setLoading(true);
       try {
         const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(async (shape) => {
-            // Skip upload if shape already has an imageUrl
-            if (shape.imageUrl) {
-              return { shapeId: shape.id, url: shape.imageUrl };
+          selection.shapes.map(
+            async (shape): Promise<ShapeImageData | null> => {
+              let url = shape.imageUrl;
+
+              // Upload if shape doesn't already have an imageUrl
+              if (!url) {
+                const response = await uploadSelectionImageToBackend(
+                  boardId,
+                  shape.id,
+                  selection.image.dataURL
+                );
+                url = response.url;
+              }
+
+              if (!url) return null; // Skip if still no URL
+
+              // Update local shape state with the new imageUrl (only if we just uploaded)
+              if (!shape.imageUrl) {
+                onShapeImageUrlUpdate?.(shape.id, url);
+              }
+
+              // Include selection bounds for image annotation on backend
+              return {
+                shapeId: shape.id,
+                url,
+                bounds: {
+                  minX: selection.bounds.minX,
+                  minY: selection.bounds.minY,
+                  width: selection.bounds.width,
+                  height: selection.bounds.height,
+                  padding: selection.bounds.padding,
+                },
+              };
             }
-
-            // Upload to backend and get URL (backend saves to this shape)
-            const response = await uploadSelectionImageToBackend(
-              boardId,
-              shape.id,
-              selection.image.dataURL
-            );
-
-            return { shapeId: shape.id, url: response.url };
-          })
+          )
         );
 
-        shapeImageUrls = await Promise.all(uploadPromises);
+        const results = await Promise.all(uploadPromises);
+        shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
       } catch (error) {
         console.log("Error uploading selection images:", error);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -228,7 +304,9 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
-          shape_image_urls: shapeImageUrls,
+          ...(shapeImageUrls.length > 0 && {
+            metadata: { shape_image_urls: shapeImageUrls },
+          }),
         },
       });
     } catch (error) {
@@ -473,11 +551,19 @@ function AIController({
               onClick={(e: React.MouseEvent<HTMLDivElement>) =>
                 handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
               }
+              className="bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center"
             >
-              <SendHorizontal
-                className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
-                color="gray"
-              />
+              {loading ? (
+                <Spinner
+                  className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
+                  color="gray"
+                />
+              ) : (
+                <SendHorizontal
+                  className="w-5 h-5 cursor-pointer shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
+                  color="gray"
+                />
+              )}
             </div>
           </div>
         </div>
