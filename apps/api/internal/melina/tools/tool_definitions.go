@@ -121,6 +121,20 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
+			"name": "getShapeDetails",
+			"description": "Gets the full details of a specific shape by its ID. Use this when you need to know a shape's current properties (size, position, color, points, etc.) before modifying it. For example, to 'make it twice as big', first call this to get current size, then call updateShape with the new size.",
+			"input_schema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"shapeId": map[string]interface{}{
+						"type":        "string",
+						"description": "The UUID of the shape to get details for",
+					},
+				},
+				"required": []string{"shapeId"},
+			},
+		},
+		{
 			"name": "updateShape",
 			"description": "Updates an existing shape on the board. Requires boardId and shapeId. All other properties are optional and only provided properties will be updated.",
 			"input_schema": map[string]interface{}{
@@ -298,6 +312,23 @@ func GetOpenAITools() []map[string]interface{} {
 						},
 					},
 					"required": []string{"boardId", "newName"},
+				},
+			},
+		},
+		{
+			"type": "function",
+			"function": map[string]interface{}{
+				"name":        "getShapeDetails",
+				"description": "Gets the full details of a specific shape by its ID. Use this when you need to know a shape's current properties (size, position, color, points, etc.) before modifying it. For example, to 'make it twice as big', first call this to get current size, then call updateShape with the new size.",
+				"parameters": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"shapeId": map[string]interface{}{
+							"type":        "string",
+							"description": "The UUID of the shape to get details for",
+						},
+					},
+					"required": []string{"shapeId"},
 				},
 			},
 		},
@@ -918,6 +949,53 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	}, nil
 }
 
+// GetShapeDetailsHandler fetches full details of a shape by its ID
+// Used when the LLM needs to know current properties before modifying (e.g., "make it twice as big")
+func GetShapeDetailsHandler(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+	shapeIdStr, ok := input["shapeId"].(string)
+	if !ok || shapeIdStr == "" {
+		return nil, fmt.Errorf("shapeId is required and must be a non-empty string")
+	}
+
+	shapeId, err := uuid.Parse(shapeIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid shapeId format: %w", err)
+	}
+
+	// Fetch shape from database
+	boardDataRepo := repo.NewBoardDataRepository(config.DB)
+	shapes, err := boardDataRepo.GetShapesByUUIDs([]uuid.UUID{shapeId})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch shape: %w", err)
+	}
+
+	if len(shapes) == 0 {
+		return nil, fmt.Errorf("shape with id %s not found", shapeIdStr)
+	}
+
+	shape := shapes[0]
+
+	// Parse the JSON data field
+	var dataMap map[string]interface{}
+	if err := json.Unmarshal(shape.Data, &dataMap); err != nil {
+		return nil, fmt.Errorf("failed to parse shape data: %w", err)
+	}
+
+	// Build response with shape details
+	result := map[string]interface{}{
+		"shapeId": shapeIdStr,
+		"type":    string(shape.Type),
+		"boardId": shape.BoardId.String(),
+	}
+
+	// Copy all properties from data (x, y, w, h, r, fill, stroke, points, etc.)
+	for k, v := range dataMap {
+		result[k] = v
+	}
+
+	return result, nil
+}
+
 // RegisterAllTools registers all tools with the toolHandlers registry
 func RegisterAllTools() {
 	llmHandlers.RegisterTool("getBoardData", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
@@ -934,5 +1012,9 @@ func RegisterAllTools() {
 
 	llmHandlers.RegisterTool("updateShape", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 		return UpdateShapeHandler(ctx, input)
+	})
+
+	llmHandlers.RegisterTool("getShapeDetails", func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
+		return GetShapeDetailsHandler(ctx, input)
 	})
 }

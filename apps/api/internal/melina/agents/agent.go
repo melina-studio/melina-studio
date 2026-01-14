@@ -128,7 +128,16 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 // boardId can be empty string if no image should be included
 // client can be nil if streaming is not needed
 // selections contains annotated selection images with shape data (can be nil or empty)
-func (a *Agent) ProcessRequestStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, message string, chatHistory []llmHandlers.Message, boardId string, activeTheme string, selections interface{}) (string, error) {
+func (a *Agent) ProcessRequestStream(
+	ctx context.Context, 
+	hub *libraries.Hub, 
+	client *libraries.Client, 
+	message string, 
+	chatHistory []llmHandlers.Message, 
+	boardId string, 
+	activeTheme string, 
+	selections interface{}) (string, error) {
+		
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
 

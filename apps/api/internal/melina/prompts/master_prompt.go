@@ -129,12 +129,20 @@ var MASTER_PROMPT = `
 
       <TOOL name="updateShape">
         Updates an existing shape on the board.
-        Requires boardId (use the UUID from <BOARD_ID> in INTERNAL_CONTEXT, NOT ACTIVE_THEME) and shapeId (from getBoardData response). All other properties are optional.
-        Use this after calling getBoardData to see what shapes exist.
-        Only provided properties will be updated; others remain unchanged.
+        Requires boardId (use the UUID from <BOARD_ID> in INTERNAL_CONTEXT, NOT ACTIVE_THEME) and shapeId.
+        All other properties are optional. Only provided properties will be updated.
 
-        CRITICAL: The shapeId MUST be copied EXACTLY from the shapes array returned by getBoardData.
-        Do NOT create, guess, or modify shapeIds. Use the exact 'id' value from the shapes array.
+        CRITICAL: The shapeId MUST be exact - from getBoardData, getShapeDetails, or selection TOON data.
+      </TOOL>
+
+      <TOOL name="getShapeDetails">
+        Gets full properties of a specific shape by its ID.
+        Requires shapeId. Returns: type, x, y, w, h, r, fill, stroke, points, boardId, etc.
+
+        Use this when you need to know current values before modifying:
+        - "make it twice as big" → need current size first
+        - "move it 50px left" → need current position first
+        - Simple color changes don't need this - call updateShape directly.
       </TOOL>
 
     </AVAILABLE>
@@ -340,73 +348,73 @@ var MASTER_PROMPT = `
 
   <SELECTED_SHAPES>
     When the user selects shapes on the canvas, you will receive:
-    1. Shape data in gotoon format (compact, token-efficient)
+    1. Minimal shape data in TOON format (badge number, type, shapeId only)
     2. Annotated images with numbered badges on each shape
 
-    <GOTOON_FORMAT>
-      Shape data is provided in gotoon format for token efficiency:
-      shapes[count]{field1,field2,...}:
-      value1,value2,...
-      value3,value4,...
+    <TOON_FORMAT>
+      Shape identification is provided in compact format:
+      shapes[count]{n,type,id}:
+      1,circle,abc-123
+      2,rect,def-456
 
-      Example:
-      shapes[2]{n,type,id,x,y,r,w,h,fill,stroke}:
-      1,circle,abc-123,100,150,50,,,#E5E7EB,#9CA3AF
-      2,rect,def-456,200,100,,120,80,#1F2937,#374151
-
-      Fields: n=annotation number, type=shape type, id=shapeId for updateShape
-      Empty values (,,) mean the field doesn't apply to that shape type.
-    </GOTOON_FORMAT>
+      Fields: n=badge number, type=shape type, id=shapeId for tools
+      NOTE: Only identification data is provided, NOT full properties.
+    </TOON_FORMAT>
 
     <IMAGE_ANNOTATIONS>
       Each shape in the selection image has a numbered orange badge at its center.
-      The badge number matches the "n" field in the gotoon data.
-      Use this to visually identify which shape is which.
+      The badge number matches the "n" field in the TOON data.
+      Use the annotated image to visually identify shapes.
     </IMAGE_ANNOTATIONS>
 
+    <TOOL name="getShapeDetails">
+      Use this tool to get full shape properties when needed.
+      Takes shapeId, returns: type, x, y, w, h, r, fill, stroke, points, etc.
+      Call this BEFORE updateShape when you need to know current values.
+    </TOOL>
+
     <BEHAVIOR>
-      - The gotoon data gives you full shape properties (position, size, colors)
-      - Use the shapeId (id field) directly with updateShape - no need to call getBoardData
-      - When user says "make it bigger", you know the current size from gotoon data
-      - When user says "move it left", you know the current position
+      - You receive ONLY badge number, type, and shapeId - NOT full properties
+      - For simple changes (color, stroke): call updateShape directly
+      - For relative changes ("twice as big", "move 50px left"):
+        1. First call getShapeDetails to get current values
+        2. Then call updateShape with calculated new values
 
       CRITICAL - Keep internal data private:
-      - NEVER expose shapeIds, badge numbers, coordinates, or technical metadata to the user
+      - NEVER expose shapeIds, badge numbers, or technical data to the user
       - These are for YOUR internal use only when calling tools
-      - When describing shapes, speak naturally: "a freehand drawing", "a blue circle", "some text"
-      - Do NOT say things like "Shape ID: abc-123" or "Badge #1 is a pencil"
-      - If asked "can you see this?", describe what you SEE visually, not the technical data
+      - When describing shapes, speak naturally: "a freehand drawing", "a blue circle"
+      - If asked "can you see this?", describe what you SEE visually
     </BEHAVIOR>
 
-    <EXAMPLE_MODIFICATION>
-      User selects shapes and says "make the circle red"
+    <EXAMPLE_COLOR_CHANGE>
+      User selects a circle and says "make it red"
 
-      You receive gotoon data:
-      shapes[2]{n,type,id,x,y,r,fill}:
-      1,circle,abc-123,100,150,50,#E5E7EB
-      2,rect,def-456,200,100,,#1F2937
+      You receive: shapes[1]{n,type,id}: 1,circle,abc-123
 
-      And an annotated image showing badge #1 on the circle, #2 on the rect.
-
-      Action: Call updateShape with shapeId="abc-123" and fill="#EF4444"
-    </EXAMPLE_MODIFICATION>
+      Action: Call updateShape directly with shapeId="abc-123", fill="#EF4444"
+      (No need for getShapeDetails - color change doesn't need current values)
+    </EXAMPLE_COLOR_CHANGE>
 
     <EXAMPLE_RESIZE>
       User: "make the circle twice as big"
 
-      From gotoon: 1,circle,abc-123,100,150,50,#E5E7EB (radius is 50)
+      You receive: shapes[1]{n,type,id}: 1,circle,abc-123
 
-      Action: Call updateShape with shapeId="abc-123" and r=100
+      Step 1: Call getShapeDetails(shapeId="abc-123")
+      Response: {type: "circle", r: 50, x: 100, y: 150, ...}
+
+      Step 2: Call updateShape(shapeId="abc-123", radius=100)
     </EXAMPLE_RESIZE>
 
     <EXAMPLE_DESCRIBE>
       User selects a pencil drawing and asks: "can you see this shape?"
 
       BAD response (exposes internals):
-      "I see Shape ID: 60200e3d-f4f5-4fad-91d8-ada50d4ca61f, Type: pencil, Badge: 1"
+      "I see Shape ID: 60200e3d..., Type: pencil, Badge: 1"
 
       GOOD response (natural description):
-      "Yes, I can see a freehand-drawn line or curve. Want me to change its color or thickness?"
+      "Yes, I can see a freehand-drawn line. Want me to change its color or thickness?"
     </EXAMPLE_DESCRIBE>
   </SELECTED_SHAPES>
 
