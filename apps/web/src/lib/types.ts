@@ -1,3 +1,5 @@
+import { Shape } from "@/lib/konavaTypes";
+
 export type Board = {
   uuid: string;
   title: string;
@@ -14,4 +16,23 @@ export type UpdateBoardPayload = {
   thumbnail?: string;
   starred?: boolean;
   saveThumbnail?: boolean;
+};
+
+export type ShapeSelection = {
+  id: string;
+  shapes: Shape[];
+  image: {
+    blob: Blob;
+    dataURL: string;
+    mimeType: string;
+  };
+  bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    width: number;
+    height: number;
+    padding: number;
+  };
 };

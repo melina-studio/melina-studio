@@ -7,7 +7,7 @@ import { ProcessingRequest } from "@/components/custom/Loader/ProcessingRequest"
 import { BoardsHeader } from "@/components/custom/Boards/BoardsHeader";
 import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
 import { CreationInput } from "@/components/custom/Boards/CreationInput";
-import type { Board } from "@/components/custom/Boards/types";
+import type { Board } from "@/lib/types";
 import { useBoard } from "@/hooks/useBoard";
 import { Ripple } from "@/components/ui/aceternity/Ripple";
 
@@ -97,7 +97,6 @@ function Playground() {
     }
     fetchData();
   }, [theme, fetchStarredBoards, getAllBoards]);
-
 
   if (loading && boards.length === 0) {
     return (

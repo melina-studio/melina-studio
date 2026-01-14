@@ -23,7 +23,7 @@ import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { useBoard } from "@/hooks/useBoard";
-import { Board } from "../Boards/types";
+import { Board } from "../../../lib/types";
 
 type MelinaStatus = "idle" | "thinking" | "editing";
 

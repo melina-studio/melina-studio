@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { Board } from "./types";
+import type { Board } from "../../../lib/types";
 import { formatRelativeTime, getBoardInitials } from "./utils";
 
 interface BoardCardProps {

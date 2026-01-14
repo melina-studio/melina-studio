@@ -1,6 +1,6 @@
 import axios from "axios";
 import { BaseURL } from "@/lib/constants";
-import { UpdateBoardPayload } from "@/components/custom/Boards/types";
+import { UpdateBoardPayload } from "@/lib/types";
 
 export const createBoard = async (
   userId: string,

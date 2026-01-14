@@ -2,7 +2,7 @@
 
 import { NewBoardCard } from "./NewBoardCard";
 import { BoardCard } from "./BoardCard";
-import type { Board } from "./types";
+import type { Board } from "../../../lib/types";
 
 interface BoardGridProps {
   boards: Board[];

@@ -37,7 +37,7 @@ import { useWebsocket } from "@/hooks/useWebsocket";
 import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
 import CanvasHeader from "@/components/custom/General/CanvasHeader";
 import { useBoard } from "@/hooks/useBoard";
-import type { Board } from "@/components/custom/Boards/types";
+import type { Board } from "@/lib/types";
 
 // types
 type History = {
@@ -233,7 +233,9 @@ export default function BoardPage() {
       cleanupTimeoutRef.current = setTimeout(() => {
         if (!thumbnailSaveCalledRef.current) {
           thumbnailSaveCalledRef.current = true;
-          updateBoardByIdRef.current(currentId, { saveThumbnail: true }).catch(console.error);
+          updateBoardByIdRef
+            .current(currentId, { saveThumbnail: true })
+            .catch(console.error);
         }
       }, 100);
     };

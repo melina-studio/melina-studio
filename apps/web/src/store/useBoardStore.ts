@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Board } from "@/components/custom/Boards/types";
+import type { Board } from "@/lib/types";
 
 interface BoardStoreState {
   currentBoard: Board | null;

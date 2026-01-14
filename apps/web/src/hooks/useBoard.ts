@@ -1,4 +1,4 @@
-import { Board, SortOption } from "@/components/custom/Boards/types";
+import { Board, SortOption } from "@/lib/types";
 import { USER_ID } from "@/lib/constants";
 import {
   createBoard,
@@ -9,7 +9,7 @@ import {
 } from "@/service/boardService";
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
-import { UpdateBoardPayload } from "@/components/custom/Boards/types";
+import { UpdateBoardPayload } from "@/lib/types";
 
 export const useBoard = () => {
   const [board, setBoard] = useState<Board | null>(null);
