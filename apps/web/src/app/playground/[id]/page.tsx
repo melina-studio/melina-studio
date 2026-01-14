@@ -71,6 +71,14 @@ type ShapeUpdatedEvent = {
   };
 };
 
+type ShapeDeletedEvent = {
+  type: "shape_deleted";
+  data: {
+    board_id: string;
+    shape_id: string;
+  };
+};
+
 export type Settings = {
   activeModel: string;
   temperature: number;
@@ -620,9 +628,46 @@ export default function BoardPage() {
       }
     );
 
+    // listen for shape update start event
+    const unsubscribeShapeUpdateStart = subscribe("shape_update_start", () => {
+      // console.log("Shape update start:", data);
+      toast.info("Updating shapes");
+      setMelinaStatus("editing");
+      setTimeout(() => setMelinaStatus("idle"), 1000);
+    });
+
+    // listen for shape deleted event
+    const unsubscribeShapeDeleted = subscribe(
+      "shape_deleted",
+      (data: ShapeDeletedEvent) => {
+        console.log("Shape deleted:", data);
+        const { shape_id } = data.data;
+        setHistory((cur) => {
+          const currentShapes = cloneShapes(cur.present);
+          const newShapes = currentShapes.filter((s) => s.id !== shape_id);
+          return {
+            past: cur.past,
+            present: cloneShapes(newShapes),
+            future: cur.future,
+          };
+        });
+      }
+    );
+
+    // listen for shape creation start event
+    const unsubscribeShapeCreationStart = subscribe("shape_start", () => {
+      // console.log("Shape creation start:", data);
+      toast.info("Adding new shapes to the board");
+      setMelinaStatus("editing");
+      setTimeout(() => setMelinaStatus("idle"), 1000);
+    });
+
     return () => {
       unsubscribeBoardUpdates();
       unsubscribeShapeUpdated();
+      unsubscribeShapeUpdateStart();
+      unsubscribeShapeDeleted();
+      unsubscribeShapeCreationStart();
       // Clean up any pending save timeout on unmount
       if (pendingSaveRef.current.timeoutId) {
         clearTimeout(pendingSaveRef.current.timeoutId);
@@ -671,8 +716,8 @@ export default function BoardPage() {
         handleGetBoardState={handleGetBoardState}
         melinaStatus={melinaStatus}
       />
-      <div className="fixed top-13 left-1/2 -translate-x-1/2 z-50">
-        <Toaster position="top-center" />
+      <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50">
+        <Toaster position="top-center" gap={8} />
       </div>
 
       {/* controls */}

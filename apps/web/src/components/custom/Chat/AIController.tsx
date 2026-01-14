@@ -342,6 +342,8 @@ function AIController({
   useEffect(() => {
     const unsubscribeChatStart = subscribe("chat_starting", () => {
       setIsMessageLoading(true);
+      setLoading(true);
+
       // Create temporary AI message ID, but don't create the message yet
       // Wait for first chunk to arrive before creating the message bubble
       const aiId = crypto.randomUUID();
@@ -389,7 +391,6 @@ function AIController({
     const unsubscribeChatResponse = subscribe(
       "chat_response",
       (data: ChatResponse) => {
-        setLoading(true);
         const { message } = data.data;
 
         const currentAiId = aiMessageIdRef.current;

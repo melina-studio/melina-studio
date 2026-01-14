@@ -10,6 +10,8 @@ export type WebSocketMessage = {
     | "board_renamed"
     | "shape_created"
     | "shape_start"
-    | "shape_updated";
+    | "shape_updated"
+    | "shape_update_start"
+    | "shape_deleted";
   data: any;
 };
