@@ -10,15 +10,16 @@ import (
 type Type string
 
 const (
-	Rect   Type = "rect"
-	Circle Type = "circle"
-	Pencil Type = "pencil"
-	Text   Type = "text"
-	Image  Type = "image"
-	Line   Type = "line"
-	Arrow  Type = "arrow"
+	Rect    Type = "rect"
+	Circle  Type = "circle"
+	Pencil  Type = "pencil"
+	Text    Type = "text"
+	Image   Type = "image"
+	Line    Type = "line"
+	Arrow   Type = "arrow"
 	Ellipse Type = "ellipse"
 	Polygon Type = "polygon"
+	Path    Type = "path"
 )
 
 type BoardData struct {
@@ -47,4 +48,5 @@ type Shape struct {
 	Text        *string    `json:"text,omitempty"`
 	FontSize    *float64   `json:"fontSize,omitempty"`
 	FontFamily  *string    `json:"fontFamily,omitempty"`
+	Data        *string    `json:"data,omitempty"` // SVG path data string for path shapes
 }

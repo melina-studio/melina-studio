@@ -36,7 +36,7 @@ func GetAnthropicTools() []map[string]interface{} {
 		},
 		{
 			"name": "addShape",
-			"description": "Adds a shape to the board in react konva format. Supports rect, circle, line, arrow, ellipse, polygon, text, and pencil. For complex shapes like animals, break them down into multiple basic shapes. The shape will appear on the board immediately.",
+			"description": "Adds a shape to the board in react konva format. Supports rect, circle, line, arrow, ellipse, polygon, text, pencil, and path (SVG). For complex shapes like animals, break them down into multiple basic shapes. Use 'path' type with SVG path data for complex vector graphics - IMPORTANT: 'data' parameter with SVG path string (e.g., 'M10 10 L90 90 Z') is REQUIRED for path shapes. The shape will appear on the board immediately.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -46,8 +46,8 @@ func GetAnthropicTools() []map[string]interface{} {
 					},
 					"shapeType": map[string]interface{}{
 						"type": "string",
-						"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil"},
-						"description": "Type of shape to create",
+						"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path"},
+						"description": "Type of shape to create. Use 'path' for SVG path shapes.",
 					},
 					"x": map[string]interface{}{
 						"type":        "number",
@@ -97,6 +97,10 @@ func GetAnthropicTools() []map[string]interface{} {
 						"type": "array",
 						"items": map[string]interface{}{"type": "number"},
 						"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil",
+					},
+					"data": map[string]interface{}{
+						"type":        "string",
+						"description": "SVG path data string (REQUIRED for path shapes). Must be a valid SVG path like 'M10 10 L90 90 L10 90 Z' (triangle) or 'M50 10 C20 40 80 40 50 10 Z' (heart). Without this, path shapes will not render.",
 					},
 				},
 				"required": []string{"boardId", "shapeType", "x", "y"},
@@ -245,7 +249,7 @@ func GetOpenAITools() []map[string]interface{} {
 			"type": "function",
 			"function": map[string]interface{}{
 				"name":        "addShape",
-				"description": "Adds a shape to the board in react konva format. Supports rect, circle, line, arrow, ellipse, polygon, text, and pencil. For complex shapes like animals, break them down into multiple basic shapes. The shape will appear on the board immediately.",
+				"description": "Adds a shape to the board in react konva format. Supports rect, circle, line, arrow, ellipse, polygon, text, pencil, and path (SVG). For complex shapes like animals, break them down into multiple basic shapes. Use 'path' type with SVG path data for complex vector graphics - IMPORTANT: 'data' parameter with SVG path string (e.g., 'M10 10 L90 90 Z') is REQUIRED for path shapes. The shape will appear on the board immediately.",
 				"parameters": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -255,8 +259,8 @@ func GetOpenAITools() []map[string]interface{} {
 						},
 						"shapeType": map[string]interface{}{
 							"type": "string",
-							"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil"},
-							"description": "Type of shape to create",
+							"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path"},
+							"description": "Type of shape to create. Use 'path' for SVG path shapes.",
 						},
 						"x": map[string]interface{}{
 							"type":        "number",
@@ -306,6 +310,10 @@ func GetOpenAITools() []map[string]interface{} {
 							"type": "array",
 							"items": map[string]interface{}{"type": "number"},
 							"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil",
+						},
+						"data": map[string]interface{}{
+							"type":        "string",
+							"description": "SVG path data string (REQUIRED for path shapes). Must be a valid SVG path like 'M10 10 L90 90 L10 90 Z' (triangle) or 'M50 10 C20 40 80 40 50 10 Z' (heart). Without this, path shapes will not render.",
 						},
 					},
 					"required": []string{"boardId", "shapeType", "x", "y"},
@@ -572,14 +580,15 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 	
 	// validate shape type
 	validateTypes := map[string]bool{
-		"rect": true,
-		"circle": true,
-		"line": true,
-		"arrow": true,
+		"rect":    true,
+		"circle":  true,
+		"line":    true,
+		"arrow":   true,
 		"ellipse": true,
 		"polygon": true,
-		"text": true,
-		"pencil": true,
+		"text":    true,
+		"pencil":  true,
+		"path":    true,
 	}
 	if !validateTypes[shapeType] {
 		return nil, fmt.Errorf("invalid shape type: %s", shapeType)
@@ -644,6 +653,12 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		if fontFamily, ok := input["fontFamily"].(string); ok && fontFamily != "" {
 			shape["fontFamily"] = fontFamily
 		}
+	case "path":
+		data, ok := input["data"].(string)
+		if !ok || data == "" {
+			return nil, fmt.Errorf("'data' property with SVG path string (e.g., 'M10 10 L90 90 Z') is required for path shapes")
+		}
+		shape["data"] = data
 	}
 
 	// Add styling properties (optional)

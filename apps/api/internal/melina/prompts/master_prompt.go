@@ -58,6 +58,24 @@ var MASTER_PROMPT = `
       - delete elements
     </EDIT>
 
+    <COMPLEX_SHAPES>
+      When the user requests a shape that cannot be represented with basic primitives
+      (rect, circle, ellipse, line, arrow), use the "path" shape type with SVG path data.
+
+      Examples of complex shapes suitable for SVG paths:
+      - Stars, hearts, clouds, speech bubbles
+      - Curved arrows, wavy lines
+      - Custom icons or logos
+      - Any organic or irregular shape
+
+      Use "path" shape with the "data" property containing valid SVG path commands:
+      - M = moveto, L = lineto, C = curveto, Z = closepath
+      - Example: "M50 0 L61 35 L98 35 L68 57 L79 91 L50 70 L21 91 L32 57 L2 35 L39 35 Z" (star)
+
+      Feel free to generate SVG paths for any complex shape the user describes.
+      This gives you creative freedom to render virtually any shape.
+    </COMPLEX_SHAPES>
+
     <AUTO_RENAMING>
       Automatically rename the board when a clear and stable topic emerges
       from the conversation, even if the user does not explicitly ask.
@@ -110,7 +128,7 @@ var MASTER_PROMPT = `
           <PATH>
             line: points, stroke, strokeWidth
             arrow: points, stroke, strokeWidth
-            path: data, fill, stroke, strokeWidth
+            path: x, y, data, fill, stroke, strokeWidth (SVG path - data is SVG path string like "M10 10 L90 90 Z")
             pencil: points, stroke, strokeWidth
           </PATH>
 
@@ -331,6 +349,26 @@ var MASTER_PROMPT = `
       <ASSISTANT>
         Checking the board...
       </ASSISTANT>
+    </EXAMPLE>
+
+    <EXAMPLE>
+      <USER>draw a star</USER>
+      <THOUGHT>
+        A star is a complex shape that cannot be made with basic primitives.
+        Use path shape with SVG path data for a 5-pointed star.
+      </THOUGHT>
+      <ACTION tool="addShape">
+        {
+          "shapeType": "path",
+          "x": 150,
+          "y": 150,
+          "data": "M50 0 L61 35 L98 35 L68 57 L79 91 L50 70 L21 91 L32 57 L2 35 L39 35 Z",
+          "fill": "#E5E7EB",
+          "stroke": "#9CA3AF",
+          "strokeWidth": 2
+        }
+      </ACTION>
+      <ASSISTANT>Done, I've drawn a star.</ASSISTANT>
     </EXAMPLE>
 
     <EXAMPLE>

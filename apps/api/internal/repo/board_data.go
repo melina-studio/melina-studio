@@ -127,8 +127,31 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		addString("fontFamily", shapeData.FontFamily)
 		addString("fill", shapeData.Fill)
 
+	case "path":
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addString("data", shapeData.Data) // SVG path data string
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
 	default:
-		return fmt.Errorf("unsupported shape type: %s", shapeData.Type)
+		// Handle unknown shape types by storing all available properties
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		addFloat("w", shapeData.W)
+		addFloat("h", shapeData.H)
+		addFloat("r", shapeData.R)
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+		if shapeData.Points != nil {
+			dataMap["points"] = *shapeData.Points
+		}
+		addString("text", shapeData.Text)
+		addFloat("fontSize", shapeData.FontSize)
+		addString("fontFamily", shapeData.FontFamily)
+		addString("data", shapeData.Data) // SVG path data string
 	}
 
 	// Marshal to JSON bytes and wrap into datatypes.JSON
