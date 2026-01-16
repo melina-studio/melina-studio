@@ -1,8 +1,10 @@
-<p align="center">
-  <img src="public/icons/logo.svg" alt="Melina Studio Logo" width="80" height="80" />
-</p>
+<div style={{display: 'flex', justifyContent: "center", alignItems: "center"}}>
+  <p align="center">
+    <img src="public/icons/logo.svg" alt="Melina Studio Logo" width="80" height="80" />
+  </p>
 
-<h1 align="center">Melina Studio</h1>
+  <h1 align="center">Melina Studio</h1>
+</div>
 
 <p align="center">
   <strong>Cursor for Canvas</strong><br/>
