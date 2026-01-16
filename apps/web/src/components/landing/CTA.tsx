@@ -79,7 +79,7 @@ export default function CTA() {
               <Link href="/playground/all">
                 <Button
                   size="lg"
-                  className="relative text-lg px-10 py-6 rounded-md group font-semibold"
+                  className="relative text-lg px-10 py-6 rounded-md group font-semibold cursor-pointer"
                 >
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
