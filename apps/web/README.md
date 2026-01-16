@@ -1,7 +1,7 @@
-<p align="center">
-  <img src="public/icons/logo.svg" alt="Melina Studio Logo" width="40" height="40" />
-  <span style="font-size: 2em; font-weight: bold; margin-left: 10px;">Melina Studio</span>
-</p>
+<h1 align="center">
+  <img src="public/icons/logo.svg" alt="Melina Studio Logo" width="32" height="32" />
+  Melina Studio
+</h1>
 
 <p align="center">
   <strong>Cursor for Canvas</strong><br/>
