@@ -27,9 +27,6 @@ Melina Studio is an AI-powered design platform that lets you create stunning vis
 
 - **AI-Powered Design** - Describe your design intent in natural language
 - **Interactive Canvas** - Built with Konva for smooth, performant canvas interactions
-- **Real-time Collaboration** - Work seamlessly with your team
-- **Theme Support** - Beautiful light and dark modes with smooth transitions
-- **3D Elements** - Integrated Three.js for 3D model viewing and manipulation
 - **Modern UI** - Clean, responsive interface built with Tailwind CSS
 
 ## Tech Stack
