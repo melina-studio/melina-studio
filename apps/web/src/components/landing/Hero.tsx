@@ -215,7 +215,7 @@ export default function Hero() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="https://github.com"
+                href="https://github.com/orgs/melina-studio/repositories"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-white/70 dark:bg-white/10 border border-black/10 dark:border-white/20 px-6 rounded-xl font-medium text-black dark:text-white hover:bg-white/90 dark:hover:bg-white/20 transition-colors cursor-pointer"

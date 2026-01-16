@@ -39,11 +39,16 @@ export default function HowItWorks() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start 0.8", "end end"], // Start earlier when section is 80% into view
+    offset: ["start 0.6", "end end"], // Start earlier when section is 80% into view
   });
 
   return (
-    <section id="how-it-works" ref={containerRef} data-theme="dark" className="relative bg-gradient-to-b from-zinc-900 via-black to-zinc-950 min-h-[250vh]">
+    <section
+      id="how-it-works"
+      ref={containerRef}
+      data-theme="dark"
+      className="relative bg-gradient-to-b from-zinc-900 via-black to-zinc-950 min-h-[250vh]"
+    >
       {/* Sticky container */}
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <div className="w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -195,7 +200,9 @@ function CardContent({ type }: { type: string }) {
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <div className="px-2 py-1 text-xs bg-white/10 rounded text-white/50">Selected: Rectangle</div>
+          <div className="px-2 py-1 text-xs bg-white/10 rounded text-white/50">
+            Selected: Rectangle
+          </div>
         </div>
       </div>
     );
@@ -210,12 +217,16 @@ function CardContent({ type }: { type: string }) {
             <span className="text-[10px] text-white font-bold">M</span>
           </div>
           <div className="flex-1 p-2 rounded-lg bg-white/5 border border-white/10">
-            <p className="text-xs text-white/70">Done! I&apos;ve converted your shapes into a flowchart.</p>
+            <p className="text-xs text-white/70">
+              Done! I&apos;ve converted your shapes into a flowchart.
+            </p>
           </div>
         </div>
         <div className="flex gap-2 justify-end">
           <div className="p-2 rounded-lg bg-primary/20 border border-primary/30 max-w-[80%]">
-            <p className="text-xs text-white/80">&quot;Make this a flowchart&quot;</p>
+            <p className="text-xs text-white/80">
+              &quot;Make this a flowchart&quot;
+            </p>
           </div>
           <div className="w-6 h-6 rounded-full bg-white/20" />
         </div>
