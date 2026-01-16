@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowRight, Github } from "lucide-react";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 
 // Dynamic imports to avoid SSR issues with WebGL
 const ModelViewer = dynamic(
@@ -21,6 +22,12 @@ const LightRays = dynamic(
 
 export default function Hero() {
   const headerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -103,31 +110,35 @@ export default function Hero() {
         {/* Main text - massive, bleeding off all edges */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <span
-            className="block text-[45vw] md:text-[35vw] lg:text-[30vw] font-black whitespace-nowrap select-none tracking-tighter blur-[1px]"
+            className="block text-[45vw] md:text-[35vw] lg:text-[30vw] font-black whitespace-nowrap select-none tracking-tighter"
             style={{
-              background:
-                "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.03) 20%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.03) 80%, transparent 100%)",
+              backgroundImage:
+                mounted && theme === "dark"
+                  ? "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.2) 80%, transparent 100%)"
+                  : "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.2) 80%, transparent 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}
           >
-            CURSOR
+            Melina S
           </span>
         </div>
         {/* Second layer - offset, even more abstract */}
         <div className="absolute top-[60%] left-1/2 -translate-x-[40%] -translate-y-1/2">
           <span
-            className="block text-[40vw] md:text-[32vw] lg:text-[28vw] font-black whitespace-nowrap select-none tracking-tighter blur-[2px]"
+            className="block text-[40vw] md:text-[32vw] lg:text-[28vw] font-black whitespace-nowrap select-none tracking-tighter"
             style={{
-              background:
-                "linear-gradient(180deg, transparent 10%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.03) 60%, transparent 90%)",
+              backgroundImage:
+                mounted && theme === "dark"
+                  ? "linear-gradient(180deg, transparent 10%, rgba(255,255,255,0.15) 40%, rgba(255,255,255,0.2) 60%, transparent 90%)"
+                  : "linear-gradient(180deg, transparent 10%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.2) 60%, transparent 90%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}
           >
-            CANVAS
+            tudio
           </span>
         </div>
         {/* Soft edge masks */}
