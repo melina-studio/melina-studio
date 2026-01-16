@@ -8,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { FlipWords } from "@/components/ui/flip-words";
 
 // Placeholder suggestions that cycle through
 const PLACEHOLDER_SUGGESTIONS = [
@@ -40,6 +41,8 @@ export function CreationInput({
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
   const [displayedPlaceholder, setDisplayedPlaceholder] = useState("");
   const [isTyping, setIsTyping] = useState(true);
+
+  const words = ["create", "make", "visualize", "plan"];
 
   // Notify parent of focus changes
   useEffect(() => {
@@ -141,7 +144,8 @@ export function CreationInput({
       {/* Headline */}
       <div className="text-center mb-6">
         <h2 className="text-2xl sm:text-3xl font-medium text-foreground mb-2">
-          What do you want to create?
+          What do you want to
+          <FlipWords words={words} />?
         </h2>
         <p className="text-sm text-muted-foreground">
           Describe your idea. Melina will set it up.

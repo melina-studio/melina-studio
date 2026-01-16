@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowRight, Github } from "lucide-react";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+import Image from "next/image";
 
 // Dynamic imports to avoid SSR issues with WebGL
 const ModelViewer = dynamic(
@@ -208,7 +209,14 @@ export default function Hero() {
                 rel="noopener noreferrer"
                 className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-white/70 dark:bg-white/10 border border-black/10 dark:border-white/20 px-6 rounded-xl font-medium text-black dark:text-white hover:bg-white/90 dark:hover:bg-white/20 transition-colors cursor-pointer"
               >
-                <Github className="h-4 w-4" />
+                {/* <Github className="h-4 w-4" /> */}
+                <Image
+                  src="/icons/github.svg"
+                  alt="GitHub"
+                  width={18}
+                  height={18}
+                  className="size-[18px]"
+                />
                 GitHub
               </Link>
             </div>

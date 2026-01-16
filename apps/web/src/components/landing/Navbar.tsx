@@ -53,17 +53,19 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 z-10">
           <div className="flex items-center gap-1 px-1 pt-1.5 cursor-pointer opacity-[0.85] hover:opacity-100 transition-all">
-            <Image
-              src={
-                mounted && (theme === "dark" || isOnDark)
-                  ? "/icons/logo-dark.svg"
-                  : "/icons/logo.svg"
-              }
-              alt="Melina Studio"
-              width={18}
-              height={18}
-              className="size-[18px] mr-1"
-            />
+            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+              <Image
+                src={
+                  mounted && theme === "dark"
+                    ? "/icons/logo.svg"
+                    : "/icons/logo-dark.svg"
+                }
+                alt="Melina Studio"
+                width={16}
+                height={16}
+                className="size-[16px]"
+              />
+            </div>
             <span
               className={`text-sm font-semibold tracking-wide transition-colors duration-300 ${
                 isOnDark ? "text-white" : "text-foreground"
@@ -94,7 +96,7 @@ export default function Navbar() {
         {/* Right side */}
         <div className="flex items-center gap-3 z-10">
           <ThemeSwitchToggle isOnDark={isOnDark} />
-          <Link href="/login" className="hidden sm:block">
+          <Link href="/auth" className="hidden sm:block">
             <Button
               variant="ghost"
               className={`text-sm font-medium cursor-pointer ${
