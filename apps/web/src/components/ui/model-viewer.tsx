@@ -105,13 +105,11 @@ function Model({ url }: { url: string }) {
 interface ModelViewerProps {
   modelUrl?: string;
   className?: string;
-  autoRotate?: boolean;
 }
 
 export function ModelViewer({
   modelUrl,
   className = "",
-  autoRotate = true,
 }: ModelViewerProps) {
   return (
     <div className={`w-full h-full ${className}`}>
@@ -119,6 +117,7 @@ export function ModelViewer({
         camera={{ position: [0, 0, 8], fov: 45 }}
         gl={{ alpha: true, antialias: true }}
         style={{ background: "transparent" }}
+        resize={{ scroll: false, debounce: { scroll: 0, resize: 100 } }}
       >
         <Suspense fallback={null}>
           {/* Lighting - enhanced for visibility on light background */}
@@ -145,15 +144,12 @@ export function ModelViewer({
             {modelUrl ? <Model url={modelUrl} /> : <FloatingShapes />}
           </PresentationControls>
 
-          {/* Optional orbit controls */}
-          {autoRotate && (
-            <OrbitControls
-              enableZoom={false}
-              enablePan={false}
-              autoRotate
-              autoRotateSpeed={0.5}
-            />
-          )}
+          {/* Orbit controls - disabled autoRotate to prevent shift with CSS transforms */}
+          <OrbitControls
+            enableZoom={false}
+            enablePan={false}
+            enableRotate={false}
+          />
         </Suspense>
       </Canvas>
     </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { ThemeToggle } from "@/components/custom/General/ThemeToggle";
+import { ThemeSwitchToggle } from "@/components/landing/ThemeSwitchToggle";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -93,7 +93,7 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-3 z-10">
-          <ThemeToggle isOnDark={isOnDark} />
+          <ThemeSwitchToggle isOnDark={isOnDark} />
           <Link href="/login" className="hidden sm:block">
             <Button
               variant="ghost"

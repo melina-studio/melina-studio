@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Button } from "@/components/ui/button";
 import { ArrowRight, Github } from "lucide-react";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 
@@ -56,7 +55,7 @@ export default function Hero() {
         "-=0.3"
       );
 
-      // 4. Then buttons
+      // 4. Then buttons - slide up only to preserve glassy effect
       tl.from(
         ".hero-cta",
         {
@@ -136,7 +135,7 @@ export default function Hero() {
       </div>
 
       {/* Light rays background */}
-      <div className="absolute inset-0 h-screen opacity-40">
+      <div className="absolute inset-0 h-screen opacity-30">
         <LightRays
           raysColor="#8b5cf6"
           raysOrigin="top-center"
@@ -194,30 +193,23 @@ export default function Hero() {
               Describe your intent. Melina handles the canvas.
             </p>
 
-            {/* CTA - more vertical space */}
+            {/* CTA */}
             <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/playground/all">
-                <Button
-                  size="lg"
-                  className="text-md px-8 py-6 rounded-md group cursor-pointer w-[150px] font-semibold"
-                >
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Button>
+              <Link
+                href="/playground/all"
+                className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black px-6 rounded-xl font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Get Started
+                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
+                className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-white/70 dark:bg-white/10 border border-black/10 dark:border-white/20 px-6 rounded-xl font-medium text-black dark:text-white hover:bg-white/90 dark:hover:bg-white/20 transition-colors cursor-pointer"
               >
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  className="text-md px-8 py-6 rounded-md font-semibold group cursor-pointer border border-white/50 hover:border-white/20 hover:bg-transparent backdrop-blur-sm text-white/70 hover:text-white/80 w-[150px]"
-                >
-                  <Github className="mr-2 h-4 w-4" />
-                  GitHub
-                </Button>
+                <Github className="h-4 w-4" />
+                GitHub
               </Link>
             </div>
           </div>
@@ -247,8 +239,15 @@ export default function Hero() {
               style={{ backgroundSize: "20px 20px" }}
             />
             {/* 3D shapes */}
-            <div className="absolute inset-0">
-              <ModelViewer autoRotate />
+            <div
+              className="absolute inset-0 transition-transform duration-500 ease-out"
+              style={{
+                transform: "translateZ(0)",
+                isolation: "isolate",
+                willChange: "transform",
+              }}
+            >
+              <ModelViewer />
             </div>
             {/* Subtle vignette overlay */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.1)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.3)_100%)]" />
