@@ -1,4 +1,5 @@
 import api, { setTokenUpdateCallback } from "@/lib/axios";
+import { BaseURL } from "@/lib/constants";
 import { RegisterPayload } from "@/lib/types";
 
 // Token management for WebSocket auth - will be set by AuthProvider
@@ -72,4 +73,10 @@ export const refreshToken = async () => {
     console.log(error, "Error refreshing token");
     throw new Error(error?.response?.data?.error || "Error refreshing token");
   }
+};
+
+export const googleLogin = () => {
+  // OAuth requires full browser navigation, not AJAX
+  // The callback will redirect back to the frontend after setting cookies
+  window.location.href = `${BaseURL}/api/v1/auth/oauth/google`;
 };

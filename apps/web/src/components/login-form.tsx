@@ -25,7 +25,7 @@ export function LoginForm({
   onSwitchToSignup,
   ...props
 }: LoginFormProps) {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,6 +42,17 @@ export function LoginForm({
       router.push("/playground/all");
     } catch (err: any) {
       toast.error(err.message || "Failed to login");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    try {
+      setIsSubmitting(true);
+      await googleLogin();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to login with Google");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,13 +94,22 @@ export function LoginForm({
           <Input id="password" name="password" type="password" required />
         </Field>
         <Field>
-          <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="cursor-pointer"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Logging in..." : "Login"}
           </Button>
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>
         <Field>
-          <Button variant="outline" type="button" className="cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={handleGoogleLogin}
+          >
             <Image
               src="/icons/google.svg"
               alt="Google"

@@ -26,7 +26,7 @@ export function SignupForm({
   onSwitchToLogin,
   ...props
 }: SignupFormProps) {
-  const { signup } = useAuth();
+  const { signup, googleLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [password, setPassword] = useState("");
@@ -81,6 +81,17 @@ export function SignupForm({
       router.push("/playground/all");
     } catch (err: any) {
       toast.error(err.message || "Failed to create account");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignup() {
+    try {
+      setIsSubmitting(true);
+      await googleLogin();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create account with Google");
     } finally {
       setIsSubmitting(false);
     }
@@ -165,7 +176,12 @@ export function SignupForm({
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>
         <Field className="gap-2 mt-3">
-          <Button variant="outline" type="button" className="cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={handleGoogleSignup}
+          >
             <Image
               src="/icons/google.svg"
               alt="Google"

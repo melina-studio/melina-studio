@@ -14,6 +14,7 @@ import {
   logout as logoutService,
   getMe,
   setAccessTokenRef,
+  googleLogin as googleLoginService,
 } from "@/service/auth";
 import { RegisterPayload } from "@/lib/types";
 
@@ -39,6 +40,7 @@ interface AuthContextType {
   signup: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  googleLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,40 +87,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [updateAccessToken]);
 
   // Login
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await loginService(email, password);
-      // Cookies are set by the server, save user and access token
-      setUser(data.user);
-      updateAccessToken(data.access_token);
-    } catch (err: any) {
-      const message = err.message || "Login failed";
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [updateAccessToken]);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await loginService(email, password);
+        // Cookies are set by the server, save user and access token
+        setUser(data.user);
+        updateAccessToken(data.access_token);
+      } catch (err: any) {
+        const message = err.message || "Login failed";
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [updateAccessToken]
+  );
 
   // Signup
-  const signup = useCallback(async (payload: RegisterPayload) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await registerService(payload);
-      // Cookies are set by the server, save access token and fetch user
-      updateAccessToken(data.access_token);
-      await fetchUser();
-    } catch (err: any) {
-      const message = err.message || "Signup failed";
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchUser, updateAccessToken]);
+  const signup = useCallback(
+    async (payload: RegisterPayload) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await registerService(payload);
+        // Cookies are set by the server, save access token and fetch user
+        updateAccessToken(data.access_token);
+        await fetchUser();
+      } catch (err: any) {
+        const message = err.message || "Signup failed";
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fetchUser, updateAccessToken]
+  );
 
   // Logout
   const logout = useCallback(async () => {
@@ -139,6 +147,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await fetchUser();
   }, [fetchUser]);
 
+  // Google login - redirects browser to OAuth flow
+  const googleLogin = useCallback(() => {
+    googleLoginService();
+  }, []);
+
   const value: AuthContextType = {
     user,
     accessToken,
@@ -149,6 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signup,
     logout,
     refreshUser,
+    googleLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
