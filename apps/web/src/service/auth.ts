@@ -80,3 +80,9 @@ export const googleLogin = () => {
   // The callback will redirect back to the frontend after setting cookies
   window.location.href = `${BaseURL}/api/v1/auth/oauth/google`;
 };
+
+export const githubLogin = () => {
+  // OAuth requires full browser navigation, not AJAX
+  // The callback will redirect back to the frontend after setting cookies
+  window.location.href = `${BaseURL}/api/v1/auth/oauth/github`;
+};

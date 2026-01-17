@@ -25,7 +25,7 @@ export function LoginForm({
   onSwitchToSignup,
   ...props
 }: LoginFormProps) {
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, githubLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,6 +53,17 @@ export function LoginForm({
       await googleLogin();
     } catch (err: any) {
       toast.error(err.message || "Failed to login with Google");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGithubLogin() {
+    try {
+      setIsSubmitting(true);
+      await githubLogin();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to login with GitHub");
     } finally {
       setIsSubmitting(false);
     }
@@ -119,7 +130,12 @@ export function LoginForm({
             />
             Login with Google
           </Button>
-          <Button variant="outline" type="button" className="cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={handleGithubLogin}
+          >
             <Image
               src="/icons/github.svg"
               alt="GitHub"

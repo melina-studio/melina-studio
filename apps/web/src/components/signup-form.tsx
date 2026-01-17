@@ -26,7 +26,7 @@ export function SignupForm({
   onSwitchToLogin,
   ...props
 }: SignupFormProps) {
-  const { signup, googleLogin } = useAuth();
+  const { signup, googleLogin, githubLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [password, setPassword] = useState("");
@@ -92,6 +92,17 @@ export function SignupForm({
       await googleLogin();
     } catch (err: any) {
       toast.error(err.message || "Failed to create account with Google");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGithubSignup() {
+    try {
+      setIsSubmitting(true);
+      await githubLogin();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create account with GitHub");
     } finally {
       setIsSubmitting(false);
     }
@@ -191,7 +202,12 @@ export function SignupForm({
             />
             Sign up with Google
           </Button>
-          <Button variant="outline" type="button" className="cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={handleGithubSignup}
+          >
             <Image
               src="/icons/github.svg"
               alt="GitHub"

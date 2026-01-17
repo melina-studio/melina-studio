@@ -1,24 +1,55 @@
 "use client";
-import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { LoginForm } from "@/components/login-form";
 import { SignupForm } from "@/components/signup-form";
 import { HalftoneImage } from "@/components/ui/HalftoneImage";
-import { useTheme } from "next-themes";
-import { useEffect } from "react";
 import Noise from "@/blocks/Animations/Noise/Noise";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import Logo from "@/components/custom/General/Logo";
 
-export default function AuthPage() {
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
+// Map error codes to user-friendly messages
+const errorMessages: Record<string, string> = {
+  missing_code: "OAuth authorization code is missing",
+  oauth_exchange_failed: "Failed to authenticate with provider",
+  failed_to_get_user_info: "Failed to retrieve user information",
+  failed_to_decode_user_info: "Failed to process user information",
+  failed_to_check_user: "Failed to verify user account",
+  failed_to_create_user: "Failed to create user account",
+  failed_to_retrieve_user: "Failed to retrieve user data",
+  failed_to_generate_token: "Failed to generate authentication token",
+  failed_to_generate_refresh_token: "Failed to complete authentication",
+  email_exists_different_provider: "This email is already registered with a different login method",
+  failed_to_get_user_emails: "Failed to retrieve email from provider",
+  failed_to_decode_user_emails: "Failed to process email data",
+  no_verified_email: "No verified email found. Please verify your email with the provider first",
+};
 
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const searchParams = useSearchParams();
+
+  // Show toast for OAuth errors from URL params
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const error = searchParams.get("error");
+    const provider = searchParams.get("provider");
+
+    if (error) {
+      let message = errorMessages[error] || "Authentication failed. Please try again.";
+
+      // Add provider info for email_exists_different_provider error
+      if (error === "email_exists_different_provider" && provider) {
+        message = `This email is already registered with ${provider}. Please use ${provider} to login.`;
+      }
+
+      toast.error(message);
+
+      // Clean up URL params after showing toast
+      window.history.replaceState({}, "", "/auth");
+    }
+  }, [searchParams]);
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2 relative">

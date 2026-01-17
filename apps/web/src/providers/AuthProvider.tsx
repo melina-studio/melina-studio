@@ -15,6 +15,7 @@ import {
   getMe,
   setAccessTokenRef,
   googleLogin as googleLoginService,
+  githubLogin as githubLoginService,
 } from "@/service/auth";
 import { RegisterPayload } from "@/lib/types";
 
@@ -41,6 +42,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   googleLogin: () => void;
+  githubLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -152,6 +154,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     googleLoginService();
   }, []);
 
+  // Github login - redirects browser to OAuth flow
+  const githubLogin = useCallback(() => {
+    githubLoginService();
+  }, []);
+
   const value: AuthContextType = {
     user,
     accessToken,
@@ -163,6 +170,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     refreshUser,
     googleLogin,
+    githubLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
