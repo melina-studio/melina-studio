@@ -9,10 +9,8 @@ import {
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { UpdateBoardPayload } from "@/lib/types";
-import { useAuth } from "@/providers/AuthProvider";
 
 export const useBoard = () => {
-  const { user } = useAuth();
   const [board, setBoard] = useState<Board | null>(null);
   const pathname = usePathname();
   const [boards, setBoards] = useState<Board[]>([]);
@@ -40,13 +38,9 @@ export const useBoard = () => {
 
   //   Create a new board
   const createNewBoard = async (title: string = "Untitled") => {
-    if (!user?.uuid) {
-      setError("User not authenticated");
-      return null;
-    }
     try {
       setLoading(true);
-      const response = await createBoard(user.uuid, title);
+      const response = await createBoard(title);
       return response.uuid;
     } catch (error: any) {
       setError(error.message);
@@ -58,18 +52,15 @@ export const useBoard = () => {
 
   //   Fetch starred boards
   const fetchStarredBoards = useCallback(async () => {
-    if (!user?.uuid) {
-      return;
-    }
     try {
-      const data = await getStarredBoards(user.uuid);
+      const data = await getStarredBoards();
       setStarredBoards(new Set(data.starredBoards || []));
     } catch (error: any) {
       setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, [user?.uuid]);
+  }, []);
 
   // Get filter from URL params
   const filter = searchParams.get("filter") || "all";

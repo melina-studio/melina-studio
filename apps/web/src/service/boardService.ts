@@ -3,13 +3,9 @@ import axios from "@/lib/axios";
 import { BaseURL } from "@/lib/constants";
 import { UpdateBoardPayload } from "@/lib/types";
 
-export const createBoard = async (
-  userId: string,
-  title: string = "Untitled"
-) => {
+export const createBoard = async (title: string = "Untitled") => {
   try {
     const response = await axios.post(`${BaseURL}/api/v1/boards`, {
-      userId: userId,
       title: title,
     });
     return response.data;
@@ -65,7 +61,7 @@ export const clearBoardData = async (boardId: string) => {
 };
 
 // Get starred boards for a user
-export const getStarredBoards = async (userId: string) => {
+export const getStarredBoards = async () => {
   try {
     // TODO: Implement API call to fetch starred boards
     // const response = await axios.get(`${BaseURL}/api/v1/users/${userId}/starred-boards`);
@@ -78,7 +74,7 @@ export const getStarredBoards = async (userId: string) => {
 };
 
 // Toggle starred status for a board
-export const toggleStarredBoard = async (userId: string, boardId: string) => {
+export const toggleStarredBoard = async (boardId: string) => {
   try {
     // TODO: Implement API call to toggle starred status
     // const response = await axios.post(`${BaseURL}/api/v1/users/${userId}/starred-boards/${boardId}/toggle`);
