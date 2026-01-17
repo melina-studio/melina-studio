@@ -33,21 +33,20 @@ func NewBoardHandler(repo repo.BoardRepoInterface, boardDataRepo repo.BoardDataR
 
 // function to create a board
 func (h *BoardHandler) CreateBoard(c *fiber.Ctx) error {
+	userID, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+
 	var dto struct {
 		Title  string `json:"title"`
-		UserID string `json:"userId"`
 	}
 	if err := c.BodyParser(&dto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
-		})
-	}
-
-	userID, err := uuid.Parse(dto.UserID)
-	if err != nil {
-		log.Println(err, "Error parsing user id")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user id",
 		})
 	}
 
@@ -71,7 +70,14 @@ func (h *BoardHandler) CreateBoard(c *fiber.Ctx) error {
 
 // function to get all boards
 func (h *BoardHandler) GetAllBoards(c *fiber.Ctx) error {
-	boards, error := h.repo.GetAllBoards()
+	userID, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+	boards, error := h.repo.GetAllBoards(userID)
 	if error != nil {
 		log.Println(error, "Error getting boards")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -85,6 +91,13 @@ func (h *BoardHandler) GetAllBoards(c *fiber.Ctx) error {
 
 // function to save data to board
 func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
+	_, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+	
 	// Get board ID from URL params
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
@@ -186,6 +199,13 @@ func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
 
 // function to get board by ID
 func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
+	userID, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
 	if err != nil {
@@ -202,7 +222,7 @@ func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
 		})
 	}
 
-	boardInfo, err := h.repo.GetBoardById(boardId)
+	boardInfo, err := h.repo.GetBoardById(userID, boardId)
 	if err != nil {
 		log.Println(err, "Error getting board info")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -241,6 +261,13 @@ func (h *BoardHandler) ClearBoard(c *fiber.Ctx) error {
 
 // function to delete board by ID
 func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
+	userID , err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
 	if err != nil {
@@ -249,11 +276,27 @@ func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
 		})
 	}
 
-	err = h.repo.DeleteBoardByID(boardId)
+	err = h.repo.DeleteBoardByID(userID, boardId)
 	if err != nil {
 		log.Println(err, "Error deleting board")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete board",
+		})
+	}
+
+	// Remove the image from the temp/images directory
+	imagePath := "temp/images/" + boardId.String() + ".png"
+	annotatedImagePath := "temp/annotated_images/" + boardId.String() + ".png"
+	if err := os.Remove(imagePath); err != nil {
+		log.Println(err, "Error removing image file")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to remove annotated image file",
+		})
+	}
+	if err := os.Remove(annotatedImagePath); err != nil {
+		log.Println(err, "Error removing annotated image file")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to remove annotated image file",
 		})
 	}
 
@@ -264,6 +307,14 @@ func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
 
 // function to update board by ID
 func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
+	userId , err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
 	if err != nil {
@@ -319,7 +370,7 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 		payload.Thumbnail = url
 	}
 	
-	err = h.repo.UpdateBoard(boardId, payload)
+	err = h.repo.UpdateBoard(userId, boardId, payload)
 	if err != nil {
 		log.Println(err, "Error updating board")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
