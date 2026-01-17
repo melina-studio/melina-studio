@@ -8,6 +8,7 @@ import (
 	"melina-studio-backend/internal/models"
 	"melina-studio-backend/internal/repo"
 	"melina-studio-backend/internal/service"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -446,15 +447,14 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 
 	// 1. Find user by email
 	user, err := h.authRepo.GetUserByEmail(userInfo.Email)
-	
-	// 2. If user doesn't exist, create new user
+
+	// 2. Handle user lookup result
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_check_user")
 		}
 
 		// User doesn't exist - create new OAuth user
-		// OAuth users don't need passwords
 		newUserUUID, err := h.authRepo.CreateUser(&models.User{
 			FirstName:    firstName,
 			LastName:     lastName,
@@ -472,9 +472,175 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 		if err != nil {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_retrieve_user")
 		}
+	} else {
+		// User exists - check if they used Google to sign up
+		if user.LoginMethod != models.LoginMethodGoogle {
+			return c.Redirect(frontendURL + "/auth?error=email_exists_different_provider&provider=" + string(user.LoginMethod))
+		}
 	}
 
 	// 3. Issue JWTs using the database user UUID (not Google's Sub)
+	accessToken, err := auth.GenerateAccessToken(user.UUID.String())
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_generate_token")
+	}
+
+	// Generate and store refresh token (using authService like regular login)
+	refreshToken, err := h.authService.CreateAndStoreRefreshToken(user.UUID, c.Get("User-Agent"), c.IP())
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_generate_refresh_token")
+	}
+
+	// Set cookies (like regular login)
+	setAuthCookies(c, accessToken, refreshToken)
+
+	// Redirect to frontend after successful OAuth
+	return c.Redirect(frontendURL + "/playground/all")
+}
+
+// GithubLogin redirects the user to the Github OAuth login page
+func (h *AuthHandler) GithubLogin(c *fiber.Ctx) error {
+	randomHash := uuid.NewString()
+	url := oauth.GetGitHubOAuthConfig().AuthCodeURL(
+		randomHash,
+		oauth2.AccessTypeOffline,
+	)
+	return c.Redirect(url)
+}
+
+// GithubCallback handles the callback from the Github OAuth login page
+func (h *AuthHandler) GithubCallback(c *fiber.Ctx) error {
+	frontendURL := os.Getenv("FRONTEND_URL")
+
+	code := c.Query("code")
+	if code == "" {
+		return c.Redirect(frontendURL + "/auth?error=missing_code")
+	}
+
+	token, err := oauth.GetGitHubOAuthConfig().Exchange(c.Context(), code)
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=oauth_exchange_failed")
+	}
+
+	client := oauth.GetGitHubOAuthConfig().Client(c.Context(), token)
+
+	// Fetch user profile with proper Accept header
+	req, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_get_user_info")
+	}
+	defer resp.Body.Close()
+
+	var userInfo struct {
+		ID    int64  `json:"id"`
+		Login string `json:"login"`
+		Name  string `json:"name"`
+		Email string `json:"email"` // May be null if private
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_decode_user_info")
+	}
+
+	// GitHub doesn't always return email in /user - fetch from /user/emails
+	email := userInfo.Email
+	if email == "" {
+		emailReq, _ := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+		emailReq.Header.Set("Accept", "application/vnd.github+json")
+
+		emailResp, err := client.Do(emailReq)
+		if err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_get_user_emails")
+		}
+		defer emailResp.Body.Close()
+
+		var emails []struct {
+			Email    string `json:"email"`
+			Primary  bool   `json:"primary"`
+			Verified bool   `json:"verified"`
+		}
+
+		if err := json.NewDecoder(emailResp.Body).Decode(&emails); err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_decode_user_emails")
+		}
+
+		// Find primary verified email
+		for _, e := range emails {
+			if e.Primary && e.Verified {
+				email = e.Email
+				break
+			}
+		}
+
+		// Fallback to any verified email if no primary
+		if email == "" {
+			for _, e := range emails {
+				if e.Verified {
+					email = e.Email
+					break
+				}
+			}
+		}
+
+		if email == "" {
+			return c.Redirect(frontendURL + "/auth?error=no_verified_email")
+		}
+	}
+
+	// Parse name - handle cases with single name or multiple spaces
+	// Fall back to login (username) if name is empty
+	displayName := userInfo.Name
+	if displayName == "" {
+		displayName = userInfo.Login
+	}
+
+	nameParts := strings.Fields(displayName)
+	var firstName, lastName string
+	if len(nameParts) > 0 {
+		firstName = nameParts[0]
+		if len(nameParts) > 1 {
+			lastName = strings.Join(nameParts[1:], " ")
+		}
+	}
+
+	// 1. Find user by email
+	user, err := h.authRepo.GetUserByEmail(email)
+
+	// 2. Handle user lookup result
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_check_user")
+		}
+
+		// User doesn't exist - create new user
+		newUserUUID, err := h.authRepo.CreateUser(&models.User{
+			FirstName:    firstName,
+			LastName:     lastName,
+			Email:        email,
+			Password:     nil, // OAuth users don't have passwords
+			LoginMethod:  models.LoginMethodGithub,
+			Subscription: models.SubscriptionFree,
+		})
+		if err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_create_user")
+		}
+
+		// Fetch the newly created user to get all fields
+		user, err = h.authRepo.GetUserByID(newUserUUID)
+		if err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_retrieve_user")
+		}
+	} else {
+		// User exists - check if they used GitHub to sign up
+		if user.LoginMethod != models.LoginMethodGithub {
+			return c.Redirect(frontendURL + "/auth?error=email_exists_different_provider&provider=" + string(user.LoginMethod))
+		}
+	}
+
+	// 3. Issue JWTs using the database user UUID (not Github's ID)
 	accessToken, err := auth.GenerateAccessToken(user.UUID.String())
 	if err != nil {
 		return c.Redirect(frontendURL + "/auth?error=failed_to_generate_token")

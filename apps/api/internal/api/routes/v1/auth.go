@@ -24,6 +24,9 @@ func registerAuthPublic(r fiber.Router) {
 	// OAuth routes
 	r.Get("/oauth/google", authHandler.GoogleLogin)
 	r.Get("/oauth/google/callback", authHandler.GoogleCallback)
+	
+	r.Get("/oauth/github", authHandler.GithubLogin)
+	r.Get("/oauth/github/callback", authHandler.GithubCallback)
 }
 
 func registerAuthProtected(r fiber.Router) {

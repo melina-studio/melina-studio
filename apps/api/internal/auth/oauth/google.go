@@ -20,7 +20,7 @@ func GetGoogleOAuthConfig() *oauth2.Config {
 		googleOAuthConfig = &oauth2.Config{
 			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-			RedirectURL:  os.Getenv("REDIRECT_URI"),
+			RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URI"),
 			Scopes: []string{
 				"openid",
 				"profile",
