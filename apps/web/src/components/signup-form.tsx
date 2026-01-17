@@ -1,8 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -10,6 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 
 interface SignupFormProps extends React.ComponentProps<"form"> {
   onSwitchToLogin?: () => void;
@@ -20,19 +26,66 @@ export function SignupForm({
   onSwitchToLogin,
   ...props
 }: SignupFormProps) {
+  const { signup } = useAuth();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+
+  function validatePasswords(pwd: string, confirmPwd: string) {
+    if (confirmPwd && pwd !== confirmPwd) {
+      setPasswordMismatch(true);
+    } else {
+      setPasswordMismatch(false);
+    }
+  }
+
+  function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setPassword(value);
+    if (confirmPassword) {
+      validatePasswords(value, confirmPassword);
+    }
+  }
+
+  function handleConfirmPasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setConfirmPassword(value);
+    if (value) {
+      validatePasswords(password, value);
+    } else {
+      setPasswordMismatch(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const name = formData.get("name") as string;
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
     const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmPassword") as string;
-    if (password !== confirmPassword) {
+    const passwordValue = formData.get("password") as string;
+    const confirmPasswordValue = formData.get("confirmPassword") as string;
+
+    if (passwordValue !== confirmPasswordValue) {
+      setPasswordMismatch(true);
       toast.error("Passwords do not match");
       return;
     }
-    console.log(name, email, password);
+
+    try {
+      setIsSubmitting(true);
+      await signup({ firstName, lastName, email, password: passwordValue });
+      toast.success("Account created successfully!");
+      router.push("/playground/all");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create account");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
+
   return (
     <form
       className={cn("flex flex-col gap-4", className)}
@@ -46,14 +99,33 @@ export function SignupForm({
             Enter your details below to create your account
           </p>
         </div>
-        <Field className="gap-1.5">
-          <FieldLabel htmlFor="name">Name</FieldLabel>
-          <Input id="name" type="text" placeholder="John Doe" required />
-        </Field>
+        <div className="flex gap-3">
+          <Field className="gap-1.5 flex-1">
+            <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+            <Input
+              id="firstName"
+              name="firstName"
+              type="text"
+              placeholder="John"
+              required
+            />
+          </Field>
+          <Field className="gap-1.5 flex-1">
+            <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+            <Input
+              id="lastName"
+              name="lastName"
+              type="text"
+              placeholder="Doe"
+              required
+            />
+          </Field>
+        </div>
         <Field className="gap-1.5">
           <FieldLabel htmlFor="signup-email">Email</FieldLabel>
           <Input
             id="signup-email"
+            name="email"
             type="email"
             placeholder="m@example.com"
             required
@@ -61,7 +133,14 @@ export function SignupForm({
         </Field>
         <Field className="gap-1.5">
           <FieldLabel htmlFor="signup-password">Password</FieldLabel>
-          <Input id="signup-password" type="password" required />
+          <Input
+            id="signup-password"
+            name="password"
+            type="password"
+            value={password}
+            onChange={handlePasswordChange}
+            required
+          />
         </Field>
         <Field className="gap-1.5">
           <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
@@ -69,12 +148,19 @@ export function SignupForm({
             id="confirm-password"
             name="confirmPassword"
             type="password"
+            value={confirmPassword}
+            onChange={handleConfirmPasswordChange}
             required
           />
+          {passwordMismatch && <FieldError>Passwords do not match</FieldError>}
         </Field>
         <Field className="mb-3 mt-1">
-          <Button type="submit" className="cursor-pointer">
-            Sign up
+          <Button
+            type="submit"
+            className="cursor-pointer"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Creating account..." : "Sign up"}
           </Button>
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>

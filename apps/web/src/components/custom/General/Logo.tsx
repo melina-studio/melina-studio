@@ -17,7 +17,7 @@ const Logo = () => {
   return (
     <div
       className="flex items-center gap-1 px-1 pt-1.5 cursor-pointer opacity-[0.85] hover:opacity-100 transition-opacity"
-      onClick={() => router.push("/playground/all")}
+      onClick={() => router.push("/")}
     >
       <Image
         src={

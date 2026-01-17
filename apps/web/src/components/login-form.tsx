@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +12,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
+import { toast } from "sonner";
+import { useAuth } from "@/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 
 interface LoginFormProps extends React.ComponentProps<"form"> {
   onSwitchToSignup?: () => void;
@@ -19,12 +25,26 @@ export function LoginForm({
   onSwitchToSignup,
   ...props
 }: LoginFormProps) {
+  const { login } = useAuth();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    console.log(email, password);
+
+    try {
+      setIsSubmitting(true);
+      await login(email, password);
+      toast.success("Logged in successfully!");
+      router.push("/playground/all");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to login");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -63,13 +83,12 @@ export function LoginForm({
           <Input id="password" name="password" type="password" required />
         </Field>
         <Field>
-          <Button type="submit" className="cursor-pointer">
-            Login
+          <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+            {isSubmitting ? "Logging in..." : "Login"}
           </Button>
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>
         <Field>
-          {/* github button */}
           <Button variant="outline" type="button" className="cursor-pointer">
             <Image
               src="/icons/google.svg"

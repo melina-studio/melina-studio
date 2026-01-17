@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { DevtoolsProvider } from "@/providers/DevtoolsProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/custom/General/AppSidebar";
 
@@ -39,7 +40,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <DevtoolsProvider>{children}</DevtoolsProvider>
+          <AuthProvider>
+            <DevtoolsProvider>{children}</DevtoolsProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,4 +1,5 @@
-import axios from "axios";
+// import axios from "axios";
+import axios from "@/lib/axios";
 import { BaseURL } from "@/lib/constants";
 
 export const getChatHistory = async (id: string) => {
