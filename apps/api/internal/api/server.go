@@ -24,9 +24,10 @@ func NewServer() *fiber.App {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowOrigins:     "http://localhost:3000",
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowCredentials: true,
 	}))
 	// Middleware to allow WebSocket upgrade
 	app.Use("/ws", func(c *fiber.Ctx) error {
