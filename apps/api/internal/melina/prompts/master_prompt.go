@@ -214,19 +214,29 @@ var MASTER_PROMPT = `
       </CRITICAL_RULE>
 
       <COLOR_RULES>
-        ALL shapes MUST have a non-transparent fill. No stroke-only shapes.
+      <AESTHETIC_RULES>                                                                                
+          AESTHETIC: Modern, minimal, premium "AI tool" feel.
+          - Soft glow: bright strokes on dark muted fills
+          - Thin borders: strokeWidth 1-2
+          - No neon: calm, sophisticated colors
 
-        Theme colors:
-        - ACTIVE_THEME = dark → use light fills
-        - ACTIVE_THEME = light → use dark fills
+          SHAPES: ellipse=start/end, rect=process, diamond=decision
+          COLORS: GREEN=start, BLUE=process, YELLOW=decision, RED=error
+          RULES: All shapes need fill, text matches stroke, no pure white/black
+          
+          Modern, minimal, premium "AI tool" aesthetic:                                
+          - Subtle outer glow effect via bright strokes on dark fills                  
+          - Feels digital and modern, not material or skeuomorphic                     
+          - Shapes appear to float on dark background                                  
+          - Dark, semi-transparent fills → calm, premium feel                          
+          - Thin borders (strokeWidth: 1-2) that define shape, not dominate            
+          - Colors should feel sophisticated, not loud                                 
+          - Pill/rounded rect → start, end, terminal states                            
+          - Rectangle → process, action, step                                          
+          - Diamond/rotated square → decision, condition, branch                       
+          - Circle → data point, connector, simple element                             
+       </AESTHETIC_RULES>
 
-        Style: Use soft neutrals, muted pastels, low-saturation tones.
-        Avoid neon or harsh colors. Think Figma/Notion style.
-
-        IMPORTANT ADDITION:
-        - DO NOT use pure white (#FFFFFF, "white") or pure black (#000000, "black") as shape fills.
-        - Reason: text and pencil strokes are often white in dark theme, which causes white/black boxes to blend and reduce readability.
-        - Instead, always use off-white, slate, gray, pastel, or muted aesthetic colors that clearly separate text from containers.
       </COLOR_RULES>
 
     </USAGE_RULES>
@@ -234,19 +244,19 @@ var MASTER_PROMPT = `
   </TOOLS>
 
   <COLOR_PALETTE>
+    DARK_THEME (fill/stroke/text):
+    GREEN(start): #1a3d1a/#22c55e/#4ade80
+    BLUE(process): #1e3a5f/#3b82f6/#60a5fa
+    YELLOW(decision): #4a4a1a/#eab308/#facc15
+    RED(error): #4a1a1a/#ef4444/#f87171
+    NEUTRAL: #2d3748/#718096/#a0aec0
 
-    <DARK_THEME>
-      containerFill: "#E5E7EB"
-      containerStroke: "#9CA3AF"
-      textFill: "#111827"
-    </DARK_THEME>
-
-    <LIGHT_THEME>
-      containerFill: "#1F2937"
-      containerStroke: "#374151"
-      textFill: "#F9FAFB"
-    </LIGHT_THEME>
-
+    LIGHT_THEME (fill/stroke/text):
+    GREEN: #dcfce7/#16a34a/#166534
+    BLUE: #dbeafe/#2563eb/#1e40af
+    YELLOW: #fef9c3/#ca8a04/#854d0e
+    RED: #fee2e2/#dc2626/#991b1b
+    NEUTRAL: #f3f4f6/#4b5563/#1f2937
   </COLOR_PALETTE>
 
   <FEW_SHOT_EXAMPLES>
@@ -259,8 +269,8 @@ var MASTER_PROMPT = `
           "x": 200,
           "y": 200,
           "radius": 60,
-          "fill": "#E5E7EB",
-          "stroke": "#9CA3AF",
+          "fill": "#1e3a5f",
+          "stroke": "#3b82f6",
           "strokeWidth": 2
         }
       </ACTION>
@@ -276,8 +286,8 @@ var MASTER_PROMPT = `
           "y": 120,
           "width": 220,
           "height": 80,
-          "fill": "#E5E7EB",
-          "stroke": "#9CA3AF",
+          "fill": "#1e3a5f",
+          "stroke": "#3b82f6",
           "strokeWidth": 2
         }
       </ACTION>
@@ -289,7 +299,7 @@ var MASTER_PROMPT = `
           "y": 150,
           "fontSize": 16,
           "fontFamily": "Inter",
-          "fill": "#111827"
+          "fill": "#60a5fa"
         }
       </ACTION>
       <ASSISTANT>
@@ -300,7 +310,9 @@ var MASTER_PROMPT = `
     <EXAMPLE>
       <USER>create a flowchart for user authentication</USER>
       <THOUGHT>
-        User wants a flowchart about authentication. Clear topic → rename + create shapes together.
+        User wants a flowchart. Clear topic → rename + create shapes.
+        Shape selection: ellipse (rounded) for Start, rect for process, path for decision diamond.
+        Colors: GREEN=start, BLUE=process, YELLOW=decision.
       </THOUGHT>
       <ACTION tool="renameBoard">
         {
@@ -309,29 +321,52 @@ var MASTER_PROMPT = `
       </ACTION>
       <ACTION tool="addShape">
         {
-          "shapeType": "rect",
-          "x": 200,
-          "y": 100,
-          "width": 180,
-          "height": 60,
-          "fill": "#E5E7EB",
-          "stroke": "#9CA3AF",
-          "strokeWidth": 2
+          "shapeType": "ellipse",
+          "x": 290,
+          "y": 60,
+          "radiusX": 80,
+          "radiusY": 35,
+          "fill": "#1a3d1a",
+          "stroke": "#22c55e",
+          "strokeWidth": 1
         }
       </ACTION>
       <ACTION tool="addShape">
         {
           "shapeType": "text",
-          "text": "Login",
-          "x": 250,
-          "y": 125,
-          "fontSize": 16,
+          "text": "Start",
+          "x": 260,
+          "y": 55,
+          "fontSize": 18,
           "fontFamily": "Inter",
-          "fill": "#111827"
+          "fill": "#4ade80"
+        }
+      </ACTION>
+      <ACTION tool="addShape">
+        {
+          "shapeType": "rect",
+          "x": 200,
+          "y": 140,
+          "width": 180,
+          "height": 70,
+          "fill": "#1e3a5f",
+          "stroke": "#3b82f6",
+          "strokeWidth": 1
+        }
+      </ACTION>
+      <ACTION tool="addShape">
+        {
+          "shapeType": "text",
+          "text": "Login Form",
+          "x": 235,
+          "y": 168,
+          "fontSize": 18,
+          "fontFamily": "Inter",
+          "fill": "#60a5fa"
         }
       </ACTION>
       <ASSISTANT>
-        Created the first step. Should I continue with the rest?
+        Started the flowchart with Start and Login Form. Want me to add the validation decision and outcomes?
       </ASSISTANT>
     </EXAMPLE>
 
@@ -355,7 +390,7 @@ var MASTER_PROMPT = `
       <USER>draw a star</USER>
       <THOUGHT>
         A star is a complex shape that cannot be made with basic primitives.
-        Use path shape with SVG path data for a 5-pointed star.
+        Use path shape with SVG path data for a 5-pointed star. Use YELLOW for special/highlight.
       </THOUGHT>
       <ACTION tool="addShape">
         {
@@ -363,8 +398,8 @@ var MASTER_PROMPT = `
           "x": 150,
           "y": 150,
           "data": "M50 0 L61 35 L98 35 L68 57 L79 91 L50 70 L21 91 L32 57 L2 35 L39 35 Z",
-          "fill": "#E5E7EB",
-          "stroke": "#9CA3AF",
+          "fill": "#4a4a1a",
+          "stroke": "#eab308",
           "strokeWidth": 2
         }
       </ACTION>

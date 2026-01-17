@@ -45,18 +45,21 @@ melina-studio-backend/
 ### Installation
 
 1. **Install dependencies:**
+
    ```bash
    go mod download
    ```
 
 2. **Set up PostgreSQL database:**
+
    ```bash
    createdb melina_studio
    ```
 
 3. **Configure environment variables:**
-   
+
    Update `.env` file with your database credentials:
+
    ```env
    DB_HOST=localhost
    DB_PORT=5432
@@ -71,11 +74,13 @@ melina-studio-backend/
 ### Running the Application
 
 **With Air (hot reload):**
+
 ```bash
 air
 ```
 
 **Without Air:**
+
 ```bash
 go run cmd/main.go
 ```
@@ -85,9 +90,11 @@ The server will start on `http://localhost:3000`
 ## 📡 API Endpoints
 
 ### Health Check
+
 - `GET /api/v1/health` - Check server health
 
 ### Todos
+
 - `POST /api/v1/todos` - Create a new todo
 - `GET /api/v1/todos` - Get all todos
 - `GET /api/v1/todos/:id` - Get a specific todo
@@ -97,6 +104,7 @@ The server will start on `http://localhost:3000`
 ### Example Requests
 
 **Create Todo:**
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/todos \
   -H "Content-Type: application/json" \
@@ -104,11 +112,13 @@ curl -X POST http://localhost:3000/api/v1/todos \
 ```
 
 **Get All Todos:**
+
 ```bash
 curl http://localhost:3000/api/v1/todos
 ```
 
 **Update Todo:**
+
 ```bash
 curl -X PUT http://localhost:3000/api/v1/todos/1 \
   -H "Content-Type: application/json" \
@@ -125,6 +135,7 @@ This project follows a clean architecture pattern:
 - **Models**: Define data structures and DTOs
 
 This separation ensures:
+
 - Easy testing
 - Better maintainability
 - Clear separation of concerns
@@ -151,4 +162,3 @@ Migrations run automatically on startup via GORM AutoMigrate in `cmd/main.go`.
 - [PostgreSQL Driver](https://github.com/jackc/pgx) - Database driver
 - [godotenv](https://github.com/joho/godotenv) - Environment variable loader
 - [Air](https://github.com/air-verse/air) - Hot reload utility
-# melina-studiov2-backend
