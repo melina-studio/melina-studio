@@ -18,13 +18,15 @@ import (
 type Workflow struct {
 	chatRepo       repo.ChatRepoInterface
 	boardDataRepo  repo.BoardDataRepoInterface
+	boardRepo      repo.BoardRepoInterface
 	imageProcessor *service.ImageProcessor
 }
 
-func NewWorkflow(chatRepo repo.ChatRepoInterface, boardDataRepo repo.BoardDataRepoInterface) *Workflow {
+func NewWorkflow(chatRepo repo.ChatRepoInterface, boardDataRepo repo.BoardDataRepoInterface, boardRepo repo.BoardRepoInterface) *Workflow {
 	return &Workflow{
 		chatRepo:       chatRepo,
 		boardDataRepo:  boardDataRepo,
+		boardRepo:      boardRepo,
 		imageProcessor: service.NewImageProcessor(boardDataRepo),
 	}
 }
@@ -97,10 +99,23 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 }
 
 func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Client, cfg *libraries.WorkflowConfig) {
-	// get chat history from the database
+	// Parse board ID
 	boardIdUUID, err := uuid.Parse(cfg.BoardId)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Invalid board ID")
+		return
+	}
+
+	// Parse user ID
+	userIdUUID, err := uuid.Parse(cfg.UserID)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, "Invalid user ID")
+		return
+	}
+
+	// Validate board ownership
+	if err := w.boardRepo.ValidateBoardOwnership(userIdUUID, boardIdUUID); err != nil {
+		libraries.SendErrorMessage(hub, client, "Access denied: you don't own this board")
 		return
 	}
 

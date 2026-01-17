@@ -34,8 +34,9 @@ func RegisterRoutes(r fiber.Router) {
 func registerWebSocket(r fiber.Router) {
 	chatRepo := repo.NewChatRepository(config.DB)
 	boardDataRepo := repo.NewBoardDataRepository(config.DB)
-	wf := workflow.NewWorkflow(chatRepo, boardDataRepo)
+	boardRepo := repo.NewBoardRepository(config.DB)
+	wf := workflow.NewWorkflow(chatRepo, boardDataRepo, boardRepo)
 
-	// WebSocket route - separate auth will be handled in the websocket handler
+	// WebSocket route - auth handled in websocket handler
 	r.Get("/ws", libraries.WebSocketHandler(hub, wf))
 }

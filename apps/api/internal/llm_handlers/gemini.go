@@ -534,6 +534,7 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 			Hub:     hub,
 			Client:  client,
 			BoardId: boardId, // Can be empty string
+			UserID:  client.UserID,
 		}
 	}
 	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)

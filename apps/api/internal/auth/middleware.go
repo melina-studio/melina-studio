@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"errors"
 	"strings"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -38,4 +40,29 @@ func AuthMiddleware() fiber.Handler {
 		c.Locals("userID", claims.UserID)
 		return c.Next()
 	}
+}
+
+// AuthenticateWebSocket validates token from WebSocket connection
+// Supports: query parameter (?token=xxx) and cookies (access_token)
+func AuthenticateWebSocket(conn *websocket.Conn) (string, error) {
+	var tokenStr string
+
+	// Try query parameter first (for browser WebSocket connections)
+	tokenStr = conn.Query("token")
+
+	// Fallback to cookie
+	if tokenStr == "" {
+		tokenStr = conn.Cookies(AccessTokenCookie)
+	}
+
+	if tokenStr == "" {
+		return "", errors.New("no authentication token provided")
+	}
+
+	claims, err := ValidateAccessToken(tokenStr)
+	if err != nil {
+		return "", err
+	}
+
+	return claims.UserID, nil
 }

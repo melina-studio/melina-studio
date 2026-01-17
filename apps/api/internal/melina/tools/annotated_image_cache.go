@@ -114,16 +114,16 @@ func DeleteAnnotatedImage(boardId string) error {
 
 // InvalidateAnnotatedImageCache marks the board's annotated image cache as invalid
 // by clearing the hash in the database
-func InvalidateAnnotatedImageCache(boardId uuid.UUID) error {
+func InvalidateAnnotatedImageCache(userId uuid.UUID, boardId uuid.UUID) error {
 	boardRepo := repo.NewBoardRepository(config.DB)
-	return boardRepo.UpdateBoard(boardId, &models.Board{
+	return boardRepo.UpdateBoard(userId, boardId, &models.Board{
 		AnnotatedImageHash: "",
 	})
 }
 
 // GetOrCreateAnnotatedImage checks the cache and returns the annotated image
 // If the cache is invalid or doesn't exist, it generates a new annotated image
-func GetOrCreateAnnotatedImage(boardId string, shapes []models.BoardData, originalImageBase64 string) (string, error) {
+func GetOrCreateAnnotatedImage(userId uuid.UUID, boardId string, shapes []models.BoardData, originalImageBase64 string) (string, error) {
 	boardIdUUID, err := uuid.Parse(boardId)
 	if err != nil {
 		return "", fmt.Errorf("invalid boardId: %w", err)
@@ -134,7 +134,7 @@ func GetOrCreateAnnotatedImage(boardId string, shapes []models.BoardData, origin
 
 	// Get the board to check stored hash
 	boardRepo := repo.NewBoardRepository(config.DB)
-	board, err := boardRepo.GetBoardById(boardIdUUID)
+	board, err := boardRepo.GetBoardById(userId, boardIdUUID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get board: %w", err)
 	}
@@ -191,7 +191,7 @@ func GetOrCreateAnnotatedImage(boardId string, shapes []models.BoardData, origin
 	}
 
 	// Update hash in database
-	if err := boardRepo.UpdateBoard(boardIdUUID, &models.Board{
+	if err := boardRepo.UpdateBoard(userId, boardIdUUID, &models.Board{
 		AnnotatedImageHash: currentHash,
 	}); err != nil {
 		fmt.Printf("Warning: failed to update annotated image hash: %v\n", err)

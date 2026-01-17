@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"melina-studio-backend/internal/auth"
 	"sync"
 	"time"
 
@@ -32,10 +33,11 @@ const (
 
 
 type Client struct {
-	ID       string
-	Conn     *websocket.Conn
-	Send     chan []byte
-	once     sync.Once
+	ID     string
+	UserID string
+	Conn   *websocket.Conn
+	Send   chan []byte
+	once   sync.Once
 }
 
 type Hub struct {
@@ -104,6 +106,7 @@ type ShapeDeletedPayload struct {
 
 type WorkflowConfig struct {
 	BoardId     string
+	UserID      string
 	Message     *ChatMessagePayload
 	Model       string
 	Temperature *float32
@@ -337,10 +340,25 @@ type ChatMessageProcessor interface {
 
 func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 	return websocket.New(func(conn *websocket.Conn) {
+		// Authenticate WebSocket connection
+		userID, err := auth.AuthenticateWebSocket(conn)
+		if err != nil {
+			log.Println("WebSocket auth failed:", err)
+			errorMsg := WebSocketMessage{
+				Type: WebSocketMessageTypeError,
+				Data: map[string]string{"error": "authentication failed: " + err.Error()},
+			}
+			errorBytes, _ := json.Marshal(errorMsg)
+			conn.WriteMessage(websocket.TextMessage, errorBytes)
+			conn.Close()
+			return
+		}
+
 		client := &Client{
-			ID:   uuid.NewString(),
-			Conn: conn,
-			Send: make(chan []byte, 256),
+			ID:     uuid.NewString(),
+			UserID: userID,
+			Conn:   conn,
+			Send:   make(chan []byte, 256),
 		}
 
 		hub.Register <- client
@@ -405,6 +423,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 
 				payload := &WorkflowConfig{
 					BoardId:     boardId,
+					UserID:      client.UserID,
 					Message:     chatPayload,
 					Model:       chatPayload.ActiveModel,
 					Temperature: chatPayload.Temperature,

@@ -25,6 +25,7 @@ type StreamingContext struct {
 	Hub     *libraries.Hub
 	Client  *libraries.Client
 	BoardId string // Optional: empty string means don't include boardId in response
+	UserID  string // User ID for authorization checks in tools
 	// BufferedChunks stores chunks that should be sent only if there are no tool calls
 	BufferedChunks []string
 	// ShouldStream indicates whether chunks should be streamed immediately or buffered
@@ -410,6 +411,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 				Hub:            streamCtx.Hub,
 				Client:         streamCtx.Client,
 				BoardId:        streamCtx.BoardId,
+				UserID:         streamCtx.UserID,
 				BufferedChunks: make([]string, 0),
 				ShouldStream:   false, // Start with buffering - we'll decide after the call
 			}
@@ -522,6 +524,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			Hub:            streamCtx.Hub,
 			Client:         streamCtx.Client,
 			BoardId:        streamCtx.BoardId,
+			UserID:         streamCtx.UserID,
 			BufferedChunks: make([]string, 0),
 			ShouldStream:   true, // Stream the final response immediately
 		}
@@ -599,6 +602,7 @@ func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, cl
 			Hub:     hub,
 			Client:  client,
 			BoardId: boardId, // Can be empty string
+			UserID:  client.UserID,
 		}
 	}
 	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)

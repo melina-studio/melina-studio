@@ -473,6 +473,20 @@ func GetBoardDataHandler(ctx context.Context, input map[string]interface{}) (int
 		return nil, fmt.Errorf("boardId is required")
 	}
 
+	// Get StreamingContext from context to extract userId
+	streamCtxValue := ctx.Value("streamingContext")
+	if streamCtxValue == nil {
+		return nil, fmt.Errorf("streaming context not available")
+	}
+	streamCtx, ok := streamCtxValue.(*llmHandlers.StreamingContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid streaming context type")
+	}
+	userIdUUID, err := uuid.Parse(streamCtx.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid userId: %w", err)
+	}
+
 	// Get shape data from database first (needed for annotation and caching)
 	boardIdUUID, err := uuid.Parse(boardId)
 	if err != nil {
@@ -497,7 +511,7 @@ func GetBoardDataHandler(ctx context.Context, input map[string]interface{}) (int
 	}
 
 	// Get or create annotated image (uses caching)
-	annotatedImage, err := GetOrCreateAnnotatedImage(boardId, shapesData, imageBase64)
+	annotatedImage, err := GetOrCreateAnnotatedImage(userIdUUID, boardId, shapesData, imageBase64)
 	if err != nil {
 		// If annotation fails, fall back to original image without numbers
 		fmt.Printf("Warning: Image annotation failed: %v\n", err)
@@ -677,9 +691,11 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 
 	// Invalidate the annotated image cache since a new shape was added
 	if boardIdUUID, err := uuid.Parse(boardId); err == nil {
-		if err := InvalidateAnnotatedImageCache(boardIdUUID); err != nil {
-			// Log but don't fail - cache invalidation is not critical
-			fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+		if userIdUUID, err := uuid.Parse(streamCtx.UserID); err == nil {
+			if err := InvalidateAnnotatedImageCache(userIdUUID, boardIdUUID); err != nil {
+				// Log but don't fail - cache invalidation is not critical
+				fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+			}
 		}
 	}
 
@@ -720,13 +736,19 @@ func RenameBoardHandler(ctx context.Context, input map[string]interface{}) (inte
 		return nil, fmt.Errorf("invalid streaming context type")
 	}
 
+	// Parse userId from StreamingContext
+	userIdUUID, err := uuid.Parse(streamCtx.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid userId: %w", err)
+	}
+
 	// Access database via config and create repository
 	boardRepo := repo.NewBoardRepository(config.DB)
 	// Update the board
 	updatePayload := &models.Board{
 		Title: newName,
 	}
-	err = boardRepo.UpdateBoard(boardId, updatePayload)
+	err = boardRepo.UpdateBoard(userIdUUID, boardId, updatePayload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update board: %w", err)
 	}
@@ -947,9 +969,11 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	}
 
 	// Invalidate the annotated image cache since shape was updated
-	if err := InvalidateAnnotatedImageCache(boardId); err != nil {
-		// Log but don't fail - cache invalidation is not critical
-		fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+	if userIdUUID, err := uuid.Parse(streamCtx.UserID); err == nil {
+		if err := InvalidateAnnotatedImageCache(userIdUUID, boardId); err != nil {
+			// Log but don't fail - cache invalidation is not critical
+			fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+		}
 	}
 
 	// Build shape map for WebSocket message (similar to addShape format)
@@ -1106,8 +1130,10 @@ func DeleteShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	}
 
 	// Invalidate annotated image cache
-	if err := InvalidateAnnotatedImageCache(boardId); err != nil {
-		fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+	if userIdUUID, err := uuid.Parse(streamCtx.UserID); err == nil {
+		if err := InvalidateAnnotatedImageCache(userIdUUID, boardId); err != nil {
+			fmt.Printf("Warning: failed to invalidate annotated image cache: %v\n", err)
+		}
 	}
 
 	// Send WebSocket message

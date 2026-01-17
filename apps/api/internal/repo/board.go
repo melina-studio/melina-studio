@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"melina-studio-backend/internal/models"
 	"time"
 
@@ -20,6 +21,7 @@ type BoardRepoInterface interface {
 	GetBoardById(userID uuid.UUID, boardId uuid.UUID) (models.Board, error)
 	UpdateBoard(userID uuid.UUID, boardId uuid.UUID, board *models.Board) error
 	DeleteBoardByID(userID uuid.UUID, boardId uuid.UUID) error
+	ValidateBoardOwnership(userID uuid.UUID, boardId uuid.UUID) error
 }
 
 func NewBoardRepository(db *gorm.DB) BoardRepoInterface {
@@ -58,4 +60,19 @@ func (r *BoardRepo) GetAllBoards(userID uuid.UUID) ([]models.Board, error) {
 	var boards []models.Board
 	err := r.db.Where(&models.Board{UserID: userID}).Find(&boards).Error
 	return boards, err
+}
+
+// ValidateBoardOwnership checks if user owns the specified board
+func (r *BoardRepo) ValidateBoardOwnership(userID uuid.UUID, boardId uuid.UUID) error {
+	var count int64
+	err := r.db.Model(&models.Board{}).
+		Where("uuid = ? AND user_id = ?", boardId, userID).
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New("board not found or access denied")
+	}
+	return nil
 }

@@ -126,8 +126,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	user.Password = ""
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"user":    user,
-		"message": "Login successful",
+		"user":         user,
+		"access_token": accessToken,
+		"message":      "Login successful",
 	})
 }
 
@@ -194,8 +195,9 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	setAuthCookies(c, accessToken, refreshToken)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"uuid":    newUserUUID.String(),
-		"message": "User created successfully",
+		"uuid":         newUserUUID.String(),
+		"access_token": accessToken,
+		"message":      "User created successfully",
 	})
 }
 
@@ -246,7 +248,8 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	setAuthCookies(c, accessToken, newRefreshToken)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Tokens refreshed successfully",
+		"access_token": accessToken,
+		"message":      "Tokens refreshed successfully",
 	})
 }
 

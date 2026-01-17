@@ -59,6 +59,7 @@ func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.H
 			Hub:     hub,
 			Client:  client,
 			BoardId: boardId, // Can be empty string
+			UserID:  client.UserID,
 		}
 	}
 	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
