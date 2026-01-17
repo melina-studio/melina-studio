@@ -224,8 +224,8 @@ export function CreationInput({
         </div>
       </div>
 
-      {/* Hint text */}
-      <p className="mt-3 text-xs text-muted-foreground">
+      {/* Hint text -- hidden on mobile */}
+      <p className="mt-3 text-xs text-muted-foreground hidden sm:block">
         Press{" "}
         <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
           Tab
