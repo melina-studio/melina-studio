@@ -1,15 +1,21 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
 	"melina-studio-backend/internal/auth"
+	"melina-studio-backend/internal/auth/oauth"
 	"melina-studio-backend/internal/models"
 	"melina-studio-backend/internal/repo"
 	"melina-studio-backend/internal/service"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
+	"gorm.io/gorm"
 )
 
 // Cookie configuration
@@ -96,8 +102,22 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// Check if user uses email login method
+	if user.LoginMethod != models.LoginMethodEmail {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid login method. Please use OAuth login.",
+		})
+	}
+
+	// Check if password exists (should always exist for email login, but safety check)
+	if user.Password == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid credentials",
+		})
+	}
+
 	// compare the password with the hashed password in the database
-	if !auth.CheckPasswordHash(dto.Password, user.Password) {
+	if !auth.CheckPasswordHash(dto.Password, *user.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid credentials",
 		})
@@ -123,7 +143,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	setAuthCookies(c, accessToken, refreshToken)
 
 	// Don't return password
-	user.Password = ""
+	user.Password = nil
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user":         user,
@@ -147,8 +167,9 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 
 	// check if the user already exists
-	existingUser, _ := h.authRepo.GetUserByEmail(dto.Email)
-	if existingUser.Email != "" {
+	_, checkErr := h.authRepo.GetUserByEmail(dto.Email)
+	if checkErr == nil {
+		// User exists
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "User already exists",
 		})
@@ -164,10 +185,11 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 	// create a new user
 	newUserUUID, err := h.authRepo.CreateUser(&models.User{
-		Email:     dto.Email,
-		Password:  hashedPassword,
-		FirstName: dto.FirstName,
-		LastName:  dto.LastName,
+		Email:       dto.Email,
+		Password:    &hashedPassword,
+		FirstName:   dto.FirstName,
+		LastName:    dto.LastName,
+		LoginMethod: models.LoginMethodEmail,
 	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -360,9 +382,113 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	}
 
 	// Don't return the password
-	user.Password = ""
+	user.Password = nil
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user": user,
 	})
+}
+
+// GoogleLogin redirects the user to the Google OAuth login page
+func (h *AuthHandler) GoogleLogin(c *fiber.Ctx) error {
+	randomHash := uuid.NewString()
+	url := oauth.GetGoogleOAuthConfig().AuthCodeURL(
+		randomHash,
+		oauth2.AccessTypeOffline,
+	)
+	return c.Redirect(url)
+}
+
+// GoogleCallback handles the callback from the Google OAuth login page
+func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
+	frontendURL := os.Getenv("FRONTEND_URL")
+
+	code := c.Query("code")
+	if code == "" {
+		return c.Redirect(frontendURL + "/auth?error=missing_code")
+	}
+
+	token, err := oauth.GetGoogleOAuthConfig().Exchange(c.Context(), code)
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=oauth_exchange_failed")
+	}
+
+	client := oauth.GetGoogleOAuthConfig().Client(c.Context(), token)
+
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_get_user_info")
+	}
+	defer resp.Body.Close()
+
+	var userInfo struct {
+		Sub     string `json:"sub"`
+		Email   string `json:"email"`
+		Name    string `json:"name"`
+		Picture string `json:"picture"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_decode_user_info")
+	}
+
+	// Parse name - handle cases with single name or multiple spaces
+	nameParts := strings.Fields(userInfo.Name)
+	var firstName, lastName string
+	if len(nameParts) > 0 {
+		firstName = nameParts[0]
+		if len(nameParts) > 1 {
+			lastName = strings.Join(nameParts[1:], " ")
+		} else {
+			lastName = "" // Handle single name case
+		}
+	}
+
+	// 1. Find user by email
+	user, err := h.authRepo.GetUserByEmail(userInfo.Email)
+	
+	// 2. If user doesn't exist, create new user
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_check_user")
+		}
+
+		// User doesn't exist - create new OAuth user
+		// OAuth users don't need passwords
+		newUserUUID, err := h.authRepo.CreateUser(&models.User{
+			FirstName:    firstName,
+			LastName:     lastName,
+			Email:        userInfo.Email,
+			Password:     nil, // OAuth users don't have passwords
+			LoginMethod:  models.LoginMethodGoogle,
+			Subscription: models.SubscriptionFree,
+		})
+		if err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_create_user")
+		}
+
+		// Fetch the newly created user to get all fields
+		user, err = h.authRepo.GetUserByID(newUserUUID)
+		if err != nil {
+			return c.Redirect(frontendURL + "/auth?error=failed_to_retrieve_user")
+		}
+	}
+
+	// 3. Issue JWTs using the database user UUID (not Google's Sub)
+	accessToken, err := auth.GenerateAccessToken(user.UUID.String())
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_generate_token")
+	}
+
+	// Generate and store refresh token (using authService like regular login)
+	refreshToken, err := h.authService.CreateAndStoreRefreshToken(user.UUID, c.Get("User-Agent"), c.IP())
+	if err != nil {
+		return c.Redirect(frontendURL + "/auth?error=failed_to_generate_refresh_token")
+	}
+
+	// Set cookies (like regular login)
+	setAuthCookies(c, accessToken, refreshToken)
+
+	// Redirect to frontend after successful OAuth
+	return c.Redirect(frontendURL + "/playground/all")
 }

@@ -20,6 +20,10 @@ func registerAuthPublic(r fiber.Router) {
 	r.Post("/register", authHandler.Register)
 	r.Post("/refresh", authHandler.RefreshToken)
 	r.Post("/logout", authHandler.Logout)
+
+	// OAuth routes
+	r.Get("/oauth/google", authHandler.GoogleLogin)
+	r.Get("/oauth/google/callback", authHandler.GoogleCallback)
 }
 
 func registerAuthProtected(r fiber.Router) {
