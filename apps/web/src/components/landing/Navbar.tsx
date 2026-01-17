@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useTheme } from "next-themes";
 import { ThemeSwitchToggle } from "@/components/landing/ThemeSwitchToggle";
 import { Button } from "@/components/ui/button";
+import Logo from "@/components/custom/General/Logo";
+import { useIsOnDark } from "@/hooks/useIsOnDark";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -14,67 +13,13 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-  const [isOnDark, setIsOnDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { theme } = useTheme();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      // Get all dark sections
-      const darkSections = document.querySelectorAll('[data-theme="dark"]');
-      const navbarHeight = 80; // Approximate navbar height
-
-      let onDarkSection = false;
-
-      darkSections.forEach((section) => {
-        const rect = section.getBoundingClientRect();
-        // Check if navbar is overlapping this dark section
-        if (rect.top < navbarHeight && rect.bottom > 0) {
-          onDarkSection = true;
-        }
-      });
-
-      setIsOnDark(onDarkSection);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll(); // Check initial state
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const isOnDark = useIsOnDark();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
       <div className="max-w-7xl mx-auto relative flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 z-10">
-          <div className="flex items-center gap-1 px-1 pt-1.5 cursor-pointer opacity-[0.85] hover:opacity-100 transition-all">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <Image
-                src={
-                  mounted && theme === "dark"
-                    ? "/icons/logo.svg"
-                    : "/icons/logo-dark.svg"
-                }
-                alt="Melina Studio"
-                width={16}
-                height={16}
-                className="size-[16px]"
-              />
-            </div>
-            <span
-              className={`text-sm font-semibold tracking-wide transition-colors duration-300 ${
-                isOnDark ? "text-white" : "text-foreground"
-              }`}
-            >
-              Melina Studio
-            </span>
-          </div>
-        </Link>
+        <Logo />
 
         {/* Center Navigation - Absolutely positioned for true center */}
         <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">

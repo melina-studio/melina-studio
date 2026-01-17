@@ -9,6 +9,7 @@ import { useTheme } from "next-themes";
 import { useEffect } from "react";
 import Noise from "@/blocks/Animations/Noise/Noise";
 import { Toaster } from "@/components/ui/sonner";
+import Logo from "@/components/custom/General/Logo";
 
 export default function AuthPage() {
   const { theme } = useTheme();
@@ -49,20 +50,7 @@ export default function AuthPage() {
       <div className="relative flex flex-col gap-4 p-6 px-10 overflow-hidden">
         <Noise />
         <div className="relative z-10 flex justify-center gap-2 md:justify-end">
-          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-            <Image
-              src={
-                mounted && theme === "dark"
-                  ? "/icons/logo.svg"
-                  : "/icons/logo-dark.svg"
-              }
-              alt="Melina Studio"
-              width={16}
-              height={16}
-              className="size-[16px]"
-            />
-          </div>
-          Melina Studio
+          <Logo />
         </div>
         <div className="relative z-10 flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
