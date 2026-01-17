@@ -8,7 +8,7 @@ import (
 
 // Board represents the database model
 type Board struct {
-	UUUID              uuid.UUID `gorm:"primarykey" json:"uuid"`
+	UUID              uuid.UUID `gorm:"column:uuid;primarykey" json:"uuid"`
 	Title              string    `gorm:"not null" json:"title"`
 	UserID             uuid.UUID `gorm:"not null" json:"user_id"`
 	Starred            bool      `gorm:"default:false" json:"starred"`

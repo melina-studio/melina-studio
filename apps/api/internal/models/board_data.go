@@ -23,7 +23,7 @@ const (
 )
 
 type BoardData struct {
-	UUID             uuid.UUID      `gorm:"primarykey" json:"uuid"`
+	UUID             uuid.UUID      `gorm:"column:uuid;primarykey" json:"uuid"`
 	BoardId          uuid.UUID      `gorm:"not null" json:"board_id"`
 	Type             Type           `gorm:"default:'rect'" json:"type"`
 	Data             datatypes.JSON `json:"data"`
