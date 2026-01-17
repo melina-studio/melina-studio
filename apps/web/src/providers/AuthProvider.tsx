@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   register as registerService,
   logout as logoutService,
   getMe,
+  setAccessTokenRef,
 } from "@/service/auth";
 import { RegisterPayload } from "@/lib/types";
 
@@ -29,6 +31,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  accessToken: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
@@ -46,10 +49,21 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
 
   const isAuthenticated = !!user;
+
+  // Keep ref in sync with state for axios interceptor
+  const updateAccessToken = useCallback((token: string | null) => {
+    accessTokenRef.current = token;
+    setAccessToken(token);
+  }, []);
+
+  // Register the token ref with auth service (for axios refresh callback)
+  setAccessTokenRef(accessTokenRef);
 
   // Fetch current user from /me endpoint
   const fetchUser = useCallback(async () => {
@@ -57,13 +71,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       const data = await getMe();
       setUser(data.user);
+      // Update token if returned (from refresh)
+      if (data.access_token) {
+        updateAccessToken(data.access_token);
+      }
     } catch (err: any) {
       console.error("Failed to fetch user:", err);
       setUser(null);
+      updateAccessToken(null);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [updateAccessToken]);
 
   // Login
   const login = useCallback(async (email: string, password: string) => {
@@ -71,8 +90,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       setError(null);
       const data = await loginService(email, password);
-      // Cookies are set by the server, just set the user
+      // Cookies are set by the server, save user and access token
       setUser(data.user);
+      updateAccessToken(data.access_token);
     } catch (err: any) {
       const message = err.message || "Login failed";
       setError(message);
@@ -80,15 +100,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [updateAccessToken]);
 
   // Signup
   const signup = useCallback(async (payload: RegisterPayload) => {
     try {
       setIsLoading(true);
       setError(null);
-      await registerService(payload);
-      // Cookies are set by the server, fetch user data
+      const data = await registerService(payload);
+      // Cookies are set by the server, save access token and fetch user
+      updateAccessToken(data.access_token);
       await fetchUser();
     } catch (err: any) {
       const message = err.message || "Signup failed";
@@ -97,7 +118,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchUser]);
+  }, [fetchUser, updateAccessToken]);
 
   // Logout
   const logout = useCallback(async () => {
@@ -106,11 +127,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (err) {
       console.error("Logout API call failed:", err);
     } finally {
-      // Always clear user state
+      // Always clear user state and token
       setUser(null);
+      updateAccessToken(null);
       setError(null);
     }
-  }, []);
+  }, [updateAccessToken]);
 
   // Refresh user data
   const refreshUser = useCallback(async () => {
@@ -119,6 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
+    accessToken,
     isLoading,
     isAuthenticated,
     error,

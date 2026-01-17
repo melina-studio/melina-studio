@@ -2,12 +2,13 @@
 
 import React, {
   createContext,
-  useContext,
   useEffect,
   useRef,
   useState,
   useCallback,
 } from "react";
+import { getAccessToken } from "@/service/auth";
+import api from "@/lib/axios";
 
 type Callback = (msg: any) => void;
 
@@ -39,11 +40,25 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     // Don't reconnect if intentionally closed
     if (intentionalCloseRef.current) return;
 
-    const ws = new WebSocket(process.env.NEXT_PUBLIC_WEBSOCKET_URL || "");
+    // Refresh token if needed before connecting (handles expired token case)
+    try {
+      await api.get("/api/v1/auth/me");
+    } catch (error) {
+      console.error("Failed to refresh auth before WebSocket connect:", error);
+      // If auth fails, axios interceptor will redirect to login
+      return;
+    }
+
+    // Get access token and append to WebSocket URL
+    const token = getAccessToken();
+    const baseUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "";
+    const wsUrl = token ? `${baseUrl}?token=${token}` : baseUrl;
+
+    const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onmessage = (event) => {

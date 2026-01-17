@@ -1,5 +1,23 @@
-import api from "@/lib/axios";
+import api, { setTokenUpdateCallback } from "@/lib/axios";
 import { RegisterPayload } from "@/lib/types";
+
+// Token management for WebSocket auth - will be set by AuthProvider
+let accessTokenRef: { current: string | null } | null = null;
+
+export const setAccessTokenRef = (ref: { current: string | null }) => {
+  accessTokenRef = ref;
+
+  // Register callback to update token when axios refreshes it
+  setTokenUpdateCallback((token: string) => {
+    if (accessTokenRef) {
+      accessTokenRef.current = token;
+    }
+  });
+};
+
+export const getAccessToken = () => {
+  return accessTokenRef?.current ?? null;
+};
 
 export const login = async (email: string, password: string) => {
   try {

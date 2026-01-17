@@ -15,6 +15,12 @@ const api = axios.create({
 
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
+let tokenUpdateCallback: ((token: string) => void) | null = null;
+
+// Allow auth service to register a callback for token updates
+export const setTokenUpdateCallback = (callback: (token: string) => void) => {
+  tokenUpdateCallback = callback;
+};
 
 const processQueue = (error: unknown) => {
   failedQueue.forEach((prom) => {
@@ -51,7 +57,12 @@ api.interceptors.response.use(
 
     try {
       // Call refresh endpoint - cookies are sent automatically
-      await api.post("/api/v1/auth/refresh");
+      const refreshResponse = await api.post("/api/v1/auth/refresh");
+
+      // Notify about new access token if callback is registered
+      if (tokenUpdateCallback && refreshResponse.data?.access_token) {
+        tokenUpdateCallback(refreshResponse.data.access_token);
+      }
 
       processQueue(null);
       return api(originalRequest);
