@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useBoard } from "@/hooks/useBoard";
 import Logo from "../General/Logo";
+import { useAuth } from "@/providers/AuthProvider";
 
 type NavItem = {
   title: string;
@@ -67,8 +68,17 @@ export function BoardsSidebar() {
   const router = useRouter();
 
   const { theme, setTheme } = useTheme();
+  const { logout, user } = useAuth();
   const { createNewBoard, getActiveHref } = useBoard();
   const [mounted, setMounted] = useState(false);
+  const firstName = user?.first_name
+    ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1)
+    : "";
+  const lastName = user?.last_name
+    ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1)
+    : "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const displayName = fullName ? fullName : "User";
 
   // Avoid hydration mismatch by only rendering theme-dependent content after mount
   useEffect(() => {
@@ -98,6 +108,11 @@ export function BoardsSidebar() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    router.push("/auth");
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-2">
@@ -112,20 +127,23 @@ export function BoardsSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full">
               <div className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
-                <span className="truncate">Aryan Shaw</span>
+                <span className="truncate">{displayName}</span>
                 <ChevronDown className="ml-auto size-4 opacity-50" />
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer">
                 <Settings className="size-4 mr-2" />
                 Workspace settings
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>
+              <DropdownMenuItem disabled className="cursor-not-allowed">
                 <Receipt className="size-4 mr-2" />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={handleLogout}
+              >
                 <LogOut className="size-4 mr-2" />
                 Log out
               </DropdownMenuItem>
