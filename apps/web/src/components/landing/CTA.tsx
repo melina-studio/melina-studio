@@ -75,7 +75,7 @@ export default function CTA() {
               {/* Glow effect */}
               <div className="cta-glow absolute -inset-4 bg-primary/20 rounded-full blur-xl" />
 
-              <GetStartedButton className="relative inline-flex items-center justify-center text-lg px-10 py-6 h-auto rounded-md group font-semibold cursor-pointer bg-primary text-primary-foreground shadow-xs hover:bg-primary/90">
+              <GetStartedButton className="relative inline-flex items-center justify-center text-md px-6 py-4 rounded-xl group font-semibold cursor-pointer bg-primary text-primary-foreground shadow-xs hover:bg-primary/90">
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </GetStartedButton>
