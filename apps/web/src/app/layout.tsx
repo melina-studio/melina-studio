@@ -4,8 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { DevtoolsProvider } from "@/providers/DevtoolsProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/custom/General/AppSidebar";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -69,6 +68,7 @@ export default function RootLayout({
             <DevtoolsProvider>{children}</DevtoolsProvider>
           </AuthProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
