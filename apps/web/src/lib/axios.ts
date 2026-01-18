@@ -38,7 +38,11 @@ api.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
-    if (error.response?.status !== 401 || originalRequest._retry) {
+
+    // Don't retry for refresh endpoint itself (prevents infinite loop)
+    const isRefreshRequest = originalRequest.url?.includes("/auth/refresh");
+
+    if (error.response?.status !== 401 || originalRequest._retry || isRefreshRequest) {
       return Promise.reject(error);
     }
     originalRequest._retry = true;
@@ -68,10 +72,7 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError);
-      // Redirect to login on refresh failure
-      if (typeof window !== "undefined") {
-        window.location.href = "/auth";
-      }
+      // Let the component handle redirect - just reject the promise
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

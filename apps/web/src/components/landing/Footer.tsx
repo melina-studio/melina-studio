@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { GetStartedButton } from "@/components/custom/General/GetStartedButton";
 
 export default function Footer() {
   return (
@@ -27,12 +28,9 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex items-center gap-8">
-            <Link
-              href="/playground/all"
-              className="text-sm text-zinc-400 hover:text-white transition-colors"
-            >
+            <GetStartedButton className="text-sm text-zinc-400 hover:text-white transition-colors">
               Get Started
-            </Link>
+            </GetStartedButton>
             <Link
               href="#features"
               className="text-sm text-zinc-400 hover:text-white transition-colors"

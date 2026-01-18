@@ -17,8 +17,14 @@ export default function PlaygroundLayout({
   // Fetch user data when entering protected routes
   useEffect(() => {
     const checkAuth = async () => {
-      await refreshUser();
-      setAuthChecked(true);
+      try {
+        await refreshUser();
+      } catch (error) {
+        // Error is handled by axios interceptor (redirects to /auth)
+        console.error("Auth check failed:", error);
+      } finally {
+        setAuthChecked(true);
+      }
     };
     checkAuth();
   }, [refreshUser]);

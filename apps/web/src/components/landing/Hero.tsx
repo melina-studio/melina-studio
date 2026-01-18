@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowRight, Github } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { GetStartedButton } from "@/components/custom/General/GetStartedButton";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -207,13 +208,10 @@ export default function Hero() {
 
             {/* CTA */}
             <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/playground/all"
-                className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black px-6 rounded-xl font-medium hover:opacity-90 transition-opacity cursor-pointer"
-              >
+              <GetStartedButton className="w-[160px] h-12 inline-flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black px-6 rounded-xl font-medium hover:opacity-90 transition-opacity cursor-pointer">
                 Get Started
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </GetStartedButton>
               <Link
                 href="https://github.com/orgs/melina-studio/repositories"
                 target="_blank"

@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { GetStartedButton } from "@/components/custom/General/GetStartedButton";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -76,15 +76,10 @@ export default function CTA() {
               {/* Glow effect */}
               <div className="cta-glow absolute -inset-4 bg-primary/20 rounded-full blur-xl" />
 
-              <Link href="/playground/all">
-                <Button
-                  size="lg"
-                  className="relative text-lg px-10 py-6 rounded-md group font-semibold cursor-pointer"
-                >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </Link>
+              <GetStartedButton className="relative inline-flex items-center justify-center text-lg px-10 py-6 h-auto rounded-md group font-semibold cursor-pointer bg-primary text-primary-foreground shadow-xs hover:bg-primary/90">
+                Get Started Free
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </GetStartedButton>
             </div>
 
             <p className="mt-6 text-sm text-muted-foreground">
