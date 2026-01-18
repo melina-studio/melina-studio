@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -10,6 +10,7 @@ import {
   PresentationControls,
 } from "@react-three/drei";
 import * as THREE from "three";
+import { isWebGLAvailable } from "@/lib/webgl";
 
 // Animated floating shapes when no model is provided
 function FloatingShapes() {
@@ -107,10 +108,43 @@ interface ModelViewerProps {
   className?: string;
 }
 
+// Static fallback when WebGL is not available
+function StaticFallback() {
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="relative">
+        {/* Animated CSS shapes as fallback */}
+        <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl animate-pulse shadow-lg shadow-indigo-500/30"
+             style={{ transform: "rotate(12deg)" }} />
+        <div className="absolute -top-8 -right-8 w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full animate-bounce shadow-lg shadow-pink-500/30"
+             style={{ animationDelay: "0.2s" }} />
+        <div className="absolute -bottom-4 -left-6 w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg animate-pulse shadow-lg shadow-cyan-500/30"
+             style={{ animationDelay: "0.4s", transform: "rotate(-15deg)" }} />
+      </div>
+    </div>
+  );
+}
+
 export function ModelViewer({
   modelUrl,
   className = "",
 }: ModelViewerProps) {
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setWebGLSupported(isWebGLAvailable());
+  }, []);
+
+  // Show fallback if WebGL is not supported or there was an error
+  if (!webGLSupported || hasError) {
+    return (
+      <div className={`w-full h-full ${className}`}>
+        <StaticFallback />
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full h-full ${className}`}>
       <Canvas
@@ -118,6 +152,13 @@ export function ModelViewer({
         gl={{ alpha: true, antialias: true }}
         style={{ background: "transparent" }}
         resize={{ scroll: false, debounce: { scroll: 0, resize: 100 } }}
+        onCreated={() => {
+          // WebGL context created successfully
+        }}
+        onError={() => {
+          setHasError(true);
+        }}
+        fallback={<StaticFallback />}
       >
         <Suspense fallback={null}>
           {/* Lighting - enhanced for visibility on light background */}

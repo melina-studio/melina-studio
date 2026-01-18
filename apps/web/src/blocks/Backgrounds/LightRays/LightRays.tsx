@@ -4,6 +4,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { Renderer, Program, Triangle, Mesh } from "ogl";
+import { isWebGLAvailable } from "@/lib/webgl";
 
 export type RaysOrigin =
   | "top-center"
@@ -115,7 +116,13 @@ const LightRays: React.FC<LightRaysProps> = ({
   const meshRef = useRef<Mesh | null>(null);
   const cleanupFunctionRef = useRef<(() => void) | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [webGLSupported, setWebGLSupported] = useState(true);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    setWebGLSupported(isWebGLAvailable());
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -139,7 +146,7 @@ const LightRays: React.FC<LightRaysProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isVisible || !containerRef.current) return;
+    if (!isVisible || !containerRef.current || !webGLSupported) return;
 
     if (cleanupFunctionRef.current) {
       cleanupFunctionRef.current();
@@ -153,10 +160,17 @@ const LightRays: React.FC<LightRaysProps> = ({
 
       if (!containerRef.current) return;
 
-      const renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio, 2),
-        alpha: true,
-      });
+      let renderer: Renderer;
+      try {
+        renderer = new Renderer({
+          dpr: Math.min(window.devicePixelRatio, 2),
+          alpha: true,
+        });
+      } catch (error) {
+        console.warn("Failed to create WebGL renderer:", error);
+        setWebGLSupported(false);
+        return;
+      }
       rendererRef.current = renderer;
 
       const gl = renderer.gl;
@@ -396,6 +410,7 @@ void main() {
     };
   }, [
     isVisible,
+    webGLSupported,
     raysOrigin,
     raysColor,
     raysSpeed,
@@ -461,6 +476,11 @@ void main() {
       return () => window.removeEventListener("mousemove", handleMouseMove);
     }
   }, [followMouse]);
+
+  // Don't render anything if WebGL is not supported - the page works fine without the light rays effect
+  if (!webGLSupported) {
+    return null;
+  }
 
   return (
     <div className="w-full h-full pointer-events-none overflow-hidden relative">
