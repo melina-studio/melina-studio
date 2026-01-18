@@ -1,5 +1,5 @@
-import { NextDevtoolsProvider } from "@next-devtools/core";
-
 export function DevtoolsProvider({ children }: { children: React.ReactNode }) {
-  return <NextDevtoolsProvider>{children}</NextDevtoolsProvider>;
+  // @next-devtools is not compatible with Next.js 16.1.3+
+  // Just return children for now until the package is updated
+  return <>{children}</>;
 }
