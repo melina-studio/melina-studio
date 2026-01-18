@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { LoginForm } from "@/components/login-form";
@@ -27,11 +27,10 @@ const errorMessages: Record<string, string> = {
   no_verified_email: "No verified email found. Please verify your email with the provider first",
 };
 
-export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+// Component that uses useSearchParams - must be wrapped in Suspense
+function AuthErrorHandler() {
   const searchParams = useSearchParams();
 
-  // Show toast for OAuth errors from URL params
   useEffect(() => {
     const error = searchParams.get("error");
     const provider = searchParams.get("provider");
@@ -39,17 +38,20 @@ export default function AuthPage() {
     if (error) {
       let message = errorMessages[error] || "Authentication failed. Please try again.";
 
-      // Add provider info for email_exists_different_provider error
       if (error === "email_exists_different_provider" && provider) {
         message = `This email is already registered with ${provider}. Please use ${provider} to login.`;
       }
 
       toast.error(message);
-
-      // Clean up URL params after showing toast
       window.history.replaceState({}, "", "/auth");
     }
   }, [searchParams]);
+
+  return null;
+}
+
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2 relative">
@@ -96,6 +98,10 @@ export default function AuthPage() {
       <div className="absolute">
         <Toaster position="top-center" />
       </div>
+      {/* Suspense boundary for useSearchParams */}
+      <Suspense fallback={null}>
+        <AuthErrorHandler />
+      </Suspense>
     </div>
   );
 }
