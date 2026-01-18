@@ -28,6 +28,7 @@ export function LoginForm({
   const { login, googleLogin, githubLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<"google" | "github" | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,26 +48,20 @@ export function LoginForm({
     }
   }
 
-  async function handleGoogleLogin() {
-    try {
-      setIsSubmitting(true);
-      await googleLogin();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to login with Google");
-    } finally {
-      setIsSubmitting(false);
-    }
+  function handleGoogleLogin() {
+    setLoadingProvider("google");
+    // Small delay to allow React to re-render before navigation
+    setTimeout(() => {
+      googleLogin();
+    }, 50);
   }
 
-  async function handleGithubLogin() {
-    try {
-      setIsSubmitting(true);
-      await githubLogin();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to login with GitHub");
-    } finally {
-      setIsSubmitting(false);
-    }
+  function handleGithubLogin() {
+    setLoadingProvider("github");
+    // Small delay to allow React to re-render before navigation
+    setTimeout(() => {
+      githubLogin();
+    }, 50);
   }
 
   return (
@@ -120,6 +115,7 @@ export function LoginForm({
             type="button"
             className="cursor-pointer"
             onClick={handleGoogleLogin}
+            disabled={loadingProvider !== null}
           >
             <Image
               src="/icons/google.svg"
@@ -128,13 +124,14 @@ export function LoginForm({
               height={16}
               className="size-[16px]"
             />
-            Login with Google
+            {loadingProvider === "google" ? "Redirecting..." : "Login with Google"}
           </Button>
           <Button
             variant="outline"
             type="button"
             className="cursor-pointer"
             onClick={handleGithubLogin}
+            disabled={loadingProvider !== null}
           >
             <Image
               src="/icons/github.svg"
@@ -143,7 +140,7 @@ export function LoginForm({
               height={16}
               className="size-[16px]"
             />
-            Login with GitHub
+            {loadingProvider === "github" ? "Redirecting..." : "Login with GitHub"}
           </Button>
           <FieldDescription className="text-center">
             Don&apos;t have an account?{" "}

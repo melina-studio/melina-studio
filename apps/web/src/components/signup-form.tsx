@@ -29,6 +29,7 @@ export function SignupForm({
   const { signup, googleLogin, githubLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<"google" | "github" | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -86,26 +87,20 @@ export function SignupForm({
     }
   }
 
-  async function handleGoogleSignup() {
-    try {
-      setIsSubmitting(true);
-      await googleLogin();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create account with Google");
-    } finally {
-      setIsSubmitting(false);
-    }
+  function handleGoogleSignup() {
+    setLoadingProvider("google");
+    // Small delay to allow React to re-render before navigation
+    setTimeout(() => {
+      googleLogin();
+    }, 50);
   }
 
-  async function handleGithubSignup() {
-    try {
-      setIsSubmitting(true);
-      await githubLogin();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create account with GitHub");
-    } finally {
-      setIsSubmitting(false);
-    }
+  function handleGithubSignup() {
+    setLoadingProvider("github");
+    // Small delay to allow React to re-render before navigation
+    setTimeout(() => {
+      githubLogin();
+    }, 50);
   }
 
   return (
@@ -192,6 +187,7 @@ export function SignupForm({
             type="button"
             className="cursor-pointer"
             onClick={handleGoogleSignup}
+            disabled={loadingProvider !== null}
           >
             <Image
               src="/icons/google.svg"
@@ -200,13 +196,14 @@ export function SignupForm({
               height={16}
               className="size-[16px]"
             />
-            Sign up with Google
+            {loadingProvider === "google" ? "Redirecting..." : "Sign up with Google"}
           </Button>
           <Button
             variant="outline"
             type="button"
             className="cursor-pointer"
             onClick={handleGithubSignup}
+            disabled={loadingProvider !== null}
           >
             <Image
               src="/icons/github.svg"
@@ -215,7 +212,7 @@ export function SignupForm({
               height={16}
               className="size-[16px]"
             />
-            Sign up with GitHub
+            {loadingProvider === "github" ? "Redirecting..." : "Sign up with GitHub"}
           </Button>
           <FieldDescription className="text-center">
             Already have an account?{" "}
