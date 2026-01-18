@@ -67,7 +67,7 @@ export default function CTA() {
               Ready to meet Melina?
             </h2>
 
-            <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
+            <p className="text-muted-foreground text-xs md:text-lg mb-8 max-w-xl mx-auto">
               Join creators who are already building amazing things with Melina.
             </p>
 
