@@ -1,4 +1,4 @@
-import { Bot, Loader2, SendHorizontal, X } from "lucide-react";
+import { SendHorizontal, Paperclip } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -14,10 +14,13 @@ import {
   useSelectionStore,
 } from "@/store/useSelection";
 import SelectionPill from "./SelectionPill";
+import ImageAttachmentPill from "./ImageAttachmentPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
+import { uploadChatImage } from "@/service/chatService";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useMentionCommand } from "@/hooks/useMentionCommand";
+import { useImageAttachments } from "@/hooks/useImageAttachments";
 
 type Message = {
   uuid: string;
@@ -81,6 +84,7 @@ function AIController({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [isMessageLoading, setIsMessageLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const params = useParams();
   const boardId = params?.id as string;
   const initialMessageSentRef = useRef(false);
@@ -97,6 +101,16 @@ function AIController({
     (state) => state.clearSelectionById
   );
   const selectionsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Image attachments hook
+  const {
+    attachments,
+    addFiles,
+    removeAttachment,
+    clearAttachments,
+    updateAttachmentStatus,
+    handlePaste,
+  } = useImageAttachments();
 
   // Auto-scroll to latest selection
   useEffect(() => {
@@ -177,19 +191,13 @@ Type \`/\` to see available commands.`,
     e.preventDefault();
     const text = textareaRef.current?.value.trim();
     if (!text) return;
+
+    // Clear input immediately for responsiveness
     if (textareaRef.current) {
       textareaRef.current.value = "";
       textareaRef.current.style.height = "auto";
     }
 
-    // Add user message with temporary UUID
-    const humanMessageId = uuidv4();
-    humanMessageIdRef.current = humanMessageId;
-    setMessages((msgs) => [
-      ...msgs,
-      { uuid: humanMessageId, role: "user", content: text },
-    ]);
-    // setIsMessageLoading(true);
     const settings = localStorage.getItem("settings");
     if (!settings) return;
     const settingsObj = JSON.parse(settings);
@@ -211,7 +219,58 @@ Type \`/\` to see available commands.`,
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
+    // Start loading state - uploads happen before message is shown
     setLoading(true);
+
+    // Step 1: Upload attached images FIRST (before showing user message)
+    let uploadedImageUrls: string[] = [];
+    if (attachments.length > 0) {
+      try {
+        const uploadPromises = attachments.map(async (attachment) => {
+          updateAttachmentStatus(attachment.id, "uploading");
+          try {
+            const response = await uploadChatImage(boardId, attachment.file);
+            updateAttachmentStatus(attachment.id, "uploaded", response.url);
+            return response.url;
+          } catch (error) {
+            updateAttachmentStatus(attachment.id, "error");
+            throw error;
+          }
+        });
+
+        const results = await Promise.allSettled(uploadPromises);
+        uploadedImageUrls = results
+          .filter(
+            (r): r is PromiseFulfilledResult<string> => r.status === "fulfilled"
+          )
+          .map((r) => r.value);
+
+        // Check if any uploads failed
+        const failedCount = results.filter(
+          (r) => r.status === "rejected"
+        ).length;
+        if (failedCount > 0) {
+          toast.error(`${failedCount} image(s) failed to upload`);
+        }
+
+        // If ALL uploads failed, abort
+        if (uploadedImageUrls.length === 0 && attachments.length > 0) {
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error uploading attached images:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to upload attached images"
+        );
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Step 2: Upload selection images
     if (selections.length > 0) {
       try {
         // Flatten all shapes from all selections and upload for each
@@ -272,6 +331,15 @@ Type \`/\` to see available commands.`,
       }
     }
 
+    // Step 3: All uploads complete - NOW add user message to UI
+    const humanMessageId = uuidv4();
+    humanMessageIdRef.current = humanMessageId;
+    setMessages((msgs) => [
+      ...msgs,
+      { uuid: humanMessageId, role: "user", content: text },
+    ]);
+
+    // Step 4: Send message via websocket
     try {
       sendMessage({
         type: "chat_message",
@@ -283,12 +351,18 @@ Type \`/\` to see available commands.`,
           max_tokens: maxTokens,
           active_theme: theme,
           metadata: {
-            ...(shapeImageUrls.length > 0 && { shape_image_urls: shapeImageUrls }),
+            ...(shapeImageUrls.length > 0 && {
+              shape_image_urls: shapeImageUrls,
+            }),
+            ...(uploadedImageUrls.length > 0 && {
+              uploaded_image_urls: uploadedImageUrls,
+            }),
           },
         },
       });
-      // Clear selections after successful send
+      // Clear selections and attachments after successful send
       clearSelectionsAction();
+      clearAttachments();
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error(
@@ -405,12 +479,15 @@ Type \`/\` to see available commands.`,
           max_tokens: maxTokens,
           active_theme: theme,
           metadata: {
-            ...(shapeImageUrls.length > 0 && { shape_image_urls: shapeImageUrls }),
+            ...(shapeImageUrls.length > 0 && {
+              shape_image_urls: shapeImageUrls,
+            }),
           },
         },
       });
-      // Clear selections after successful send
+      // Clear selections and attachments after successful send
       clearSelectionsAction();
+      clearAttachments();
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error(
@@ -601,22 +678,25 @@ Type \`/\` to see available commands.`,
               );
             })
           )}
+          {/* bottom chat bubble loader */}
+          {isMessageLoading && (
+            <div className="flex justify-start gap-3 items-start mb-4">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
+                <span className="text-white font-medium text-xs">M</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
+                  Melina
+                </span>
+                <div className="inline-flex items-center">
+                  <TypingLoader />
+                </div>
+              </div>
+            </div>
+          )}
           {/* 👇 Auto-scroll anchor */}
           <div ref={bottomRef} />
         </div>
-        {/* bottom chat bubble loader */}
-        {isMessageLoading && (
-          <div className="flex justify-start gap-2 mb-4">
-            <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-300 dark:bg-gray-600">
-              <Bot className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-            </div>
-            <div className="inline-flex items-center px-3 py-2 rounded-xl bg-gray-200/80 text-gray-900 rounded-bl-sm dark:bg-gray-800">
-              <div>
-                <TypingLoader />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* text input */}
@@ -632,8 +712,8 @@ Type \`/\` to see available commands.`,
               : "rgba(209, 213, 219, 0.6)",
           }}
         >
-          {/* Selection pills */}
-          {selections.length > 0 && (
+          {/* Selection pills and image attachment pills */}
+          {(selections.length > 0 || attachments.length > 0) && (
             <div
               ref={selectionsContainerRef}
               className="flex gap-2 px-2 pt-2 overflow-x-auto scrollbar-hide"
@@ -644,6 +724,14 @@ Type \`/\` to see available commands.`,
                   selection={selection}
                   isDark={isDark}
                   clearSelectionById={clearSelectionById}
+                />
+              ))}
+              {attachments.map((attachment) => (
+                <ImageAttachmentPill
+                  key={attachment.id}
+                  attachment={attachment}
+                  isDark={isDark}
+                  onRemove={removeAttachment}
                 />
               ))}
             </div>
@@ -684,12 +772,48 @@ Type \`/\` to see available commands.`,
                     );
                   }
                 }}
+                onPaste={(e) => {
+                  const errors = handlePaste(e);
+                  if (errors.length > 0) {
+                    toast.error(errors[0].reason);
+                  }
+                }}
               />
             </form>
 
-            {/* Footer with model selector and send button */}
+            {/* Hidden file input for image attachments */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  const errors = addFiles(e.target.files);
+                  if (errors.length > 0) {
+                    toast.error(errors[0].reason);
+                  }
+                }
+                // Reset input so the same file can be selected again
+                e.target.value = "";
+              }}
+            />
+
+            {/* Footer with model selector, attachment button, and send button */}
             <div className="flex items-end justify-between">
-              <ModelSelector isDark={isDark} />
+              <div className="flex items-end gap-2">
+                <ModelSelector isDark={isDark} />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-0.5 cursor-pointer rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  title="Attach images"
+                  disabled={loading}
+                >
+                  <Paperclip className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
               <div
                 onClick={(e: React.MouseEvent<HTMLDivElement>) =>
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)

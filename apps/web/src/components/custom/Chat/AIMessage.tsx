@@ -158,22 +158,24 @@ function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessage
             <Markdown components={markdownComponents}>{content}</Markdown>
           </div>
 
-          {/* Copy button - visible for latest (after streaming), opacity hidden for others until hover */}
-          <div className="mt-2">
-            <button
-              onClick={handleCopy}
-              className={`p-2 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer ${
-                isStreaming ? "opacity-0" : (isLatest || isHovered ? "opacity-100" : "opacity-0")
-              }`}
-              title={copied ? "Copied!" : "Copy message"}
-            >
-              {copied ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+          {/* Copy button - hidden during streaming, visible for latest or on hover */}
+          {!isStreaming && (
+            <div className="mt-2">
+              <button
+                onClick={handleCopy}
+                className={`p-2 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer ${
+                  isLatest || isHovered ? "opacity-100" : "opacity-0"
+                }`}
+                title={copied ? "Copied!" : "Copy message"}
+              >
+                {copied ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

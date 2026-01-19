@@ -48,3 +48,11 @@ export type RegisterPayload = {
   email: string;
   password: string;
 };
+
+export type ChatImageAttachment = {
+  id: string;
+  file: File;
+  previewUrl: string; // Object URL for preview
+  uploadedUrl?: string; // GCP URL after upload
+  status: "pending" | "uploading" | "uploaded" | "error";
+};
