@@ -133,11 +133,21 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	// Process selection images using the image processor service
 	annotatedSelections := w.imageProcessor.ProcessSelectionImages(cfg.Message.Metadata)
 
+	// Process uploaded images (user-attached images, no annotation needed)
+	var uploadedImages []agents.UploadedImage
+	if cfg.Message.Metadata != nil && len(cfg.Message.Metadata.UploadedImageUrls) > 0 {
+		log.Printf("Found %d uploaded image URLs in metadata: %v", len(cfg.Message.Metadata.UploadedImageUrls), cfg.Message.Metadata.UploadedImageUrls)
+		uploadedImages = w.imageProcessor.ProcessUploadedImages(cfg.Message.Metadata.UploadedImageUrls)
+		log.Printf("Processed %d uploaded images successfully", len(uploadedImages))
+	} else {
+		log.Printf("No uploaded images in metadata (metadata nil: %v)", cfg.Message.Metadata == nil)
+	}
+
 	// send an event that the chat is starting
 	libraries.SendEventType(hub, client, libraries.WebSocketMessageTypeChatStarting)
 
 	// process the chat message - pass client and boardId for streaming
-	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections)
+	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
 	if err != nil {
 		// Log the error for debugging
 		log.Printf("Error processing chat message: %v", err)

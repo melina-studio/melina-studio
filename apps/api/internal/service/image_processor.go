@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/alpkeskin/gotoon"
 	"github.com/google/uuid"
@@ -149,16 +150,24 @@ func (p *ImageProcessor) annotateSelectionGroups(urlToGroup map[string]*selectio
 
 // fetchImageAsBase64 fetches an image from a URL and returns it as base64
 func (p *ImageProcessor) fetchImageAsBase64(url string) (string, error) {
+	log.Printf("Fetching image from URL: %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("HTTP GET failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// Check for successful response
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP request failed with status %d: %s", resp.StatusCode, resp.Status)
+	}
+
 	imageData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	log.Printf("Successfully fetched image, size: %d bytes", len(imageData))
 
 	return base64.StdEncoding.EncodeToString(imageData), nil
 }
@@ -225,4 +234,41 @@ func (p *ImageProcessor) encodeShapesAsToon(shapesForToon []map[string]any) stri
 		return fmt.Sprintf("shapes: %v", shapesForToon)
 	}
 	return shapeMetadata
+}
+
+// ProcessUploadedImages fetches uploaded images and returns as base64 (no annotation)
+func (p *ImageProcessor) ProcessUploadedImages(urls []string) []agents.UploadedImage {
+	if len(urls) == 0 {
+		return nil
+	}
+
+	log.Printf("Processing %d uploaded images", len(urls))
+
+	var images []agents.UploadedImage
+	for _, url := range urls {
+		base64Data, err := p.fetchImageAsBase64(url)
+		if err != nil {
+			log.Printf("Failed to fetch uploaded image from %s: %v", url, err)
+			continue
+		}
+
+		// Detect mime type from URL or default to jpeg
+		mimeType := "image/jpeg"
+		lowerUrl := strings.ToLower(url)
+		if strings.HasSuffix(lowerUrl, ".png") {
+			mimeType = "image/png"
+		} else if strings.HasSuffix(lowerUrl, ".gif") {
+			mimeType = "image/gif"
+		} else if strings.HasSuffix(lowerUrl, ".webp") {
+			mimeType = "image/webp"
+		}
+
+		images = append(images, agents.UploadedImage{
+			Base64Data: base64Data,
+			MimeType:   mimeType,
+		})
+	}
+
+	log.Printf("Successfully processed %d uploaded images", len(images))
+	return images
 }

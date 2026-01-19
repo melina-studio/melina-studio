@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"melina-studio-backend/internal/libraries"
@@ -11,8 +12,14 @@ import (
 	"melina-studio-backend/internal/melina/prompts"
 	"melina-studio-backend/internal/melina/tools"
 	"melina-studio-backend/internal/models"
-	"os"
 )
+
+// UploadedImage represents a user-uploaded image (no annotation needed)
+// Defined here to avoid import cycle with service package
+type UploadedImage struct {
+	Base64Data string
+	MimeType   string
+}
 
 type Agent struct {
 	llmClient llmHandlers.Client
@@ -128,16 +135,18 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 // boardId can be empty string if no image should be included
 // client can be nil if streaming is not needed
 // selections contains annotated selection images with shape data (can be nil or empty)
+// uploadedImages contains user-uploaded reference images (can be nil or empty)
 func (a *Agent) ProcessRequestStream(
-	ctx context.Context, 
-	hub *libraries.Hub, 
-	client *libraries.Client, 
-	message string, 
-	chatHistory []llmHandlers.Message, 
-	boardId string, 
-	activeTheme string, 
-	selections interface{}) (string, error) {
-		
+	ctx context.Context,
+	hub *libraries.Hub,
+	client *libraries.Client,
+	message string,
+	chatHistory []llmHandlers.Message,
+	boardId string,
+	activeTheme string,
+	selections interface{},
+	uploadedImages []UploadedImage) (string, error) {
+
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
 
@@ -146,13 +155,18 @@ func (a *Agent) ProcessRequestStream(
 
 	// Check if we have annotated selections to include
 	if annotatedSelections, ok := selections.([]AnnotatedSelection); ok && len(annotatedSelections) > 0 {
-		// Build multimodal content with annotated images and gotoon data
-		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections)
-		log.Printf("Built multimodal content with %d annotated selections", len(annotatedSelections))
+		// Build multimodal content with annotated images, gotoon data, and uploaded images
+		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections, uploadedImages)
+		log.Printf("Built multimodal content with %d annotated selections and %d uploaded images", len(annotatedSelections), len(uploadedImages))
 	} else if images, ok := selections.([]ShapeImage); ok && len(images) > 0 {
 		// Fallback: Build multimodal content with plain images (no annotation)
 		userContent = buildMultimodalContent(message, images)
 		log.Printf("Built multimodal content with %d shape images (no annotation)", len(images))
+	} else if len(uploadedImages) > 0 {
+		// Only uploaded images, no selections
+		userContent = buildMultimodalContentWithUploadedImages(message, uploadedImages)
+		log.Printf("Built multimodal content with %d uploaded images only (first image mimeType: %s, data length: %d)",
+			len(uploadedImages), uploadedImages[0].MimeType, len(uploadedImages[0].Base64Data))
 	} else {
 		// Plain text message
 		userContent = message
@@ -178,8 +192,8 @@ func (a *Agent) ProcessRequestStream(
 	return response, nil
 }
 
-// buildMultimodalContentWithAnnotations creates content with annotated images and TOON-formatted shape data
-func buildMultimodalContentWithAnnotations(message string, selections []AnnotatedSelection) []map[string]interface{} {
+// buildMultimodalContentWithAnnotations creates content with annotated images, TOON-formatted shape data, and uploaded images
+func buildMultimodalContentWithAnnotations(message string, selections []AnnotatedSelection, uploadedImages []UploadedImage) []map[string]interface{} {
 	content := []map[string]interface{}{}
 
 	// Combine all shape metadata (TOON format)
@@ -212,6 +226,55 @@ func buildMultimodalContentWithAnnotations(message string, selections []Annotate
 				},
 			})
 		}
+	}
+
+	// Add uploaded images (user-provided reference images, no annotation)
+	if len(uploadedImages) > 0 {
+		content = append(content, map[string]interface{}{
+			"type": "text",
+			"text": "The user has also attached the following reference images:",
+		})
+		for _, img := range uploadedImages {
+			content = append(content, map[string]interface{}{
+				"type": "image",
+				"source": map[string]interface{}{
+					"type":       "base64",
+					"media_type": img.MimeType,
+					"data":       img.Base64Data,
+				},
+			})
+		}
+	}
+
+	// Add user's actual message
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": message,
+	})
+
+	return content
+}
+
+// buildMultimodalContentWithUploadedImages creates content with only uploaded images (no canvas selections)
+func buildMultimodalContentWithUploadedImages(message string, uploadedImages []UploadedImage) []map[string]interface{} {
+	content := []map[string]interface{}{}
+
+	// Add context prefix for uploaded images
+	content = append(content, map[string]interface{}{
+		"type": "text",
+		"text": "The user has attached the following reference images:",
+	})
+
+	// Add uploaded images
+	for _, img := range uploadedImages {
+		content = append(content, map[string]interface{}{
+			"type": "image",
+			"source": map[string]interface{}{
+				"type":       "base64",
+				"media_type": img.MimeType,
+				"data":       img.Base64Data,
+			},
+		})
 	}
 
 	// Add user's actual message

@@ -67,7 +67,8 @@ type ShapeImageUrl struct {
 }
 
 type ChatMessageMetadata struct {
-	ShapeImageUrls []ShapeImageUrl `json:"shape_image_urls"`
+	ShapeImageUrls    []ShapeImageUrl `json:"shape_image_urls"`
+	UploadedImageUrls []string        `json:"uploaded_image_urls"`
 }
 
 type ChatMessagePayload struct {
