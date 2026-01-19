@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
 import TypingLoader from "./TypingLoader";
+import ModelSelector from "./ModelSelector";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 import { useWebsocket } from "@/hooks/useWebsocket";
@@ -499,8 +500,8 @@ function AIController({
           : "rgba(209, 213, 219, 0.3)",
       }}
     >
-      <h3
-        className="text-lg p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
+      <h4
+        className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
         style={{
           fontFamily: '"DM Serif Text", serif',
           background: isDark
@@ -511,7 +512,7 @@ function AIController({
         }}
       >
         Ask Melina
-      </h3>
+      </h4>
       <div className="flex-1 overflow-y-auto relative p-4">
         {/* Messages container */}
         <div className="flex flex-col">
@@ -520,11 +521,25 @@ function AIController({
               Start a conversation with Melina
             </div>
           ) : (
-            messages.map((msg) => (
-              <div key={msg.uuid}>
-                <ChatMessage role={msg.role} content={msg.content} />
-              </div>
-            ))
+            messages.map((msg, index) => {
+              // Check if this is the latest AI message
+              const isLatestAI =
+                msg.role === "assistant" &&
+                index ===
+                  messages.length -
+                    1 -
+                    [...messages].reverse().findIndex((m) => m.role === "assistant");
+              return (
+                <div key={msg.uuid}>
+                  <ChatMessage
+                    role={msg.role}
+                    content={msg.content}
+                    isLatest={isLatestAI}
+                    isStreaming={isLatestAI && isMessageLoading}
+                  />
+                </div>
+              );
+            })
           )}
           {/* 👇 Auto-scroll anchor */}
           <div ref={bottomRef} />
@@ -574,7 +589,7 @@ function AIController({
             </div>
           )}
           {/* Input area */}
-          <div className="flex items-end px-4 py-3 gap-2">
+          <div className="flex flex-col px-3 py-3">
             <form onSubmit={handleSubmit} className="flex-1">
               <textarea
                 ref={textareaRef}
@@ -598,29 +613,33 @@ function AIController({
                 }}
               />
             </form>
-            <div
-              onClick={(e: React.MouseEvent<HTMLDivElement>) =>
-                handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
-              }
-              className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              style={{
-                opacity: loading ? 0.5 : 1,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
-              {loading ? (
-                <Spinner
-                  className="w-4 h-4 shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
-                  color="gray"
-                />
-              ) : (
-                <SendHorizontal
-                  className="w-4 h-4 shrink-0 mb-0.5 hover:text-blue-500 transition-colors"
-                  color="gray"
-                />
-              )}
+
+            {/* Footer with model selector and send button */}
+            <div className="flex items-end justify-between">
+              <ModelSelector isDark={isDark} />
+              <div
+                onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+                  handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
+                }
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
+                  loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                style={{
+                  opacity: loading ? 0.5 : 1,
+                }}
+              >
+                {loading ? (
+                  <Spinner
+                    className="w-4 h-4 shrink-0 hover:text-blue-500 transition-colors"
+                    color="gray"
+                  />
+                ) : (
+                  <SendHorizontal
+                    className="w-4 h-4 shrink-0 hover:text-blue-500 transition-colors"
+                    color="gray"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
