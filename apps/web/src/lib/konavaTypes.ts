@@ -8,9 +8,9 @@ import {
   Square,
   TypeOutline,
   Image,
-  Scan,
   PaintBucket,
 } from "lucide-react";
+import MarqueeAIIcon from "@/components/icons/MarqueeAIIcon";
 
 export const ACTIONS = {
   SELECT: "SELECT",
@@ -35,14 +35,15 @@ export type History = {
 
 export const ACTION_BUTTONS = [
   {
+    icon: MarqueeAIIcon,
+    label: "AI Select",
+    value: ACTIONS.MARQUEE_SELECT,
+    highlighted: true,
+  },
+  {
     icon: Hand,
     label: "Select",
     value: ACTIONS.SELECT,
-  },
-  {
-    icon: Scan,
-    label: "Marquee Select",
-    value: ACTIONS.MARQUEE_SELECT,
   },
   {
     icon: PencilLine,

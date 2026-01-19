@@ -68,14 +68,14 @@ function ToolControls({
               <button
                 key={button.value}
                 className={`
-              cursor-pointer p-2 rounded-md
-              hover:bg-[#cce0ff] dark:hover:bg-[#000000] transition-colors
-            ${
-              activeTool === button.value
-                ? "bg-[#9AC2FEFF] dark:bg-[#000000]"
-                : "bg-transparent "
-            }
-            `}
+                  cursor-pointer p-2 rounded-md transition-colors
+                  hover:bg-[#cce0ff] dark:hover:bg-[#000000]
+                  ${
+                    activeTool === button.value
+                      ? "bg-[#9AC2FEFF] dark:bg-[#000000]"
+                      : "bg-transparent"
+                  }
+                `}
                 aria-label={button.label}
                 onClick={() => handleActiveTool(button.value)}
               >

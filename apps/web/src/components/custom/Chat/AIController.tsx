@@ -1,9 +1,10 @@
 import { Bot, Loader2, SendHorizontal, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
 import TypingLoader from "./TypingLoader";
 import ModelSelector from "./ModelSelector";
+import MentionCommandPopup from "./MentionCommandPopup";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 import { useWebsocket } from "@/hooks/useWebsocket";
@@ -16,6 +17,7 @@ import SelectionPill from "./SelectionPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { useMentionCommand } from "@/hooks/useMentionCommand";
 
 type Message = {
   uuid: string;
@@ -49,6 +51,7 @@ interface AIControllerProps {
   onBatchShapeImageUrlUpdate?: (
     updates: { shapeId: string; imageUrl: string }[]
   ) => void;
+  onExportCanvas?: () => void;
 }
 
 function AIController({
@@ -57,6 +60,7 @@ function AIController({
   initialMessage,
   onInitialMessageSent,
   onBatchShapeImageUrlUpdate,
+  onExportCanvas,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -112,6 +116,62 @@ function AIController({
   }, []);
 
   const isDark = mounted && theme === "dark";
+
+  // Command handler for / commands
+  const handleCommandExecute = useCallback(
+    (commandId: string) => {
+      switch (commandId) {
+        case "clear":
+          setMessages([]);
+          toast.success("Chat history cleared");
+          break;
+        case "help":
+          const helpMessage: Message = {
+            uuid: uuidv4(),
+            role: "assistant",
+            content: `**Getting Started with Melina:**
+
+Ask Melina to generate text, shapes, or ideas directly on your canvas. Just describe what you want!
+
+**Working with Selections:**
+Use the **Marquee Select** tool to draw a selection around shapes on the canvas. Selected shapes appear as pills above the input - Melina can then see and edit those specific shapes based on your instructions.
+
+**Commands:**
+- \`/clear\` - Clear chat history
+- \`/help\` - Show this help message
+- \`/export\` - Export canvas as image
+
+Type \`/\` to see available commands.`,
+          };
+          setMessages((msgs) => [...msgs, helpMessage]);
+          break;
+        case "export":
+          if (onExportCanvas) {
+            onExportCanvas();
+            toast.success("Exporting canvas...");
+          } else {
+            toast.error("Export not available");
+          }
+          break;
+        default:
+          break;
+      }
+    },
+    [onExportCanvas]
+  );
+
+  // Mention/Command popup hook
+  const {
+    popupState,
+    popupRef,
+    filteredItems,
+    handleKeyDown: handleMentionKeyDown,
+    handleInput: handleMentionInput,
+    selectItem,
+  } = useMentionCommand({
+    textareaRef,
+    onCommandExecute: handleCommandExecute,
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -222,9 +282,9 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
-          ...(shapeImageUrls.length > 0 && {
-            metadata: { shape_image_urls: shapeImageUrls },
-          }),
+          metadata: {
+            ...(shapeImageUrls.length > 0 && { shape_image_urls: shapeImageUrls }),
+          },
         },
       });
       // Clear selections after successful send
@@ -344,9 +404,9 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
-          ...(shapeImageUrls.length > 0 && {
-            metadata: { shape_image_urls: shapeImageUrls },
-          }),
+          metadata: {
+            ...(shapeImageUrls.length > 0 && { shape_image_urls: shapeImageUrls }),
+          },
         },
       });
       // Clear selections after successful send
@@ -589,12 +649,20 @@ function AIController({
             </div>
           )}
           {/* Input area */}
-          <div className="flex flex-col px-3 py-3">
+          <div className="flex flex-col px-3 py-3 relative">
+            {/* Mention/Command Popup */}
+            <MentionCommandPopup
+              ref={popupRef}
+              popupState={popupState}
+              items={filteredItems}
+              onSelectItem={selectItem}
+              isDark={isDark}
+            />
             <form onSubmit={handleSubmit} className="flex-1">
               <textarea
                 ref={textareaRef}
                 name="message"
-                placeholder="Plan, @ for context, / for commands"
+                placeholder="Plan, type / for commands"
                 className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px] placeholder:text-gray-500"
                 rows={1}
                 disabled={loading}
@@ -602,8 +670,13 @@ function AIController({
                   const el = e.target as HTMLTextAreaElement;
                   el.style.height = "auto";
                   el.style.height = `${el.scrollHeight}px`;
+                  handleMentionInput();
                 }}
                 onKeyDown={(e) => {
+                  // Handle mention/command popup navigation first
+                  if (handleMentionKeyDown(e)) {
+                    return;
+                  }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSubmit(
