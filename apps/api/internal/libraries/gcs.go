@@ -68,7 +68,7 @@ func (c *Clients) Remove(
 	ctx context.Context,
 	objectKey string,
 ) error {
-	bucket := os.Getenv("GCS_BUCKET_NAME")
+	bucket := os.Getenv("GCP_STORAGE_BUCKET")
 	obj := c.GCS.Bucket(bucket).Object(objectKey)
 
 	if err := obj.Delete(ctx); err != nil {

@@ -13,9 +13,11 @@ func registerChat(app fiber.Router) {
 	chatRepo := repo.NewChatRepository(config.DB)
 	boardDataRepo := repo.NewBoardDataRepository(config.DB)
 	boardRepo := repo.NewBoardRepository(config.DB)
-	chatHandler := handlers.NewChatHandler(chatRepo)
+	tempUploadRepo := repo.NewTempUploadRepository(config.DB)
+	chatHandler := handlers.NewChatHandler(chatRepo, tempUploadRepo)
 	wf := workflow.NewWorkflow(chatRepo, boardDataRepo, boardRepo)
 
 	app.Post("/chat/:boardId", wf.TriggerChatWorkflow)
 	app.Get("/chat/:boardId", chatHandler.GetChatsByBoardId)
+	app.Post("/chat/:boardId/upload-image", chatHandler.UploadImage)
 }

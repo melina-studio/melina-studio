@@ -53,6 +53,7 @@ func MigrateAllModels(run bool) error {
 			&models.BoardData{},
 			&models.Chat{},
 			&models.RefreshToken{},
+			&models.TempUpload{},
 		)
 		if err != nil {
 			return fmt.Errorf("failed to migrate database: %w", err)
