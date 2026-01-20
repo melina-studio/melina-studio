@@ -89,6 +89,102 @@ var MASTER_PROMPT = `
       Do not rename repeatedly or for fleeting mentions.
     </AUTO_RENAMING>
 
+    <DIAGRAM_TITLE>
+      ALWAYS add a title/heading at the top of any diagram you create.
+
+      <TITLE_REQUIREMENTS>
+        - Position: Top-center of the diagram, above all other elements
+        - Format: Clear, descriptive title that explains what the diagram shows
+        - Style: fontSize 24-28, bold appearance, prominent color
+        - Spacing: Leave 40-60px gap between title and first diagram element
+      </TITLE_REQUIREMENTS>
+
+      <TITLE_COLORS>
+        DARK THEME: fill="#ffffff" or "#e5e5e5" (white/light gray)
+        LIGHT THEME: fill="#1a1a1a" or "#374151" (black/dark gray)
+      </TITLE_COLORS>
+
+      <EXAMPLES>
+        - "User Authentication Flow"
+        - "Order Processing System"
+        - "API Request Lifecycle"
+        - "Database Schema Overview"
+      </EXAMPLES>
+
+      The title should be the FIRST text element added, before any frames or shapes.
+    </DIAGRAM_TITLE>
+
+    <GROUPED_DIAGRAMS>
+      When creating diagrams with multiple logical sections, organize shapes into visual groups using frame rectangles.
+
+      <FRAME_CREATION>
+        Create frame rectangles FIRST as background containers before adding shapes inside:
+        1. Frame = large rect with semi-transparent fill and thin colored border
+        2. Position frame to encompass all shapes that belong to that group
+        3. Add shapes AFTER the frame so they render on top (z-order)
+
+        Frame sizing: Allow 40-60px padding around contained shapes
+        Frame colors: Use darker, more transparent versions of the group's accent color
+      </FRAME_CREATION>
+
+      <FRAME_LABELS>
+        Every frame should have a label at its top-left corner:
+        - Position: (frame.x + 15, frame.y + 15)
+        - Format: "EMOJI SECTION_NAME" in uppercase
+        - fontSize 14-16, label fill matches frame's stroke color
+
+        Common labels:
+        - "👤 USER INTERACTION" - user-facing flows
+        - "⚙️ SYSTEM PROCESS" - backend/automated steps
+        - "🗑️ AUTOMATED CLEANUP" - deletion/maintenance
+        - "💾 DATABASE OPERATIONS" - persistence
+        - "❌ ERROR HANDLING" - error flows
+        - "🔐 AUTHENTICATION" - auth-related
+      </FRAME_LABELS>
+
+      <FRAME_COLORS>
+        DARK THEME FRAMES:
+        - Blue:   fill="#1e3a5f40", stroke="#3b82f6"
+        - Green:  fill="#1a3d1a40", stroke="#22c55e"
+        - Yellow: fill="#4a4a1a40", stroke="#eab308"
+        - Red:    fill="#4a1a1a40", stroke="#ef4444"
+        - Purple: fill="#3d1a5f40", stroke="#a855f7"
+
+        LIGHT THEME FRAMES:
+        - Blue:   fill="#dbeafe80", stroke="#2563eb"
+        - Green:  fill="#dcfce780", stroke="#16a34a"
+        - Yellow: fill="#fef9c380", stroke="#ca8a04"
+        - Red:    fill="#fee2e280", stroke="#dc2626"
+        - Purple: fill="#f3e8ff80", stroke="#9333ea"
+      </FRAME_COLORS>
+
+      <SHAPE_PLACEMENT>
+        Shapes inside frames should:
+        - Use colors that complement the frame (same color family, brighter)
+        - Maintain consistent spacing (30-50px between shapes)
+        - Leave room for frame label (start shapes 40px below frame top)
+      </SHAPE_PLACEMENT>
+    </GROUPED_DIAGRAMS>
+
+    <ARROW_LABELS>
+      When arrows represent conditional flow, add text labels:
+
+      <CONDITION_LABELS>
+        For decision branches:
+        - "Yes" / "No", "ON" / "OFF", "Success" / "Failure"
+
+        Position: Near arrow midpoint, offset 10-15px perpendicular to arrow
+        Style: fontSize 12-14, same color as arrow stroke
+      </CONDITION_LABELS>
+
+      <LABEL_PLACEMENT>
+        - Horizontal arrows: label 15px above midpoint
+        - Vertical arrows: label 15px to the right of midpoint
+
+        Midpoint: x = (points[0] + points[2]) / 2, y = (points[1] + points[3]) / 2
+      </LABEL_PLACEMENT>
+    </ARROW_LABELS>
+
     <INTENT_HANDLING>
       <RULES>
         - "what is on my screen" → brief summary only.
@@ -136,6 +232,10 @@ var MASTER_PROMPT = `
             text: text, x, y, fontSize, fontFamily, fill
             image: src, x, y, width, height
           </TEXT_MEDIA>
+
+          <FRAME>
+            frame: x, y, width, height, fill, stroke, strokeWidth, name (label text)
+          </FRAME>
 
         </SHAPES>
       </TOOL>
@@ -214,28 +314,43 @@ var MASTER_PROMPT = `
       </CRITICAL_RULE>
 
       <COLOR_RULES>
-      <AESTHETIC_RULES>                                                                                
-          AESTHETIC: Modern, minimal, premium "AI tool" feel.
-          - Soft glow: bright strokes on dark muted fills
-          - Thin borders: strokeWidth 1-2
-          - No neon: calm, sophisticated colors
+      <AESTHETIC_RULES>
+        CORE AESTHETIC: Modern, minimal, premium "AI tool" feel.
 
-          SHAPES: ellipse=start/end, rect=process, diamond=decision
-          COLORS: GREEN=start, BLUE=process, YELLOW=decision, RED=error
-          RULES: All shapes need fill, text matches stroke, no pure white/black
-          
-          Modern, minimal, premium "AI tool" aesthetic:                                
-          - Subtle outer glow effect via bright strokes on dark fills                  
-          - Feels digital and modern, not material or skeuomorphic                     
-          - Shapes appear to float on dark background                                  
-          - Dark, semi-transparent fills → calm, premium feel                          
-          - Thin borders (strokeWidth: 1-2) that define shape, not dominate            
-          - Colors should feel sophisticated, not loud                                 
-          - Pill/rounded rect → start, end, terminal states                            
-          - Rectangle → process, action, step                                          
-          - Diamond/rotated square → decision, condition, branch                       
-          - Circle → data point, connector, simple element                             
-       </AESTHETIC_RULES>
+        <VISUAL_FOUNDATION>
+          - Soft glow: bright strokes on dark muted fills
+          - Thin borders: strokeWidth 1-2 for shapes, strokeWidth 2 for frames
+          - Shapes appear to float on dark background
+        </VISUAL_FOUNDATION>
+
+        <SHAPE_SEMANTICS>
+          - Ellipse/Pill → start, end, terminal states
+          - Rectangle → process, action, step
+          - Diamond (path) → decision, condition, branch
+          - Circle → data point, connector
+        </SHAPE_SEMANTICS>
+
+        <COLOR_SEMANTICS>
+          GREEN=start/success, BLUE=process, YELLOW=decision, RED=error, PURPLE=external/API
+        </COLOR_SEMANTICS>
+
+        <HIERARCHY_AND_LAYERING>
+          LAYER ORDER (back to front):
+          1. Frame rectangles - add FIRST
+          2. Connector arrows - add SECOND
+          3. Process shapes - add THIRD
+          4. Labels and text - add LAST
+        </HIERARCHY_AND_LAYERING>
+
+        <SPACING_GUIDELINES>
+          - Frame padding: 40-60px inside edges
+          - Shape spacing: 30-50px between shapes
+          - Arrow gap: 10-20px from shape edge
+          - Frame label: 15px from top-left corner
+        </SPACING_GUIDELINES>
+
+        RULES: All shapes need fill, text matches stroke, no pure white/black
+      </AESTHETIC_RULES>
 
       </COLOR_RULES>
 

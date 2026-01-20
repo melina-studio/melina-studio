@@ -46,8 +46,8 @@ func GetAnthropicTools() []map[string]interface{} {
 					},
 					"shapeType": map[string]interface{}{
 						"type": "string",
-						"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path"},
-						"description": "Type of shape to create. Use 'path' for SVG path shapes.",
+						"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
+						"description": "Type of shape to create. Use 'path' for SVG path shapes. Use 'frame' for grouping containers with labels.",
 					},
 					"x": map[string]interface{}{
 						"type":        "number",
@@ -101,6 +101,10 @@ func GetAnthropicTools() []map[string]interface{} {
 					"data": map[string]interface{}{
 						"type":        "string",
 						"description": "SVG path data string (REQUIRED for path shapes). Must be a valid SVG path like 'M10 10 L90 90 L10 90 Z' (triangle) or 'M50 10 C20 40 80 40 50 10 Z' (heart). Without this, path shapes will not render.",
+					},
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": "Label text for frame shapes (e.g., '👤 USER INTERACTION')",
 					},
 				},
 				"required": []string{"boardId", "shapeType", "x", "y"},
@@ -219,6 +223,10 @@ func GetAnthropicTools() []map[string]interface{} {
 						"items": map[string]interface{}{"type": "number"},
 						"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil (optional)",
 					},
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": "Label text for frame shapes (optional)",
+					},
 				},
 				"required": []string{"boardId", "shapeId"},
 			},
@@ -259,8 +267,8 @@ func GetOpenAITools() []map[string]interface{} {
 						},
 						"shapeType": map[string]interface{}{
 							"type": "string",
-							"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path"},
-							"description": "Type of shape to create. Use 'path' for SVG path shapes.",
+							"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
+							"description": "Type of shape to create. Use 'path' for SVG path shapes. Use 'frame' for grouping containers with labels.",
 						},
 						"x": map[string]interface{}{
 							"type":        "number",
@@ -444,6 +452,10 @@ func GetOpenAITools() []map[string]interface{} {
 							"items": map[string]interface{}{"type": "number"},
 							"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil (optional)",
 						},
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Label text for frame shapes (optional)",
+						},
 					},
 					"required": []string{"boardId", "shapeId"},
 				},
@@ -603,6 +615,7 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		"text":    true,
 		"pencil":  true,
 		"path":    true,
+		"frame":   true,
 	}
 	if !validateTypes[shapeType] {
 		return nil, fmt.Errorf("invalid shape type: %s", shapeType)
@@ -673,6 +686,16 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 			return nil, fmt.Errorf("'data' property with SVG path string (e.g., 'M10 10 L90 90 Z') is required for path shapes")
 		}
 		shape["data"] = data
+	case "frame":
+		if width, ok := input["width"].(float64); ok {
+			shape["w"] = width
+		}
+		if height, ok := input["height"].(float64); ok {
+			shape["h"] = height
+		}
+		if name, ok := input["name"].(string); ok && name != "" {
+			shape["name"] = name
+		}
 	}
 
 	// Add styling properties (optional)
@@ -875,6 +898,9 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	if fontFamily, ok := input["fontFamily"].(string); ok && fontFamily != "" {
 		existingDataMap["fontFamily"] = fontFamily
 	}
+	if name, ok := input["name"].(string); ok {
+		existingDataMap["name"] = name
+	}
 	if pointsRaw, ok := input["points"].([]interface{}); ok && len(pointsRaw) > 0 {
 		points := make([]float64, 0, len(pointsRaw))
 		for _, p := range pointsRaw {
@@ -960,6 +986,10 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 		shape.Text = getString("text")
 		shape.FontSize = getFloat("fontSize")
 		shape.FontFamily = getString("fontFamily")
+	case "frame":
+		shape.W = getFloat("w")
+		shape.H = getFloat("h")
+		shape.Name = getString("name")
 	}
 
 	// Save updated shape to database
@@ -1017,6 +1047,9 @@ func UpdateShapeHandler(ctx context.Context, input map[string]interface{}) (inte
 	}
 	if shape.FontFamily != nil {
 		shapeMap["fontFamily"] = *shape.FontFamily
+	}
+	if shape.Name != nil {
+		shapeMap["name"] = *shape.Name
 	}
 
 	// Send WebSocket message

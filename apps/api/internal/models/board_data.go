@@ -20,6 +20,7 @@ const (
 	Ellipse Type = "ellipse"
 	Polygon Type = "polygon"
 	Path    Type = "path"
+	Frame   Type = "frame"
 )
 
 type BoardData struct {
@@ -49,4 +50,5 @@ type Shape struct {
 	FontSize    *float64   `json:"fontSize,omitempty"`
 	FontFamily  *string    `json:"fontFamily,omitempty"`
 	Data        *string    `json:"data,omitempty"` // SVG path data string for path shapes
+	Name        *string    `json:"name,omitempty"` // Label text for frame shapes
 }
