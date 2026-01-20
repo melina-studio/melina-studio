@@ -551,7 +551,13 @@ function KonvaCanvas({
         onDragMove={handleStageDrag}
       >
         <Layer>
-          {shapes.map((s) => (
+          {/* Sort shapes so text is always rendered on top (last in array = highest z-index) */}
+          {[...shapes].sort((a, b) => {
+            // Text shapes should be rendered last (on top)
+            if (a.type === "text" && b.type !== "text") return 1;
+            if (a.type !== "text" && b.type === "text") return -1;
+            return 0; // Preserve relative order for same types
+          }).map((s) => (
             <ShapeRenderer
               key={s.id}
               shape={s}
