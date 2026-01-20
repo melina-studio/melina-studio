@@ -4,6 +4,25 @@ import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
 import { getRelativePointerPosition } from "@/utils/canvasUtils";
 
+// Helper to check if a shape has meaningful dimensions (is visible)
+const isShapeValid = (shape: Shape): boolean => {
+  if (shape.type === "rect") {
+    return Math.abs(shape.w || 0) > 5 && Math.abs(shape.h || 0) > 5;
+  }
+  if (shape.type === "circle") {
+    return (shape.r || 0) > 5;
+  }
+  if (shape.type === "line" || shape.type === "pencil") {
+    const points = shape.points || [];
+    return points.length >= 4; // At least 2 points (4 values: x1,y1,x2,y2)
+  }
+  if (shape.type === "text") {
+    // Text is valid only if it has content (non-empty text)
+    return Boolean(shape.text && shape.text.trim().length > 0);
+  }
+  return true; // Other types (image, etc.) are always valid
+};
+
 export const useCanvasDrawing = (
   shapes: Shape[],
   setShapes: (shapes: Shape[] | ((prev: Shape[]) => Shape[])) => void,
@@ -102,7 +121,7 @@ export const useCanvasDrawing = (
       const updatedShapes = [...shapes, newShape];
       setShapes(updatedShapes);
       setShapesWithHistory(updatedShapes, { pushHistory: false });
-      setSelectedIds([newId]);
+      // Don't select text immediately - let text editor handle it after content is added
       setPendingTextEdit({ id: newId, pos });
     } else if (activeTool === ACTIONS.IMAGE) {
       const newId = uuidv4();
@@ -219,25 +238,51 @@ export const useCanvasDrawing = (
 
   const finishDrawing = (handleSave: (shapes?: Shape[]) => void) => {
     if (isDrawing) {
-      // Check if shapes actually changed
-      const shapesChanged =
-        shapes.length !== shapesBeforeDrawing.length ||
-        JSON.stringify(shapes) !== JSON.stringify(shapesBeforeDrawing);
-
-      setShapesWithHistory(shapes, {
-        pushHistory: true,
-        stateToPush: shapesBeforeDrawing,
-      });
-
       if (lastCreatedId) {
-        setSelectedIds([lastCreatedId]);
-        setLastCreatedId(null);
-      }
+        const createdShape = shapes.find((s) => s.id === lastCreatedId);
 
-      // Only call save if shapes actually changed
-      // Pass current shapes to avoid stale state
-      if (shapesChanged) {
-        handleSave(shapes);
+        if (createdShape && isShapeValid(createdShape)) {
+          // Shape is valid - select it and push to history
+          const shapesChanged =
+            shapes.length !== shapesBeforeDrawing.length ||
+            JSON.stringify(shapes) !== JSON.stringify(shapesBeforeDrawing);
+
+          setShapesWithHistory(shapes, {
+            pushHistory: true,
+            stateToPush: shapesBeforeDrawing,
+          });
+
+          setSelectedIds([lastCreatedId]);
+
+          // Only call save if shapes actually changed
+          if (shapesChanged) {
+            handleSave(shapes);
+          }
+        } else if (createdShape && !isShapeValid(createdShape)) {
+          // Shape is invalid (click without drag) - remove it
+          // Exception: text shapes are handled by text editor flow, don't remove here
+          if (createdShape.type !== "text") {
+            const filteredShapes = shapes.filter((s) => s.id !== lastCreatedId);
+            setShapes(filteredShapes);
+            setShapesWithHistory(filteredShapes, { pushHistory: false });
+          }
+        }
+
+        setLastCreatedId(null);
+      } else {
+        // No lastCreatedId (e.g., eraser case handled elsewhere)
+        const shapesChanged =
+          shapes.length !== shapesBeforeDrawing.length ||
+          JSON.stringify(shapes) !== JSON.stringify(shapesBeforeDrawing);
+
+        setShapesWithHistory(shapes, {
+          pushHistory: true,
+          stateToPush: shapesBeforeDrawing,
+        });
+
+        if (shapesChanged) {
+          handleSave(shapes);
+        }
       }
     }
 

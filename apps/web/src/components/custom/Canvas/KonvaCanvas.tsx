@@ -118,13 +118,19 @@ function KonvaCanvas({
 
   // Sync local shapes state with external shapes (from history)
   // Only sync when NOT drawing, NOT finalizing eraser, and NOT in local update to avoid interrupting active operations
+  // EXCEPTION: Always sync when externalShapes is empty (clear board) - this should always take effect
   useEffect(() => {
-    if (!isDrawing && !isEraserFinalizing && !isLocalUpdateRef.current) {
+    const shouldForceSync = externalShapes.length === 0;
+    if (shouldForceSync || (!isDrawing && !isEraserFinalizing && !isLocalUpdateRef.current)) {
       setShapes(externalShapes);
+      // Also clear selection when board is cleared
+      if (shouldForceSync && selectedIds.length > 0) {
+        setSelectedIds([]);
+      }
     }
     // Reset the flag after checking
     isLocalUpdateRef.current = false;
-  }, [externalShapes, isDrawing, isEraserFinalizing]);
+  }, [externalShapes, isDrawing, isEraserFinalizing, selectedIds.length, setSelectedIds]);
 
   // Notify parent of canvas transform changes (for background parallax effect)
   // Using a ref to track previous values and avoid infinite loops
