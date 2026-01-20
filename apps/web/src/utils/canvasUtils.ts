@@ -44,7 +44,7 @@ export const isShapeInSelectionBox = (
     bottom: Math.max(box.startY, box.endY),
   };
 
-  if (shape.type === "rect") {
+  if (shape.type === "rect" || shape.type === "frame") {
     const shapeRect = {
       left: shape.x,
       top: shape.y,

@@ -239,7 +239,8 @@ function KonvaCanvas({
       activeTool === ACTIONS.LINE ||
       activeTool === ACTIONS.TEXT ||
       activeTool === ACTIONS.IMAGE ||
-      activeTool === ACTIONS.ERASER
+      activeTool === ACTIONS.ERASER ||
+      activeTool === ACTIONS.FRAME
     ) {
       startDrawing(pos, stage);
     }
@@ -512,9 +513,9 @@ function KonvaCanvas({
       const updatedShapes = currentShapes.map((s) => {
         if (s.id !== shapeId) return s;
 
-        // Closed shapes: rect, circle, ellipse, path
+        // Closed shapes: rect, circle, ellipse, path, frame
         // Pencil is only closed if it's naturally closed (start/end points close together)
-        const isClosedShape = ["rect", "circle", "ellipse", "path"].includes(s.type)
+        const isClosedShape = ["rect", "circle", "ellipse", "path", "frame"].includes(s.type)
           || (s.type === "pencil" && isPencilNaturallyClosed(s));
 
         if (isClosedShape) {

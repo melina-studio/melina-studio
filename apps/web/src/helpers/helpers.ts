@@ -30,6 +30,19 @@ export const buildShapes = (data: any): Shape[] => {
           strokeWidth: shape.data?.strokeWidth,
         };
       }
+      if (shape.type === "frame") {
+        return {
+          ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
+          w: shape.data?.w ?? 0,
+          h: shape.data?.h ?? 0,
+          fill: shape.data?.fill,
+          stroke: shape.data?.stroke,
+          strokeWidth: shape.data?.strokeWidth,
+          name: shape.data?.name,
+        };
+      }
       if (shape.type === "circle") {
         return {
           ...baseShape,
@@ -70,6 +83,8 @@ export const buildShapes = (data: any): Shape[] => {
       if (shape.type === "line") {
         return {
           ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
           points: shape.data?.points ?? [],
           stroke: shape.data?.stroke,
           strokeWidth: shape.data?.strokeWidth,
@@ -78,6 +93,8 @@ export const buildShapes = (data: any): Shape[] => {
       if (shape.type === "pencil") {
         return {
           ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
           points: shape.data?.points ?? [],
           fill: shape.data?.fill,
           stroke: shape.data?.stroke,
@@ -88,14 +105,20 @@ export const buildShapes = (data: any): Shape[] => {
       if (shape.type === "arrow") {
         return {
           ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
           points: shape.data?.points ?? [],
           stroke: shape.data?.stroke,
           strokeWidth: shape.data?.strokeWidth,
+          pointerLength: shape.data?.pointerLength,
+          pointerWidth: shape.data?.pointerWidth,
         };
       }
       if (shape.type === "eraser") {
         return {
           ...baseShape,
+          x: shape.data?.x ?? 0,
+          y: shape.data?.y ?? 0,
           points: shape.data?.points ?? [],
           stroke: shape.data?.stroke,
           strokeWidth: shape.data?.strokeWidth,

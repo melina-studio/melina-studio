@@ -9,6 +9,9 @@ const isShapeValid = (shape: Shape): boolean => {
   if (shape.type === "rect") {
     return Math.abs(shape.w || 0) > 5 && Math.abs(shape.h || 0) > 5;
   }
+  if (shape.type === "frame") {
+    return Math.abs(shape.w || 0) > 5 && Math.abs(shape.h || 0) > 5;
+  }
   if (shape.type === "circle") {
     return (shape.r || 0) > 5;
   }
@@ -147,6 +150,25 @@ export const useCanvasDrawing = (
       if (hit && hit.id()) {
         removeShapeById(hit.id());
       }
+    } else if (activeTool === ACTIONS.FRAME) {
+      const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]);
+      setIsDrawing(true);
+      setLastCreatedId(newId);
+      const frameShape: Shape = {
+        id: newId,
+        type: "frame",
+        x: pos.x,
+        y: pos.y,
+        w: 0,
+        h: 0,
+        fill: "#1e3a5f40",
+        stroke: "#3b82f6",
+        strokeWidth: 2,
+        name: "",
+      };
+      setShapes([...shapes, frameShape]);
+      setShapesWithHistory([...shapes, frameShape], { pushHistory: false });
     }
   };
 
@@ -182,6 +204,12 @@ export const useCanvasDrawing = (
           { ...last, w: pos.x - last.x, h: pos.y - last.y },
         ];
       }
+      if (last.type === "frame") {
+        return [
+          ...arr.slice(0, -1),
+          { ...last, w: pos.x - last.x, h: pos.y - last.y },
+        ];
+      }
       if (last.type === "circle") {
         const dx = pos.x - last.x;
         const dy = pos.y - last.y;
@@ -209,6 +237,12 @@ export const useCanvasDrawing = (
           return [...arr.slice(0, -1), { ...last, points: newPoints }];
         }
         if (last.type === "rect") {
+          return [
+            ...arr.slice(0, -1),
+            { ...last, w: pos.x - last.x, h: pos.y - last.y },
+          ];
+        }
+        if (last.type === "frame") {
           return [
             ...arr.slice(0, -1),
             { ...last, w: pos.x - last.x, h: pos.y - last.y },

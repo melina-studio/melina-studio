@@ -7,6 +7,8 @@ import {
   Ellipse,
   Path,
   Image as KonvaImage,
+  Group,
+  Arrow,
 } from "react-konva";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
@@ -363,7 +365,102 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     );
   }
 
-  // Default to Line for pencil, line, arrow, eraser
+  if (shape.type === "frame") {
+    const frameShape = shape as Extract<Shape, { type: "frame" }>;
+    return (
+      <Group
+        key={shape.id}
+        id={shape.id}
+        x={frameShape.x}
+        y={frameShape.y}
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
+        onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
+        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+        onClick={handleClick}
+        onMouseEnter={() => {
+          if (
+            (activeTool === ACTIONS.SELECT ||
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
+            !isDraggingShape
+          ) {
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
+            setIsDraggingStage(false);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!isDraggingShape && !isDraggingStage) {
+            setStageCursor(cursor);
+          }
+        }}
+      >
+        <Rect
+          width={frameShape.w}
+          height={frameShape.h}
+          fill={frameShape.fill || "transparent"}
+          stroke={frameShape.stroke || defaultStroke}
+          strokeWidth={frameShape.strokeWidth || 2}
+          cornerRadius={8}
+        />
+        {frameShape.name && (
+          <Text
+            text={frameShape.name}
+            x={15}
+            y={15}
+            fontSize={14}
+            fontFamily="Inter, sans-serif"
+            fill={frameShape.stroke || defaultStroke}
+            listening={false}
+          />
+        )}
+      </Group>
+    );
+  }
+
+  if (shape.type === "arrow") {
+    const arrowShape = shape as any;
+    const arrowStroke = getThemeAwareColor(arrowShape.stroke, isDarkMode, defaultStroke);
+    return (
+      <Arrow
+        key={shape.id}
+        id={shape.id}
+        x={arrowShape.x || 0}
+        y={arrowShape.y || 0}
+        points={arrowShape.points || []}
+        stroke={arrowStroke}
+        fill={arrowStroke}
+        strokeWidth={arrowShape.strokeWidth || 2}
+        pointerLength={arrowShape.pointerLength || 10}
+        pointerWidth={arrowShape.pointerWidth || 10}
+        lineCap="round"
+        lineJoin="round"
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
+        onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
+        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+        onClick={handleClick}
+        onMouseEnter={() => {
+          if (
+            (activeTool === ACTIONS.SELECT ||
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
+            !isDraggingShape
+          ) {
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
+            setIsDraggingStage(false);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!isDraggingShape && !isDraggingStage) {
+            setStageCursor(cursor);
+          }
+        }}
+      />
+    );
+  }
+
+  // Default to Line for pencil, line, eraser
   const lineShape = shape as any;
   // Adjust stroke color for visibility in current theme
   const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, defaultStroke);

@@ -9,6 +9,7 @@ import {
   TypeOutline,
   Image,
   PaintBucket,
+  LayoutPanelLeft,
 } from "lucide-react";
 import MarqueeAIIcon from "@/components/icons/MarqueeAIIcon";
 
@@ -24,6 +25,7 @@ export const ACTIONS = {
   IMAGE: "IMAGE",
   ERASER: "ERASER",
   COLOR: "COLOR",
+  FRAME: "FRAME",
 };
 
 // types
@@ -80,6 +82,11 @@ export const ACTION_BUTTONS = [
   //   label: "Image",
   //   value: ACTIONS.IMAGE,
   // },
+  {
+    icon: LayoutPanelLeft,
+    label: "Frame",
+    value: ACTIONS.FRAME,
+  },
   {
     icon: Eraser,
     label: "Eraser",
@@ -207,14 +214,20 @@ export type Shape =
   | {
       id: string;
       type: "arrow";
+      x?: number;
+      y?: number;
       points: number[];
       stroke?: string;
       strokeWidth?: number;
+      pointerLength?: number;
+      pointerWidth?: number;
       imageUrl?: string;
     }
   | {
       id: string;
       type: "line";
+      x?: number;
+      y?: number;
       points: number[];
       stroke?: string;
       strokeWidth?: number;
@@ -248,6 +261,20 @@ export type Shape =
       stroke?: string;
       strokeWidth?: number;
       imageUrl?: string;
+    }
+  | {
+      id: string;
+      type: "frame";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      fill?: string;
+      stroke?: string;
+      strokeWidth?: number;
+      name?: string;
+      children?: string[];
+      imageUrl?: string;
     };
 
 export const TOOL_CURSOR = {
@@ -258,6 +285,7 @@ export const TOOL_CURSOR = {
   [ACTIONS.RECTANGLE]: "crosshair",
   [ACTIONS.ARROW]: "pointer", // clickable/select
   [ACTIONS.LINE]: "crosshair",
+  [ACTIONS.FRAME]: "crosshair",
   [ACTIONS.ERASER]: "url(/icons/eraser.svg) 2 22, auto", // custom image with hotspot at bottom-left tip
   [ACTIONS.COLOR]: "url(/icons/paint-bucket.svg) 22 20, auto", // tilted paint bucket with hotspot at paint flow
   default: "default",
