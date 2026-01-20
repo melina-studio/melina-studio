@@ -367,6 +367,29 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   const lineShape = shape as any;
   // Adjust stroke color for visibility in current theme
   const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, defaultStroke);
+
+  // For pencil shapes, determine if the shape is "naturally closed"
+  // by checking if the start and end points are close together
+  const isPencil = shape.type === "pencil";
+  const points = lineShape.points || [];
+
+  // Check if pencil shape is naturally closed (start and end points within 30px)
+  const isNaturallyClosed = isPencil && points.length >= 4 && (() => {
+    const startX = points[0];
+    const startY = points[1];
+    const endX = points[points.length - 2];
+    const endY = points[points.length - 1];
+    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    return distance < 30; // Within 30 pixels = considered closed
+  })();
+
+  // Only close the shape if it's naturally closed (don't close just because fill exists)
+  // This prevents open pencil strokes from auto-closing when color is applied
+  const shouldClose = isNaturallyClosed;
+
+  // Use transparent fill for naturally closed shapes to enable interior click detection
+  const fillColor = lineShape.fill || (isNaturallyClosed ? "transparent" : undefined);
+
   return (
     <Line
       key={shape.id}
@@ -375,6 +398,9 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       y={lineShape.y || 0}
       points={lineShape.points}
       stroke={lineStroke}
+      fill={fillColor}
+      fillRule="evenodd"
+      closed={shouldClose}
       strokeWidth={lineShape.strokeWidth || 2}
       tension={0}
       lineCap="round"

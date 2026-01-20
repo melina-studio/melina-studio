@@ -343,24 +343,6 @@ export default function BoardPage() {
     window.history.replaceState({}, "", url.pathname);
   };
 
-  // Keyboard shortcut for Command+K / Ctrl+K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Command+K (Mac) or Ctrl+K (Windows/Linux)
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setShowAiController((prev) => !prev);
-      }
-      // Close on Escape
-      if (e.key === "Escape" && showAiController) {
-        setShowAiController(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showAiController]);
-
   const resetActionClick = () => {
     setActiveTool(ACTIONS.SELECT);
   };
@@ -438,7 +420,7 @@ export default function BoardPage() {
     }));
   };
 
-  const undo = () => {
+  const undo = useCallback(() => {
     setHistory((cur) => {
       if (cur.past.length === 0) return cur;
       const previous = cur.past[cur.past.length - 1];
@@ -453,9 +435,9 @@ export default function BoardPage() {
         future: newFuture,
       };
     });
-  };
+  }, []);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     setHistory((cur) => {
       if (cur.future.length === 0) return cur;
       const nextState = cur.future[0];
@@ -469,7 +451,39 @@ export default function BoardPage() {
         future: newFuture,
       };
     });
-  };
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Command+K (Mac) or Ctrl+K (Windows/Linux) - toggle AI controller
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowAiController((prev) => !prev);
+      }
+      // Close on Escape
+      if (e.key === "Escape" && showAiController) {
+        setShowAiController(false);
+      }
+      // Undo: Command+Z (Mac) or Ctrl+Z (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) {
+          undo();
+        }
+      }
+      // Redo: Command+Y (Mac) or Ctrl+Y (Windows/Linux), or Command+Shift+Z (Mac)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        if (canRedo) {
+          redo();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAiController, canUndo, canRedo, undo, redo]);
 
   const handleGetBoardState = () => {
     const boardState = JSON.stringify(presentShapes, null, 2);

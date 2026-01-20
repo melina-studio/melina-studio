@@ -27,6 +27,32 @@ function ToolControls({
   handleRedo: any;
   handleImageExport: any;
 }) {
+  const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
+
+  // Handle tool button click - toggle color panel if clicking on color tool
+  const handleToolClick = (toolValue: string) => {
+    if (toolValue === ACTIONS.COLOR) {
+      if (activeTool === ACTIONS.COLOR) {
+        // Already on color tool - toggle the panel
+        setIsColorPanelOpen(!isColorPanelOpen);
+      } else {
+        // Switching to color tool - open the panel
+        setIsColorPanelOpen(true);
+        handleActiveTool(toolValue);
+      }
+    } else {
+      // Switching to a different tool - close color panel
+      setIsColorPanelOpen(false);
+      handleActiveTool(toolValue);
+    }
+  };
+
+  // Handle color selection - close panel after selecting
+  const handleColorSelect = (color: string) => {
+    handleActiveColor(color);
+    setIsColorPanelOpen(false);
+  };
+
   return (
     <div>
       <div className="fixed left-7 top-1/2 -translate-y-1/2 flex gap-4 z-2 max-h-[80vh]">
@@ -77,7 +103,7 @@ function ToolControls({
                   }
                 `}
                 aria-label={button.label}
-                onClick={() => handleActiveTool(button.value)}
+                onClick={() => handleToolClick(button.value)}
               >
                 <button.icon width={18} height={18} />
               </button>
@@ -125,7 +151,7 @@ function ToolControls({
           </div>
         </div>
         {/* color fills list */}
-        {activeTool === ACTIONS.COLOR && (
+        {activeTool === ACTIONS.COLOR && isColorPanelOpen && (
           <div className="flex flex-col bg-white dark:bg-[#323332] h-min p-4 rounded-md shadow-lg shadow-gray-400 dark:shadow-[#565656FF] border border-gray-100 dark:border-gray-700 max-h-full overflow-y-auto">
             <p className="text-sm font-semibold mb-3">Colors</p>
             <div className="grid grid-cols-3 gap-2">
@@ -143,10 +169,7 @@ function ToolControls({
                       : ""
                   }`}
                   title={color.color}
-                  onClick={() => {
-                    handleActiveColor(color.color);
-                    // Stay on COLOR tool to allow clicking shapes to fill them
-                  }}
+                  onClick={() => handleColorSelect(color.color)}
                 ></div>
               ))}
             </div>

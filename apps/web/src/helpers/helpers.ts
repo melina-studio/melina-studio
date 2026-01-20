@@ -79,6 +79,7 @@ export const buildShapes = (data: any): Shape[] => {
         return {
           ...baseShape,
           points: shape.data?.points ?? [],
+          fill: shape.data?.fill,
           stroke: shape.data?.stroke,
           strokeWidth: shape.data?.strokeWidth,
           tension: shape.data?.tension,

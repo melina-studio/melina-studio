@@ -179,6 +179,39 @@ function KonvaCanvas({
     };
   }, [cursor, canvasRef]);
 
+  // Delete selected shapes with Delete/Backspace key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we have selected shapes and user pressed delete keys
+      if (selectedIds.length > 0 && (e.key === "Delete" || e.key === "Backspace" || (e.metaKey && e.key === "Backspace"))) {
+        // Don't delete if user is typing in an input/textarea
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+          return;
+        }
+
+        e.preventDefault();
+
+        // Mark local update to prevent sync issues
+        isLocalUpdateRef.current = true;
+
+        // Remove selected shapes
+        const newShapes = shapes.filter((s) => !selectedIds.includes(s.id));
+        setShapes(newShapes);
+        setSelectedIds([]);
+
+        // Push to history and save
+        queueMicrotask(() => {
+          setShapesWithHistory(newShapes, { pushHistory: true });
+          handleSave(newShapes);
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIds, shapes, setShapesWithHistory, handleSave, setSelectedIds]);
+
   const handlePointerDown = (e: any) => {
     const stage = e.target.getStage();
     const pos = getRelativePointerPosition(stage);
@@ -445,6 +478,19 @@ function KonvaCanvas({
     addSelectionAction(selection);
   };
 
+  // Helper to check if pencil shape is naturally closed (start/end points within 30px)
+  const isPencilNaturallyClosed = (shape: Shape): boolean => {
+    if (shape.type !== "pencil") return false;
+    const points = (shape as any).points || [];
+    if (points.length < 4) return false;
+    const startX = points[0];
+    const startY = points[1];
+    const endX = points[points.length - 2];
+    const endY = points[points.length - 1];
+    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    return distance < 30;
+  };
+
   // Color tool handler - fill for closed shapes, stroke for lines
   const handleColorClick = (e: any, shapeId: string) => {
     if (activeTool !== ACTIONS.COLOR) return;
@@ -460,8 +506,10 @@ function KonvaCanvas({
       const updatedShapes = currentShapes.map((s) => {
         if (s.id !== shapeId) return s;
 
-        // Closed shapes: rect, circle, ellipse, path (if closed)
-        const isClosedShape = ["rect", "circle", "ellipse"].includes(s.type);
+        // Closed shapes: rect, circle, ellipse, path
+        // Pencil is only closed if it's naturally closed (start/end points close together)
+        const isClosedShape = ["rect", "circle", "ellipse", "path"].includes(s.type)
+          || (s.type === "pencil" && isPencilNaturallyClosed(s));
 
         if (isClosedShape) {
           // Alt/Meta click changes stroke, normal click changes fill
@@ -471,7 +519,7 @@ function KonvaCanvas({
             return { ...s, fill: activeColor };
           }
         } else {
-          // Lines, pencil, arrows - change stroke color
+          // Lines, arrows, open pencil shapes - change stroke color
           return { ...s, stroke: activeColor };
         }
       });
