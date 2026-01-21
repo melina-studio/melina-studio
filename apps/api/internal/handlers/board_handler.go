@@ -287,13 +287,13 @@ func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
 	// Remove the image from the temp/images directory
 	imagePath := "temp/images/" + boardId.String() + ".png"
 	annotatedImagePath := "temp/annotated_images/" + boardId.String() + ".png"
-	if err := os.Remove(imagePath); err != nil {
+	if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
 		log.Println(err, "Error removing image file")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to remove annotated image file",
+			"error": "Failed to remove image file",
 		})
 	}
-	if err := os.Remove(annotatedImagePath); err != nil {
+	if err := os.Remove(annotatedImagePath); err != nil && !os.IsNotExist(err) {
 		log.Println(err, "Error removing annotated image file")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to remove annotated image file",
