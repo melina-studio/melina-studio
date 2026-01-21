@@ -38,6 +38,7 @@ import { useTheme } from "next-themes";
 import { useBoard } from "@/hooks/useBoard";
 import Logo from "../General/Logo";
 import { useAuth } from "@/providers/AuthProvider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type NavItem = {
   title: string;
@@ -77,6 +78,7 @@ export function BoardsSidebar() {
   const lastName = user?.last_name
     ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1)
     : "";
+  const avatar = user?.avatar;
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
   const displayName = fullName ? fullName : "User";
 
@@ -127,12 +129,16 @@ export function BoardsSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full">
               <div className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer">
+                <Avatar className="size-5 mr-2">
+                  <AvatarImage src={avatar} />
+                  <AvatarFallback>{displayName.charAt(0)}</AvatarFallback>
+                </Avatar>
                 <span className="truncate">{displayName}</span>
                 <ChevronDown className="ml-auto size-4 opacity-50" />
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/playground/settings")}>
                 <Settings className="size-4 mr-2" />
                 Workspace settings
               </DropdownMenuItem>
@@ -172,7 +178,7 @@ export function BoardsSidebar() {
                       className={cn(
                         "w-full justify-start",
                         isActive &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground"
+                        "bg-sidebar-accent text-sidebar-accent-foreground"
                       )}
                     >
                       <Icon className="size-4" />

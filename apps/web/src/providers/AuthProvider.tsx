@@ -16,6 +16,7 @@ import {
   setAccessTokenRef,
   googleLogin as googleLoginService,
   githubLogin as githubLoginService,
+  updateUser as updateUserService,
 } from "@/service/auth";
 import { RegisterPayload } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  avatar?: string;
   subscription: Subscription;
   created_at?: string;
   updated_at?: string;
@@ -41,6 +43,7 @@ interface AuthContextType {
   signup: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (formData: FormData) => Promise<void>;
   googleLogin: () => void;
   githubLogin: () => void;
 }
@@ -87,6 +90,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(false);
     }
   }, [updateAccessToken]);
+
+  // Update user
+  const updateUser = useCallback(async (formData: FormData) => {
+    try {
+      // Don't set isLoading here - it triggers layout re-render
+      const data = await updateUserService(formData);
+      // Only update user if we got valid user data back
+      if (data?.user) {
+        setUser(data.user);
+      }
+    } catch (err: any) {
+      console.error("Failed to update user:", err);
+      // Don't clear user on error - keep existing user data
+      throw err; // Re-throw so caller knows it failed
+    }
+  }, []);
 
   // Login
   const login = useCallback(
@@ -169,6 +188,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signup,
     logout,
     refreshUser,
+    updateUser,
     googleLogin,
     githubLogin,
   };

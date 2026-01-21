@@ -65,6 +65,16 @@ export const getMe = async () => {
   }
 };
 
+export const updateUser = async (formData: FormData) => {
+  try {
+    const response = await api.patch("/api/v1/auth/me/update", formData);
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error updating user");
+    throw new Error(error?.response?.data?.error || "Error updating user");
+  }
+};
+
 export const refreshToken = async () => {
   try {
     const response = await api.post("/api/v1/auth/refresh");
