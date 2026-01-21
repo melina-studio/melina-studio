@@ -17,6 +17,7 @@ type AuthRepoInterface interface {
 	GetUserByEmail(email string) (models.User, error)
 	GetUserByID(id uuid.UUID) (models.User, error)
 	UpdateUser(user *models.User) error
+	UpdateUserByID(id uuid.UUID, payload *models.User) error
 	DeleteUser(id uuid.UUID) error
 }
 
@@ -53,6 +54,10 @@ func (r *AuthRepo) GetUserByID(id uuid.UUID) (models.User, error) {
 
 func (r *AuthRepo) UpdateUser(user *models.User) error {
 	return r.db.Model(&models.User{UUID: user.UUID}).Updates(user).Error
+}
+
+func (r *AuthRepo) UpdateUserByID(id uuid.UUID, payload *models.User) error {
+	return r.db.Model(&models.User{UUID: id}).Updates(payload).Error
 }
 
 func (r *AuthRepo) DeleteUser(id uuid.UUID) error {

@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"melina-studio-backend/internal/auth"
 	"melina-studio-backend/internal/auth/oauth"
+	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"melina-studio-backend/internal/repo"
 	"melina-studio-backend/internal/service"
@@ -390,6 +393,79 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateMe updates the current authenticated user
+func (h *AuthHandler) UpdateMe(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+	// read the body (formdata)
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid form data",
+		})
+	}
+	
+	payload := &models.User{}
+
+	if v, ok := form.Value["first_name"]; ok && len(v) > 0 {
+		payload.FirstName = v[0]
+	}
+
+	if v, ok := form.Value["last_name"]; ok && len(v) > 0 {
+		payload.LastName = v[0]
+	}
+
+	if files, ok := form.File["avatar"]; ok && len(files) > 0 {
+		// if the avatar is a file, upload it to gcp and return the url
+		fileHeader := files[0]
+		log.Println("fileHeader", fileHeader)
+		file, err := fileHeader.Open()
+		if err != nil {
+			log.Println("error", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to open avatar file",
+			})
+		}
+		defer file.Close()
+		log.Println("file", file)
+		key := "users/" + userUUID.String() + "/avatar.png"
+		url, err := libraries.GetClients().Upload(context.Background(), key, file, fileHeader.Header.Get("Content-Type"))
+		if err != nil {
+			log.Println("error", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to upload avatar to gcp",
+			})
+		}
+		log.Println(url, "url")
+		payload.Avatar = url
+	} else {
+		log.Println("no avatar")
+	}
+
+	err = h.authRepo.UpdateUserByID(userUUID, payload)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update user",
+		})
+	}
+	user, err := h.authRepo.GetUserByID(userUUID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get user",
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "User updated successfully",
+		"user": user,
+	})
+}
+
 // GoogleLogin redirects the user to the Google OAuth login page
 func (h *AuthHandler) GoogleLogin(c *fiber.Ctx) error {
 	randomHash := uuid.NewString()
@@ -462,6 +538,7 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 			Password:     nil, // OAuth users don't have passwords
 			LoginMethod:  models.LoginMethodGoogle,
 			Subscription: models.SubscriptionFree,
+			Avatar:       userInfo.Picture,
 		})
 		if err != nil {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_create_user")

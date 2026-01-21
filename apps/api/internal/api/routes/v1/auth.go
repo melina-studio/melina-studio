@@ -37,6 +37,7 @@ func registerAuthProtected(r fiber.Router) {
 
 	// Protected auth routes (requires auth)
 	r.Get("/me", authHandler.GetMe)
+	r.Patch("/me/update", authHandler.UpdateMe)
 	r.Post("/logout-all", authHandler.LogoutAll)
 	r.Get("/sessions", authHandler.GetActiveSessions)
 	r.Delete("/sessions/:sessionId", authHandler.RevokeSession)
