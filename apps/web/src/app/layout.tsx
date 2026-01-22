@@ -21,31 +21,37 @@ export const metadata: Metadata = {
   title: "Melina Studio",
   description:
     "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+  icons: {
+      icon: [
+        { url: '/logo/melina-studio-logo.png', sizes: '1024x1024', type: 'image/png' },
+      ],
+      apple: '/logo/apple-touch-icon.png',
+  },
 
-  // openGraph: {
-  //   title: "Melina Studio",
-  //   description:
-  //     "Cursor for canvas. Bring out the visual representation you’ve always wanted with Melina.",
-  //   url: "https://melinastudio.com",
-  //   siteName: "Melina Studio",
-  //   images: [
-  //     {
-  //       url: "https://melinastudio.com/og.png",
-  //       width: 1200,
-  //       height: 630,
-  //       alt: "Melina Studio – Cursor for Canvas",
-  //     },
-  //   ],
-  //   type: "website",
-  // },
+  openGraph: {
+    title: "Melina Studio",
+    description:
+      "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+    url: "https://melina.studio",
+    siteName: "Melina Studio",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Melina Studio – Cursor for Canvas",
+      },
+    ],
+    type: "website",
+  },
 
-  // twitter: {
-  //   card: "summary_large_image",
-  //   title: "Melina Studio",
-  //   description:
-  //     "Cursor for canvas. Bring out the visual representation you’ve always wanted with Melina.",
-  //   images: ["https://melinastudio.com/og.png"],
-  // },
+  twitter: {
+    card: "summary_large_image",
+    title: "Melina Studio",
+    description:
+      "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
