@@ -34,7 +34,7 @@
 		"clsx": "^2.1.1",
 		"framer-motion": "^12.23.24",
 		"gsap": "^3.13.0",
-		"harden-react-markdown": "^1.1.6",
+		"harden-react-markdown": "^1.1.7",
 		"katex": "^0.16.25",
 		"konva": "^10.0.8",
 		"lucide-react": "^0.552.0",
