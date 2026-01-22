@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/melina-studio/melina-studio/discussions
+    about: Ask questions and discuss ideas
+  - name: Documentation
+    url: https://github.com/melina-studio/melina-studio/tree/main/docs
+    about: Check out our documentation

@@ -1,0 +1,17 @@
+# Default owners for everything in the repo
+* @melina-studio/maintainers
+
+# Frontend
+/apps/web/ @melina-studio/frontend
+
+# Backend
+/apps/api/ @melina-studio/backend
+
+# Documentation
+/docs/ @melina-studio/maintainers
+*.md @melina-studio/maintainers
+
+# CI/CD and infrastructure
+/.github/ @melina-studio/maintainers
+/docker-compose.yml @melina-studio/maintainers
+/Makefile @melina-studio/maintainers
