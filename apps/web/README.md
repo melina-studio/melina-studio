@@ -53,8 +53,8 @@ Melina Studio is an AI-powered design platform that lets you create stunning vis
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/melina-studio/melina-studiov2.git
-cd melina-studio/Frontend/melina-studiov2
+git clone https://github.com/melina-studio/melina-studio.git
+cd melina-studio/apps/web
 ```
 
 2. Install dependencies:

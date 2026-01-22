@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   turbopack: {},
+  output: "standalone",
 };
 
 export default withNextDevtools(nextConfig);

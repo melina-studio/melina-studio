@@ -23,30 +23,24 @@ ENV NEXT_TELEMETRY_DISABLED=1
 CMD ["npm", "run", "dev"]
 
 # ===========================================
-# Dependencies Stage
-# ===========================================
-FROM node:20-alpine AS deps
-
-WORKDIR /app
-
-# Install dependencies only
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
-# ===========================================
 # Builder Stage
 # ===========================================
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
+# Install ALL dependencies (including devDependencies for build)
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy source code
 COPY . .
 
 # Set build environment
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/api/v1/ws
 
 # Build the application
 RUN npm run build

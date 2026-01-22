@@ -46,7 +46,7 @@ export function AboutSettings() {
       <SettingsRow label="Resources" description="Helpful links and documentation.">
         <div className="flex flex-col gap-2">
           <Button variant="outline" size="sm" className="w-fit justify-start gap-2 cursor-pointer" asChild>
-            <a href="https://github.com/orgs/melina-studio/repositories" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/melina-studio/melina-studio" target="_blank" rel="noopener noreferrer">
               <GitHubIcon className="h-4 w-4" />
               GitHub Repository
               <ExternalLink className="h-3 w-3 ml-auto opacity-50" />

@@ -1,48 +1,29 @@
 version: 2
 updates:
-  # Frontend dependencies
+  # Frontend dependencies - grouped to reduce PR noise
   - package-ecosystem: "npm"
     directory: "/apps/web"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 5
     groups:
-      react:
+      all-dependencies:
         patterns:
-          - "react*"
-          - "@types/react*"
-      next:
-        patterns:
-          - "next*"
-          - "@next/*"
-      tailwind:
-        patterns:
-          - "tailwindcss*"
-          - "@tailwindcss/*"
-      dev-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
+          - "*"
     labels:
       - "dependencies"
       - "frontend"
 
-  # Backend dependencies
+  # Backend dependencies - grouped
   - package-ecosystem: "gomod"
     directory: "/apps/api"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 5
     groups:
-      fiber:
+      all-dependencies:
         patterns:
-          - "github.com/gofiber/*"
-      gorm:
-        patterns:
-          - "gorm.io/*"
+          - "*"
     labels:
       - "dependencies"
       - "backend"
@@ -51,26 +32,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "ci"
-
-  # Docker
-  - package-ecosystem: "docker"
-    directory: "/apps/api"
-    schedule:
-      interval: "monthly"
-    labels:
-      - "dependencies"
-      - "docker"
-
-  - package-ecosystem: "docker"
-    directory: "/apps/web"
-    schedule:
-      interval: "monthly"
-    labels:
-      - "dependencies"
-      - "docker"

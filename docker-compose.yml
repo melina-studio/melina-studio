@@ -55,7 +55,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+      - NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/api/v1/ws
     volumes:
       - ./apps/web:/app
       - /app/node_modules
