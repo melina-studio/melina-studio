@@ -44,7 +44,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/main.g
 # ===========================================
 # Production Stage
 # ===========================================
-FROM alpine:3.19 AS production
+FROM alpine:3.23 AS production
 
 WORKDIR /app
 
