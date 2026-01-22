@@ -1,7 +1,7 @@
 # ===========================================
 # Development Stage
 # ===========================================
-FROM golang:1.24-alpine AS development
+FROM golang:1.25-alpine AS development
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ CMD ["air", "-c", ".air.toml"]
 # ===========================================
 # Builder Stage
 # ===========================================
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
