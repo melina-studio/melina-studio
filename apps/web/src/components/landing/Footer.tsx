@@ -46,9 +46,20 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Melina Studio. All rights
             reserved.
           </p>
-          <p className="text-sm text-zinc-500">
-            Built with <span className="text-red-500">&hearts;</span>
-          </p>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/privacy"
+              className="text-sm text-zinc-500 hover:text-white transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-sm text-zinc-500 hover:text-white transition-colors"
+            >
+              Terms of Service
+            </Link>
+          </div>
         </div>
 
         {/* Easter egg */}

@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Melina Studio",
+  title: "Melina Studio – Cursor for Canvas",
   description:
-    "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+    "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine.",
   icons: {
       icon: [
         { url: '/logo/melina-studio-logo.png', sizes: '1024x1024', type: 'image/png' },
@@ -29,9 +29,9 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "Melina Studio",
+    title: "Melina Studio – Cursor for Canvas",
     description:
-      "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+      "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine.",
     url: "https://melina.studio",
     siteName: "Melina Studio",
     images: [
@@ -47,9 +47,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Melina Studio",
+    title: "Melina Studio – Cursor for Canvas",
     description:
-      "Cursor for canvas. Turn thoughts into visual clarity with Melina, exactly the way you imagine it.",
+      "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine.",
     images: ["/og.png"],
   },
 };
