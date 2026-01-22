@@ -86,7 +86,7 @@ export default function PlaygroundContent() {
       localStorage.setItem(
         "settings",
         JSON.stringify({
-          activeModel: "groq",
+          activeModel: "anthropic",
           temperature: 0.5,
           maxTokens: 1000,
           theme: theme,
