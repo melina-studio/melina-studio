@@ -1,7 +1,7 @@
 # ===========================================
 # Development Stage
 # ===========================================
-FROM node:20-alpine AS development
+FROM node:25-alpine AS development
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ CMD ["npm", "run", "dev"]
 # ===========================================
 # Dependencies Stage
 # ===========================================
-FROM node:20-alpine AS deps
+FROM node:25-alpine AS deps
 
 WORKDIR /app
 
@@ -36,7 +36,7 @@ RUN npm ci --only=production
 # ===========================================
 # Builder Stage
 # ===========================================
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -54,7 +54,7 @@ RUN npm run build
 # ===========================================
 # Production Stage
 # ===========================================
-FROM node:20-alpine AS production
+FROM node:25-alpine AS production
 
 WORKDIR /app
 
