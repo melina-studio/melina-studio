@@ -13,6 +13,91 @@ import {
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
 
+// Separate component for image shapes to avoid conditional hooks
+const ImageShape: React.FC<{
+  shape: any;
+  activeTool: string;
+  isDraggingShape: boolean;
+  isDraggingStage: boolean;
+  cursor: string;
+  onShapeDragStart: (e: any, id: string) => void;
+  onShapeDragEnd: (e: any, id: string) => void;
+  onShapeDragMove: (e: any, id: string) => void;
+  onImageTransform: (node: any, id: string) => void;
+  handleClick: (e: any) => void;
+  setStageCursor: (c: string) => void;
+  setIsDraggingStage: (dragging: boolean) => void;
+}> = ({
+  shape,
+  activeTool,
+  isDraggingShape,
+  isDraggingStage,
+  cursor,
+  onShapeDragStart,
+  onShapeDragEnd,
+  onShapeDragMove,
+  onImageTransform,
+  handleClick,
+  setStageCursor,
+  setIsDraggingStage,
+}) => {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const imgElement = new window.Image();
+    imgElement.crossOrigin = "anonymous";
+    imgElement.onload = () => {
+      setImage(imgElement);
+    };
+    imgElement.onerror = () => {
+      console.error("Failed to load image:", shape.src);
+    };
+    imgElement.src = shape.src;
+  }, [shape.src]);
+
+  if (!image) {
+    return null;
+  }
+
+  return (
+    <KonvaImage
+      key={shape.id}
+      id={shape.id}
+      x={shape.x}
+      y={shape.y}
+      image={image}
+      width={shape.width || 150}
+      height={shape.height || 150}
+      draggable={
+        activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
+      }
+      onDragStart={(e) => onShapeDragStart(e, shape.id)}
+      onDragMove={(e) => onShapeDragMove(e, shape.id)}
+      onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+      onClick={handleClick}
+      onTransformEnd={(e) => {
+        onImageTransform(e.target, shape.id);
+      }}
+      onMouseEnter={() => {
+        if (
+          (activeTool === ACTIONS.SELECT ||
+            activeTool === ACTIONS.MARQUEE_SELECT ||
+            activeTool === ACTIONS.COLOR) &&
+          !isDraggingShape
+        ) {
+          setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
+          setIsDraggingStage(false);
+        }
+      }}
+      onMouseLeave={() => {
+        if (!isDraggingShape && !isDraggingStage) {
+          setStageCursor(cursor);
+        }
+      }}
+    />
+  );
+};
+
 // Helper to get brightness of a color (0-255)
 const getColorBrightness = (color: string): number => {
   if (!color) return 128;
@@ -263,60 +348,20 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   }
 
   if (shape.type === "image") {
-    const img = shape as any;
-    const [image, setImage] = useState<HTMLImageElement | null>(null);
-
-    useEffect(() => {
-      const imgElement = new window.Image();
-      imgElement.crossOrigin = "anonymous";
-      imgElement.onload = () => {
-        setImage(imgElement);
-      };
-      imgElement.onerror = () => {
-        console.error("Failed to load image:", img.src);
-      };
-      imgElement.src = img.src;
-    }, [img.src]);
-
-    if (!image) {
-      return null; // Don't render until image is loaded
-    }
-
     return (
-      <KonvaImage
-        key={shape.id}
-        id={shape.id}
-        x={img.x}
-        y={img.y}
-        image={image}
-        width={img.width || 150}
-        height={img.height || 150}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
-        onDragStart={(e) => onShapeDragStart(e, shape.id)}
-        onDragMove={(e) => onShapeDragMove(e, shape.id)}
-        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-        onClick={handleClick}
-        onTransformEnd={(e) => {
-          onImageTransform(e.target, shape.id);
-        }}
-        onMouseEnter={() => {
-          if (
-            (activeTool === ACTIONS.SELECT ||
-              activeTool === ACTIONS.MARQUEE_SELECT ||
-              activeTool === ACTIONS.COLOR) &&
-            !isDraggingShape
-          ) {
-            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
-            setIsDraggingStage(false);
-          }
-        }}
-        onMouseLeave={() => {
-          if (!isDraggingShape && !isDraggingStage) {
-            setStageCursor(cursor);
-          }
-        }}
+      <ImageShape
+        shape={shape}
+        activeTool={activeTool}
+        isDraggingShape={isDraggingShape}
+        isDraggingStage={isDraggingStage}
+        cursor={cursor}
+        onShapeDragStart={onShapeDragStart}
+        onShapeDragEnd={onShapeDragEnd}
+        onShapeDragMove={onShapeDragMove}
+        onImageTransform={onImageTransform}
+        handleClick={handleClick}
+        setStageCursor={setStageCursor}
+        setIsDraggingStage={setIsDraggingStage}
       />
     );
   }
