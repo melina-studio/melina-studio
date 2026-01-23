@@ -22,10 +22,10 @@ export const metadata: Metadata = {
   description:
     "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine.",
   icons: {
-      icon: [
-        { url: '/logo/melina-studio-logo.png', sizes: '1024x1024', type: 'image/png' },
-      ],
-      apple: '/logo/apple-touch-icon.png',
+    icon: [
+      { url: '/logo/melina-studio-logo.png', sizes: '1024x1024', type: 'image/png' },
+    ],
+    apple: '/logo/apple-touch-icon.png',
   },
 
   openGraph: {
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Melina Studio – Cursor for Canvas",
     description:
-      "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine.",
+      "Cursor for canvas. Turn thoughts into visual clarity through conversation. Melina is an AI design tool that brings your ideas to life exactly as you imagine. ",
     images: ["/og.png"],
   },
 };
