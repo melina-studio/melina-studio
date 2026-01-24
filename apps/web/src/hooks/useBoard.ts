@@ -88,8 +88,7 @@ export const useBoard = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (board) =>
-          board.title?.toLowerCase().includes(query) ||
-          board.uuid?.toLowerCase().includes(query)
+          board.title?.toLowerCase().includes(query) || board.uuid?.toLowerCase().includes(query)
       );
     }
 
@@ -146,10 +145,7 @@ export const useBoard = () => {
   };
 
   //   update board
-  const updateBoardById = async (
-    boardId: string,
-    payload: UpdateBoardPayload
-  ) => {
+  const updateBoardById = async (boardId: string, payload: UpdateBoardPayload) => {
     try {
       setLoading(true);
       await updateBoard(boardId, payload);

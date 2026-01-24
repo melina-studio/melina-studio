@@ -37,7 +37,6 @@ func NewServer() *fiber.App {
 		return fiber.ErrUpgradeRequired
 	})
 
-
 	ctx := context.Background()
 	_, err := gcp.NewClients(ctx)
 	if err != nil {

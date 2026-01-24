@@ -15,9 +15,7 @@ const SelectionPill = ({
     <div
       className="flex items-center gap-1.5 px-1 py-1 rounded-md shrink-0 text-xs"
       style={{
-        background: isDark
-          ? "rgba(80, 80, 80, 0.8)"
-          : "rgba(229, 231, 235, 0.8)",
+        background: isDark ? "rgba(80, 80, 80, 0.8)" : "rgba(229, 231, 235, 0.8)",
       }}
     >
       <img

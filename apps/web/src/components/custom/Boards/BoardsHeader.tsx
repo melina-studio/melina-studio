@@ -29,12 +29,8 @@ export function BoardsHeader({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Left: Title and subtitle */}
         <div className="flex flex-col">
-          <h1 className="text-2xl font-semibold text-foreground mb-1">
-            Boards
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Your canvases, all in one place.
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground mb-1">Boards</h1>
+          <p className="text-sm text-muted-foreground">Your canvases, all in one place.</p>
         </div>
 
         {/* Right: Search and Sort */}

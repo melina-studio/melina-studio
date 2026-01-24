@@ -68,31 +68,17 @@ function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessage
 
         return <>{animatedChars}</>;
       },
-      p: ({ children }) => (
-        <p className="mb-3 last:mb-0 break-words leading-relaxed">{children}</p>
-      ),
-      h1: ({ children }) => (
-        <h1 className="text-xl font-bold mb-3 break-words">{children}</h1>
-      ),
-      h2: ({ children }) => (
-        <h2 className="text-lg font-bold mb-3 break-words">{children}</h2>
-      ),
-      h3: ({ children }) => (
-        <h3 className="text-base font-bold mb-3 break-words">{children}</h3>
-      ),
+      p: ({ children }) => <p className="mb-3 last:mb-0 break-words leading-relaxed">{children}</p>,
+      h1: ({ children }) => <h1 className="text-xl font-bold mb-3 break-words">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-lg font-bold mb-3 break-words">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-base font-bold mb-3 break-words">{children}</h3>,
       ul: ({ children }) => (
-        <ul className="list-disc ml-4 mb-3 space-y-2 break-words">
-          {children}
-        </ul>
+        <ul className="list-disc ml-4 mb-3 space-y-2 break-words">{children}</ul>
       ),
       ol: ({ children }) => (
-        <ol className="list-decimal ml-4 mb-3 space-y-2 break-words">
-          {children}
-        </ol>
+        <ol className="list-decimal ml-4 mb-3 space-y-2 break-words">{children}</ol>
       ),
-      li: ({ children }) => (
-        <li className="break-words leading-relaxed">{children}</li>
-      ),
+      li: ({ children }) => <li className="break-words leading-relaxed">{children}</li>,
       code: ({ children, className }) => {
         const isInline = !className;
         if (isInline) {
@@ -146,9 +132,7 @@ function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessage
         {/* Message container */}
         <div className="flex flex-col flex-1 min-w-0">
           {/* Name */}
-          <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
-            Melina
-          </span>
+          <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">Melina</span>
 
           {/* Message content */}
           <div
@@ -168,11 +152,7 @@ function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessage
                 }`}
                 title={copied ? "Copied!" : "Copy message"}
               >
-                {copied ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
           )}

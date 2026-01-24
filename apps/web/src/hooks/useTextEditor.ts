@@ -166,9 +166,7 @@ export const useTextEditor = (
 
       // Update shapes state so canvas shows the text
       setShapes((latestShapes) => {
-        const updatedShapes = latestShapes.map((s) =>
-          s.id === id ? { ...s, text: val } : s
-        );
+        const updatedShapes = latestShapes.map((s) => (s.id === id ? { ...s, text: val } : s));
         finalShapes = updatedShapes;
         return updatedShapes;
       });

@@ -15,9 +15,7 @@ export default function PrivacyPolicy() {
               height={18}
               className="size-[18px]"
             />
-            <span className="text-sm font-semibold text-white tracking-wide">
-              Melina Studio
-            </span>
+            <span className="text-sm font-semibold text-white tracking-wide">Melina Studio</span>
           </Link>
         </div>
       </nav>
@@ -31,8 +29,9 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
             <p>
-              Welcome to Melina Studio. We respect your privacy and are committed to protecting your personal data.
-              This privacy policy explains how we collect, use, and safeguard your information when you use our service.
+              Welcome to Melina Studio. We respect your privacy and are committed to protecting your
+              personal data. This privacy policy explains how we collect, use, and safeguard your
+              information when you use our service.
             </p>
           </section>
 
@@ -48,7 +47,9 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">3. How We Use Your Information</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              3. How We Use Your Information
+            </h2>
             <p className="mb-4">We use the information we collect to:</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Provide, maintain, and improve our services</li>
@@ -63,16 +64,18 @@ export default function PrivacyPolicy() {
             <h2 className="text-xl font-semibold text-white mb-4">4. Data Storage and Security</h2>
             <p>
               Your data is stored securely using industry-standard encryption and security measures.
-              We use trusted third-party services for authentication and data storage.
-              While we strive to protect your personal information, no method of transmission over the Internet is 100% secure.
+              We use trusted third-party services for authentication and data storage. While we
+              strive to protect your personal information, no method of transmission over the
+              Internet is 100% secure.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">5. Third-Party Services</h2>
             <p>
-              We may use third-party services for authentication (such as Google OAuth), analytics, and hosting.
-              These services have their own privacy policies, and we encourage you to review them.
+              We may use third-party services for authentication (such as Google OAuth), analytics,
+              and hosting. These services have their own privacy policies, and we encourage you to
+              review them.
             </p>
           </section>
 
@@ -90,16 +93,16 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">7. Cookies</h2>
             <p>
-              We use essential cookies to maintain your session and preferences.
-              We may also use analytics cookies to understand how you use our service.
+              We use essential cookies to maintain your session and preferences. We may also use
+              analytics cookies to understand how you use our service.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">8. Changes to This Policy</h2>
             <p>
-              We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page
-              and updating the &quot;Last updated&quot; date.
+              We may update this privacy policy from time to time. We will notify you of any changes
+              by posting the new policy on this page and updating the &quot;Last updated&quot; date.
             </p>
           </section>
 

@@ -68,9 +68,7 @@ const ImageShape: React.FC<{
       image={image}
       width={shape.width || 150}
       height={shape.height || 150}
-      draggable={
-        activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-      }
+      draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
       onDragStart={(e) => onShapeDragStart(e, shape.id)}
       onDragMove={(e) => onShapeDragMove(e, shape.id)}
       onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -117,7 +115,11 @@ const getColorBrightness = (color: string): number => {
 };
 
 // Adjust color for visibility based on theme
-const getThemeAwareColor = (color: string | undefined, isDarkMode: boolean, fallbackColor: string): string => {
+const getThemeAwareColor = (
+  color: string | undefined,
+  isDarkMode: boolean,
+  fallbackColor: string
+): string => {
   if (!color) return fallbackColor;
 
   const brightness = getColorBrightness(color);
@@ -199,9 +201,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         fill={shape.fill}
         stroke={rectStroke}
         cornerRadius={8}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -239,9 +239,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         radius={shape.r}
         fill={shape.fill}
         stroke={circleStroke}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -276,9 +274,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         stroke={e.stroke || defaultStroke}
         strokeWidth={e.strokeWidth || 2}
         rotation={e.rotation || 0}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -320,9 +316,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         strokeWidth={p.strokeWidth || 2}
         lineCap={p.lineCap || "round"}
         lineJoin={p.lineJoin || "round"}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -380,9 +374,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         fontSize={t.fontSize}
         fontFamily={t.fontFamily}
         fill={textColor}
-        draggable={
-          activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT
-        }
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
         onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
@@ -516,14 +508,17 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   const points = lineShape.points || [];
 
   // Check if pencil shape is naturally closed (start and end points within 30px)
-  const isNaturallyClosed = isPencil && points.length >= 4 && (() => {
-    const startX = points[0];
-    const startY = points[1];
-    const endX = points[points.length - 2];
-    const endY = points[points.length - 1];
-    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-    return distance < 30; // Within 30 pixels = considered closed
-  })();
+  const isNaturallyClosed =
+    isPencil &&
+    points.length >= 4 &&
+    (() => {
+      const startX = points[0];
+      const startY = points[1];
+      const endX = points[points.length - 2];
+      const endY = points[points.length - 1];
+      const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+      return distance < 30; // Within 30 pixels = considered closed
+    })();
 
   // Only close the shape if it's naturally closed (don't close just because fill exists)
   // This prevents open pencil strokes from auto-closing when color is applied

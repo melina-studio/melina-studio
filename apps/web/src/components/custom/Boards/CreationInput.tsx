@@ -3,11 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { SendHorizontal, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FlipWords } from "@/components/ui/flip-words";
 
 // Placeholder suggestions that cycle through
@@ -28,11 +24,7 @@ interface CreationInputProps {
   onFocusChange?: (focused: boolean) => void;
 }
 
-export function CreationInput({
-  onSubmit,
-  isLoading = false,
-  onFocusChange,
-}: CreationInputProps) {
+export function CreationInput({ onSubmit, isLoading = false, onFocusChange }: CreationInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [value, setValue] = useState("");
@@ -81,9 +73,7 @@ export function CreationInput({
           timeoutId = setTimeout(eraseNextChar, 25); // Faster erasing
         } else {
           // Move to next placeholder
-          setCurrentPlaceholderIndex(
-            (prev) => (prev + 1) % PLACEHOLDER_SUGGESTIONS.length
-          );
+          setCurrentPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_SUGGESTIONS.length);
           setIsTyping(true);
         }
       };
@@ -94,8 +84,7 @@ export function CreationInput({
   }, [currentPlaceholderIndex, isTyping, value]);
 
   // Get the full current placeholder for Tab completion
-  const currentFullPlaceholder =
-    PLACEHOLDER_SUGGESTIONS[currentPlaceholderIndex];
+  const currentFullPlaceholder = PLACEHOLDER_SUGGESTIONS[currentPlaceholderIndex];
 
   const handleSubmit = useCallback(() => {
     const text = value.trim();
@@ -147,9 +136,7 @@ export function CreationInput({
           What do you want to
           <FlipWords words={words} />?
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Describe your idea. Melina will set it up.
-        </p>
+        <p className="text-sm text-muted-foreground">Describe your idea. Melina will set it up.</p>
       </div>
 
       {/* Input bar */}
@@ -226,18 +213,11 @@ export function CreationInput({
 
       {/* Hint text -- hidden on mobile */}
       <p className="mt-3 text-xs text-muted-foreground hidden sm:block">
-        Press{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
-          Tab
-        </kbd>{" "}
-        to use suggestion &bull;{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
-          Enter
-        </kbd>{" "}
-        to create &bull;{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">
-          Shift + Enter
-        </kbd>{" "}
+        Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Tab</kbd> to use
+        suggestion &bull;{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Enter</kbd> to create
+        &bull;{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Shift + Enter</kbd>{" "}
         for new line
       </p>
 

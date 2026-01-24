@@ -12,8 +12,9 @@ import (
 func registerAuthPublic(r fiber.Router) {
 	authRepo := repo.NewAuthRepository(config.DB)
 	refreshTokenRepo := repo.NewRefreshTokenRepository(config.DB)
+	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
-	authHandler := handlers.NewAuthHandler(authRepo, authService)
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo)
 
 	// Public auth routes (no auth required)
 	r.Post("/login", authHandler.Login)
@@ -24,7 +25,7 @@ func registerAuthPublic(r fiber.Router) {
 	// OAuth routes
 	r.Get("/oauth/google", authHandler.GoogleLogin)
 	r.Get("/oauth/google/callback", authHandler.GoogleCallback)
-	
+
 	r.Get("/oauth/github", authHandler.GithubLogin)
 	r.Get("/oauth/github/callback", authHandler.GithubCallback)
 }
@@ -32,8 +33,9 @@ func registerAuthPublic(r fiber.Router) {
 func registerAuthProtected(r fiber.Router) {
 	authRepo := repo.NewAuthRepository(config.DB)
 	refreshTokenRepo := repo.NewRefreshTokenRepository(config.DB)
+	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
-	authHandler := handlers.NewAuthHandler(authRepo, authService)
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo)
 
 	// Protected auth routes (requires auth)
 	r.Get("/me", authHandler.GetMe)

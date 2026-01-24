@@ -9,11 +9,7 @@ type ZoomControlsProps = {
   zoomOut: () => void;
 };
 
-export const ZoomControls: React.FC<ZoomControlsProps> = ({
-  scale,
-  zoomIn,
-  zoomOut,
-}) => {
+export const ZoomControls: React.FC<ZoomControlsProps> = ({ scale, zoomIn, zoomOut }) => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 

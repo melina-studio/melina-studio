@@ -40,9 +40,8 @@ func (h *BoardHandler) CreateBoard(c *fiber.Ctx) error {
 		})
 	}
 
-
 	var dto struct {
-		Title  string `json:"title"`
+		Title string `json:"title"`
 	}
 	if err := c.BodyParser(&dto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -97,7 +96,7 @@ func (h *BoardHandler) SaveData(c *fiber.Ctx) error {
 			"error": "Invalid user ID",
 		})
 	}
-	
+
 	// Get board ID from URL params
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
@@ -231,7 +230,7 @@ func (h *BoardHandler) GetBoardByID(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"board": board,
+		"board":     board,
 		"boardInfo": boardInfo,
 	})
 }
@@ -261,7 +260,7 @@ func (h *BoardHandler) ClearBoard(c *fiber.Ctx) error {
 
 // function to delete board by ID
 func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
-	userID , err := uuid.Parse(c.Locals("userID").(string))
+	userID, err := uuid.Parse(c.Locals("userID").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user ID",
@@ -307,13 +306,12 @@ func (h *BoardHandler) DeleteBoardByID(c *fiber.Ctx) error {
 
 // function to update board by ID
 func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
-	userId , err := uuid.Parse(c.Locals("userID").(string))
+	userId, err := uuid.Parse(c.Locals("userID").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user ID",
 		})
 	}
-
 
 	boardIdStr := c.Params("boardId")
 	boardId, err := uuid.Parse(boardIdStr)
@@ -324,9 +322,9 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 	}
 
 	var dto struct {
-		Title     *string `json:"title"`
-		Thumbnail *string `json:"thumbnail"`
-		Starred   *bool   `json:"starred"`
+		Title         *string `json:"title"`
+		Thumbnail     *string `json:"thumbnail"`
+		Starred       *bool   `json:"starred"`
 		SaveThumbnail *bool   `json:"saveThumbnail"`
 	}
 
@@ -358,7 +356,7 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 			})
 		}
 		// upload the image to gcs
-		url ,err := libraries.GetClients().Upload(context.Background(), boardId.String()+".png", bytes.NewReader(image), "image/png")
+		url, err := libraries.GetClients().Upload(context.Background(), boardId.String()+".png", bytes.NewReader(image), "image/png")
 		if err != nil {
 			log.Println(err, "Error uploading image to gcs")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -369,7 +367,7 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 		// save the url to board thumbnail
 		payload.Thumbnail = url
 	}
-	
+
 	err = h.repo.UpdateBoard(userId, boardId, payload)
 	if err != nil {
 		log.Println(err, "Error updating board")
@@ -433,6 +431,6 @@ func (h *BoardHandler) UploadSelectionImage(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Selection image uploaded successfully",
 		"shapeId": body.SelectionShapeId,
-		"url": url,
+		"url":     url,
 	})
 }

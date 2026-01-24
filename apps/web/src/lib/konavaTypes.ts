@@ -3,11 +3,9 @@ import {
   Eraser,
   Hand,
   Slash,
-  MoveUpRight,
   PencilLine,
   Square,
   TypeOutline,
-  Image,
   PaintBucket,
   LayoutPanelLeft,
 } from "lucide-react";

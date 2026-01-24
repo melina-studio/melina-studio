@@ -32,9 +32,7 @@ export function ThemeSwitchToggle({ isOnDark = false }: ThemeSwitchToggleProps) 
   const isDark = theme === "dark";
 
   if (!mounted) {
-    return (
-      <div className="w-14 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
-    );
+    return <div className="w-14 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 animate-pulse" />;
   }
 
   return (
@@ -42,12 +40,7 @@ export function ThemeSwitchToggle({ isOnDark = false }: ThemeSwitchToggleProps) 
       onClick={handleToggle}
       className={`
         relative w-14 h-7 rounded-full p-1 transition-colors duration-300 cursor-pointer
-        ${isDark
-          ? "bg-zinc-800"
-          : isOnDark
-            ? "bg-white/20"
-            : "bg-zinc-200"
-        }
+        ${isDark ? "bg-zinc-800" : isOnDark ? "bg-white/20" : "bg-zinc-200"}
         ${isOnDark ? "border border-white/10" : ""}
       `}
       aria-label="Toggle theme"
@@ -71,10 +64,7 @@ export function ThemeSwitchToggle({ isOnDark = false }: ThemeSwitchToggleProps) 
         className={`
           relative w-5 h-5 rounded-full shadow-sm transition-all duration-300 ease-out
           flex items-center justify-center
-          ${isDark
-            ? "translate-x-7 bg-zinc-950"
-            : "translate-x-0 bg-white"
-          }
+          ${isDark ? "translate-x-7 bg-zinc-950" : "translate-x-0 bg-white"}
         `}
       >
         {isDark ? (

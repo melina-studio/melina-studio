@@ -43,20 +43,20 @@ func getToolHandler(name string) (ToolHandler, bool) {
 
 // ToolCall represents a generic tool call that can be used across providers
 type ToolCall struct {
-	ID      string                 // Tool call ID (for Anthropic) or empty (for Gemini)
-	Name    string                 // Tool/function name
-	Input   map[string]interface{} // Tool input arguments
-	Provider string                // Provider name for logging/debugging
+	ID       string                 // Tool call ID (for Anthropic) or empty (for Gemini)
+	Name     string                 // Tool/function name
+	Input    map[string]interface{} // Tool input arguments
+	Provider string                 // Provider name for logging/debugging
 }
 
 // ToolExecutionResult represents the result of executing a tool
 type ToolExecutionResult struct {
-	ToolCallID string                 // Original tool call ID (if applicable)
-	ToolName   string                 // Tool name
-	Result     interface{}            // The actual result from the handler
-	Error      error                  // Error if execution failed
-	HasImage   bool                   // Whether result contains image content
-	ImageData  *ImageContent          // Image data if HasImage is true
+	ToolCallID string        // Original tool call ID (if applicable)
+	ToolName   string        // Tool name
+	Result     interface{}   // The actual result from the handler
+	Error      error         // Error if execution failed
+	HasImage   bool          // Whether result contains image content
+	ImageData  *ImageContent // Image data if HasImage is true
 }
 
 // ImageContent contains image data extracted from tool results
@@ -69,7 +69,7 @@ type ImageContent struct {
 }
 
 // ExecuteTools executes a batch of tool calls and returns results
-func ExecuteTools(ctx context.Context, toolCalls []ToolCall , streamCtx *StreamingContext) []ToolExecutionResult {
+func ExecuteTools(ctx context.Context, toolCalls []ToolCall, streamCtx *StreamingContext) []ToolExecutionResult {
 	results := make([]ToolExecutionResult, 0, len(toolCalls))
 
 	// Pass StreamingContext through context if available
@@ -125,10 +125,10 @@ func ExecuteTools(ctx context.Context, toolCalls []ToolCall , streamCtx *Streami
 					fmt.Printf("[%s] PANIC in tool %s: %v\n", tc.Provider, tc.Name, r)
 				}
 			}()
-			
+
 			execResult, handlerErr = handler(ctx, input)
 		}()
-		
+
 		// Handle errors (but don't stop the workflow - continue with other tools)
 		if handlerErr != nil {
 			result.Error = handlerErr
@@ -187,7 +187,7 @@ func FormatAnthropicToolResult(result ToolExecutionResult) map[string]interface{
 	if result.Error != nil {
 		// Create a helpful error message for the LLM
 		errorMsg := fmt.Sprintf("Tool execution failed: %v. Please check the input parameters and try again. The tool '%s' requires valid parameters.", result.Error, result.ToolName)
-		
+
 		// Add specific guidance based on error type
 		if strings.Contains(result.Error.Error(), "boardId") {
 			errorMsg += " Make sure boardId is provided and is a valid UUID string."
@@ -198,7 +198,7 @@ func FormatAnthropicToolResult(result ToolExecutionResult) map[string]interface{
 		} else if strings.Contains(result.Error.Error(), "empty") {
 			errorMsg += " The tool input was empty. Please provide all required parameters: boardId, shapeType, x, y."
 		}
-		
+
 		return map[string]interface{}{
 			"type":        "tool_result",
 			"tool_use_id": result.ToolCallID,

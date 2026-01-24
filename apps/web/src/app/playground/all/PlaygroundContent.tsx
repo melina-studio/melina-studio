@@ -134,9 +134,7 @@ export default function PlaygroundContent() {
         {/* Content below - dims when input is focused */}
         <div
           className={`transition-all duration-300 ${
-            isInputFocused
-              ? "opacity-50 scale-[0.995]"
-              : "opacity-100 scale-100"
+            isInputFocused ? "opacity-50 scale-[0.995]" : "opacity-100 scale-100"
           }`}
         >
           {error && (

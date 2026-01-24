@@ -1,8 +1,7 @@
 import { Shape } from "@/lib/konavaTypes";
 
 // Clamp helper
-export const clamp = (v: number, a: number, b: number) =>
-  Math.max(a, Math.min(b, v));
+export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 // Convert pointer to stage-local coords (works with stage translate/scale)
 export const getRelativePointerPosition = (stage: any) => {
@@ -19,12 +18,7 @@ const rectsIntersect = (
   r1: { left: number; top: number; right: number; bottom: number },
   r2: { left: number; top: number; right: number; bottom: number }
 ): boolean => {
-  return !(
-    r1.right < r2.left ||
-    r1.left > r2.right ||
-    r1.bottom < r2.top ||
-    r1.top > r2.bottom
-  );
+  return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
 };
 
 // Helper function to check if a shape intersects with selection box
@@ -83,7 +77,12 @@ export const isShapeInSelectionBox = (
       bottom: pathY + defaultSize,
     };
     return rectsIntersect(shapeRect, selectionRect);
-  } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "arrow" || shape.type === "eraser") {
+  } else if (
+    shape.type === "line" ||
+    shape.type === "pencil" ||
+    shape.type === "arrow" ||
+    shape.type === "eraser"
+  ) {
     // Check if any point is within the selection box
     const points = (shape as any).points || [];
     const offsetX = (shape as any).x || 0;

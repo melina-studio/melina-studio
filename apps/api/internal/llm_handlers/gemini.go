@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"melina-studio-backend/internal/libraries"
+	"melina-studio-backend/internal/models"
 	"os"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 // GeminiResponse contains the parsed response from Gemini
 type GeminiResponse struct {
-	TextContent  []string
+	TextContent   []string
 	FunctionCalls []FunctionCall
 	RawResponse   *genai.GenerateContentResponse
 }
@@ -58,7 +59,7 @@ func NewGenaiGeminiClient(ctx context.Context, tools []map[string]interface{}, t
 	if temperature != nil {
 		tempValue = *temperature
 	}
-	
+
 	maxTokensValue := int32(1024)
 	if maxTokens != nil {
 		maxTokensValue = int32(*maxTokens)
@@ -102,28 +103,28 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 
 		// Handle content - can be string or []map[string]interface{} (for images, function calls, etc.)
 		parts := []*genai.Part{}
-		
+
 		switch c := m.Content.(type) {
 		case string:
 			// Simple text message
 			parts = append(parts, &genai.Part{Text: c})
-			
+
 		case []map[string]interface{}:
 			// Multi-part content (text + images + function calls/responses)
 			for _, block := range c {
 				blockType, _ := block["type"].(string)
-				
+
 				switch blockType {
 				case "text":
 					if text, ok := block["text"].(string); ok {
 						parts = append(parts, &genai.Part{Text: text})
 					}
-					
+
 				case "image":
 					if source, ok := block["source"].(map[string]interface{}); ok {
 						mediaType, _ := source["media_type"].(string)
 						dataStr, _ := source["data"].(string)
-						
+
 						// Decode base64 image data
 						imageData, err := base64.StdEncoding.DecodeString(dataStr)
 						if err == nil {
@@ -136,13 +137,13 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 							})
 						}
 					}
-					
+
 				case "function_call":
 					// Handle function call from assistant (model role)
 					if fn, ok := block["function"].(map[string]interface{}); ok {
 						name, _ := fn["name"].(string)
 						args, _ := fn["arguments"].(map[string]interface{})
-						
+
 						parts = append(parts, &genai.Part{
 							FunctionCall: &genai.FunctionCall{
 								Name: name,
@@ -150,19 +151,19 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 							},
 						})
 					}
-					
+
 				case "function_response":
 					// Handle function response from user
 					if fn, ok := block["function"].(map[string]interface{}); ok {
 						name, _ := fn["name"].(string)
 						responseStr, _ := fn["response"].(string)
-						
+
 						// Parse response string to map
 						var responseMap map[string]interface{}
 						if err := json.Unmarshal([]byte(responseStr), &responseMap); err != nil {
 							responseMap = make(map[string]interface{})
 						}
-						
+
 						parts = append(parts, &genai.Part{
 							FunctionResponse: &genai.FunctionResponse{
 								Name:     name,
@@ -172,7 +173,7 @@ func convertMessagesToGenaiContent(messages []Message) (string, []*genai.Content
 					}
 				}
 			}
-			
+
 		default:
 			// Fallback: convert to JSON string
 			b, _ := json.Marshal(c)
@@ -246,16 +247,14 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	// Convert tools to genai.Tool format
 	genaiTools := convertToolsToGenaiTools(v.Tools)
 
-	
 	// need to hanlde streaming later
-	
+
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
 		Temperature:     &v.Temperature,
 		MaxOutputTokens: v.MaxTokens,
 		Tools:           genaiTools,
 	}
-
 
 	// Add system instruction if exists
 	if systemMessage != "" || systemText != "" {
@@ -276,27 +275,27 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	if streamCtx != nil && streamCtx.Client != nil {
 		// Use GenerateContentStream for real-time tokens
 		iterator := v.client.Models.GenerateContentStream(ctx, v.modelID, contents, genConfig)
-		
+
 		var lastChunk *genai.GenerateContentResponse
 		var accumulatedText strings.Builder
-		
+
 		// Iterate over streaming chunks
 		// Note: chunk and chunkErr are the loop variables, not shadowing outer resp
 		for chunk, chunkErr := range iterator {
 			if chunkErr != nil {
 				return nil, fmt.Errorf("gemini stream error: %w", chunkErr)
 			}
-			
+
 			// Store the last chunk (contains final state including function calls)
 			lastChunk = chunk
-			
+
 			// Extract text from the current chunk and stream it
 			// Note: chunk.Text() returns only the incremental text (new token)
 			token := chunk.Text()
 			if token != "" {
 				// Accumulate the full text
 				accumulatedText.WriteString(token)
-				
+
 				// Send streaming chunk to client
 				payload := &libraries.ChatMessageResponsePayload{
 					Message: token,
@@ -308,15 +307,15 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 			}
 		}
-		
+
 		// Use the last chunk as the base for the final response
 		// This contains the complete response structure including any function calls
 		resp = lastChunk
-		
+
 		if resp == nil {
 			return nil, fmt.Errorf("gemini stream returned no response")
 		}
-		
+
 		// IMPORTANT: The last chunk's Content.Parts might only contain the last token
 		// We need to ensure the full accumulated text is in the response
 		// Update the response to include the full accumulated text
@@ -390,22 +389,42 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
-func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message , streamCtx *StreamingContext) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
 	const maxIterations = 8
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *GeminiResponse
+
+	// Accumulate token usage across all iterations
+	var totalPromptTokens, totalCandidatesTokens int32
+
 	for iter := 0; iter < maxIterations; iter++ {
-		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages , streamCtx)
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
 		if err != nil {
 			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
 		}
 		lastResp = gr
 
+		// Accumulate token usage from this iteration
+		if gr.RawResponse != nil && gr.RawResponse.UsageMetadata != nil {
+			totalPromptTokens += gr.RawResponse.UsageMetadata.PromptTokenCount
+			totalCandidatesTokens += gr.RawResponse.UsageMetadata.CandidatesTokenCount
+			fmt.Printf("[gemini] Iteration %d token usage: prompt=%d, candidates=%d (cumulative: prompt=%d, candidates=%d)\n",
+				iter+1, gr.RawResponse.UsageMetadata.PromptTokenCount, gr.RawResponse.UsageMetadata.CandidatesTokenCount,
+				totalPromptTokens, totalCandidatesTokens)
+		}
+
 		// If no function calls, we're done
 		if len(gr.FunctionCalls) == 0 {
+			// Store cumulative usage in the final response
+			if gr.RawResponse != nil && gr.RawResponse.UsageMetadata != nil {
+				gr.RawResponse.UsageMetadata.PromptTokenCount = totalPromptTokens
+				gr.RawResponse.UsageMetadata.CandidatesTokenCount = totalCandidatesTokens
+				fmt.Printf("[gemini] Final cumulative usage: prompt=%d, candidates=%d, total=%d\n",
+					totalPromptTokens, totalCandidatesTokens, totalPromptTokens+totalCandidatesTokens)
+			}
 			return gr, nil
 		}
 
@@ -421,12 +440,12 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 		}
 
 		// Execute tools using common executor
-		execResults := ExecuteTools(ctx, toolCalls , streamCtx)
+		execResults := ExecuteTools(ctx, toolCalls, streamCtx)
 
 		// Format results for Gemini
 		functionResults := []map[string]interface{}{}
 		var imageContentBlocks []map[string]interface{} // Collect images to add separately
-		
+
 		for _, execResult := range execResults {
 			funcResp, imgBlocks := FormatGeminiToolResult(execResult)
 			functionResults = append(functionResults, funcResp)
@@ -460,7 +479,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 			Role:    "user",
 			Content: functionResults,
 		})
-		
+
 		// If we have image content blocks, add them as a separate user message
 		// This allows Gemini to actually "see" the image (function responses are JSON-only)
 		if len(imageContentBlocks) > 0 {
@@ -492,13 +511,37 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 
 	if err != nil {
 		fmt.Printf("[gemini] Warning: final summary call failed: %v. Returning last response.\n", err)
+		// Update lastResp with cumulative usage before returning
+		if lastResp != nil && lastResp.RawResponse != nil && lastResp.RawResponse.UsageMetadata != nil {
+			lastResp.RawResponse.UsageMetadata.PromptTokenCount = totalPromptTokens
+			lastResp.RawResponse.UsageMetadata.CandidatesTokenCount = totalCandidatesTokens
+		}
 		return lastResp, nil
+	}
+
+	// Accumulate tokens from the final call
+	if finalResp.RawResponse != nil && finalResp.RawResponse.UsageMetadata != nil {
+		totalPromptTokens += finalResp.RawResponse.UsageMetadata.PromptTokenCount
+		totalCandidatesTokens += finalResp.RawResponse.UsageMetadata.CandidatesTokenCount
+	}
+
+	// Store cumulative usage in the final response
+	if finalResp.RawResponse != nil && finalResp.RawResponse.UsageMetadata != nil {
+		finalResp.RawResponse.UsageMetadata.PromptTokenCount = totalPromptTokens
+		finalResp.RawResponse.UsageMetadata.CandidatesTokenCount = totalCandidatesTokens
+		fmt.Printf("[gemini] Final cumulative usage (with summary): prompt=%d, candidates=%d, total=%d\n",
+			totalPromptTokens, totalCandidatesTokens, totalPromptTokens+totalCandidatesTokens)
 	}
 
 	// Fallback: if final response has no text content, return lastResp or default message
 	if len(finalResp.TextContent) == 0 || (len(finalResp.TextContent) == 1 && strings.TrimSpace(finalResp.TextContent[0]) == "") {
 		fmt.Printf("[gemini] Final response has no text content. Returning last response.\n")
 		if lastResp != nil && len(lastResp.TextContent) > 0 {
+			// Update lastResp with cumulative usage before returning
+			if lastResp.RawResponse != nil && lastResp.RawResponse.UsageMetadata != nil {
+				lastResp.RawResponse.UsageMetadata.PromptTokenCount = totalPromptTokens
+				lastResp.RawResponse.UsageMetadata.CandidatesTokenCount = totalCandidatesTokens
+			}
 			return lastResp, nil
 		}
 		// If lastResp also has no text, add a default message
@@ -512,7 +555,7 @@ func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, mess
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages , nil)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, nil)
 	if err != nil {
 		return "", err
 	}
@@ -547,4 +590,46 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 	}
 
 	return strings.Join(resp.TextContent, "\n\n"), nil
+}
+
+func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	var streamCtx *StreamingContext
+	var inputText string
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId,
+			UserID:  client.UserID,
+		}
+	}
+
+	// Capture the last user message as input for token counting
+	for _, m := range messages {
+		if m.Role == models.RoleUser {
+			if text, ok := m.Content.(string); ok {
+				inputText = text
+			}
+		}
+	}
+
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.TextContent) == 0 {
+		return nil, fmt.Errorf("gemini returned no text content")
+	}
+
+	// Extract token usage from response
+	tokenUsage := ExtractGeminiUsage(resp, inputText)
+
+	return &ResponseWithUsage{
+		Text:       strings.Join(resp.TextContent, "\n\n"),
+		TokenUsage: tokenUsage,
+	}, nil
 }

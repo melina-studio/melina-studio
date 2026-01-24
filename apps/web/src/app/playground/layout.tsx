@@ -5,11 +5,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function PlaygroundLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function PlaygroundLayout({ children }: { children: React.ReactNode }) {
   const { refreshUser, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);

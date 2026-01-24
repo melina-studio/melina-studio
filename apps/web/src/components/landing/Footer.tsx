@@ -19,9 +19,7 @@ export default function Footer() {
                 height={18}
                 className="size-[18px]"
               />
-              <span className="text-sm font-semibold text-white tracking-wide">
-                Melina Studio
-              </span>
+              <span className="text-sm font-semibold text-white tracking-wide">Melina Studio</span>
             </Link>
             <p className="text-sm text-zinc-500">Your design assistant</p>
           </div>
@@ -43,8 +41,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-8 pt-8 border-t border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-zinc-500">
-            &copy; {new Date().getFullYear()} Melina Studio. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} Melina Studio. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <Link

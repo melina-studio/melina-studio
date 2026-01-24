@@ -15,9 +15,7 @@ export default function TermsOfService() {
               height={18}
               className="size-[18px]"
             />
-            <span className="text-sm font-semibold text-white tracking-wide">
-              Melina Studio
-            </span>
+            <span className="text-sm font-semibold text-white tracking-wide">Melina Studio</span>
           </Link>
         </div>
       </nav>
@@ -39,15 +37,17 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">2. Description of Service</h2>
             <p>
-              Melina Studio is an AI-powered design tool that allows users to create visual content through
-              conversational interaction. We provide a canvas-based interface where you can describe your ideas
-              and our AI assistant helps bring them to life.
+              Melina Studio is an AI-powered design tool that allows users to create visual content
+              through conversational interaction. We provide a canvas-based interface where you can
+              describe your ideas and our AI assistant helps bring them to life.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">3. User Accounts</h2>
-            <p className="mb-4">To use certain features of Melina Studio, you must create an account. You agree to:</p>
+            <p className="mb-4">
+              To use certain features of Melina Studio, you must create an account. You agree to:
+            </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Provide accurate and complete information</li>
               <li>Maintain the security of your account credentials</li>
@@ -59,8 +59,9 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">4. User Content</h2>
             <p className="mb-4">
-              You retain ownership of the content you create using Melina Studio. By using our service, you grant us
-              a limited license to store and process your content solely for the purpose of providing the service.
+              You retain ownership of the content you create using Melina Studio. By using our
+              service, you grant us a limited license to store and process your content solely for
+              the purpose of providing the service.
             </p>
             <p>You agree not to create content that:</p>
             <ul className="list-disc list-inside space-y-2 ml-4 mt-4">
@@ -86,40 +87,45 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">6. Intellectual Property</h2>
             <p>
-              Melina Studio and its original content, features, and functionality are owned by us and are protected
-              by international copyright, trademark, and other intellectual property laws.
+              Melina Studio and its original content, features, and functionality are owned by us
+              and are protected by international copyright, trademark, and other intellectual
+              property laws.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">7. Disclaimer of Warranties</h2>
             <p>
-              Melina Studio is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind,
-              either express or implied. We do not guarantee that the service will be uninterrupted, secure, or error-free.
+              Melina Studio is provided &quot;as is&quot; and &quot;as available&quot; without
+              warranties of any kind, either express or implied. We do not guarantee that the
+              service will be uninterrupted, secure, or error-free.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">8. Limitation of Liability</h2>
             <p>
-              To the fullest extent permitted by law, Melina Studio shall not be liable for any indirect, incidental,
-              special, consequential, or punitive damages resulting from your use of the service.
+              To the fullest extent permitted by law, Melina Studio shall not be liable for any
+              indirect, incidental, special, consequential, or punitive damages resulting from your
+              use of the service.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">9. Termination</h2>
             <p>
-              We reserve the right to terminate or suspend your account at our sole discretion, without notice,
-              for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.
+              We reserve the right to terminate or suspend your account at our sole discretion,
+              without notice, for conduct that we believe violates these Terms of Service or is
+              harmful to other users, us, or third parties.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">10. Changes to Terms</h2>
             <p>
-              We may modify these terms at any time. We will notify users of any material changes by posting the updated
-              terms on this page. Your continued use of the service after changes constitutes acceptance of the new terms.
+              We may modify these terms at any time. We will notify users of any material changes by
+              posting the updated terms on this page. Your continued use of the service after
+              changes constitutes acceptance of the new terms.
             </p>
           </section>
 

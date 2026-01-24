@@ -153,11 +153,7 @@ export const buildShapes = (data: any): Shape[] => {
     .filter((shape): shape is Shape => shape !== null && shape !== undefined);
 };
 
-export const getBoardStateSnapshot = async (
-  stageRef: any,
-  bgColor = "#000000",
-  pixelRatio = 2
-) => {
+export const getBoardStateSnapshot = async (stageRef: any, bgColor = "#000000", pixelRatio = 2) => {
   const stage = stageRef.current as any;
   if (!stage) throw new Error("stageRef missing");
 
@@ -235,9 +231,7 @@ export const exportCompositedImageWithBoth = async (
   const finalDataURL = off.toDataURL("image/png");
 
   // Step 6: convert final canvas → Blob
-  const finalBlob = await new Promise<Blob>((res) =>
-    off.toBlob((b) => res(b!), "image/png")
-  );
+  const finalBlob = await new Promise<Blob>((res) => off.toBlob((b) => res(b!), "image/png"));
 
   return {
     dataURL: finalDataURL,

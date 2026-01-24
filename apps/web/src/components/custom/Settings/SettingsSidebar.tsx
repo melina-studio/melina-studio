@@ -1,15 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  Settings,
-  Sparkles,
-  Info,
-  BarChart3,
-  LineChart,
-  Cpu,
-  CreditCard,
-} from "lucide-react";
+import { Settings, Sparkles, Info, BarChart3, LineChart, Cpu, CreditCard } from "lucide-react";
 
 export type SettingsSection =
   | "general"
@@ -120,7 +112,9 @@ export function SettingsSidebar({ activeSection, onSectionChange }: SettingsSide
                   <span
                     className={cn(
                       "transition-colors",
-                      isActive ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground group-hover:text-accent-foreground"
                     )}
                   >
                     {item.icon}

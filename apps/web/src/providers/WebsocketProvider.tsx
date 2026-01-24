@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  createContext,
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-} from "react";
+import React, { createContext, useEffect, useRef, useState, useCallback } from "react";
 import { getAccessToken } from "@/service/auth";
 import api from "@/lib/axios";
 
@@ -25,9 +19,7 @@ const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 15000; // 30 seconds max
 const MAX_RETRY_ATTEMPTS = 10;
 
-export const WebSocketContext = createContext<WebSocketContextType | null>(
-  null
-);
+export const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<WebSocket | null>(null);
@@ -92,10 +84,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       socketRef.current = null;
 
       // Attempt reconnection if not intentionally closed
-      if (
-        !intentionalCloseRef.current &&
-        retryCountRef.current < MAX_RETRY_ATTEMPTS
-      ) {
+      if (!intentionalCloseRef.current && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
         const delay = Math.min(
           INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current),
           MAX_RETRY_DELAY

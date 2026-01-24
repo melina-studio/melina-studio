@@ -9,12 +9,7 @@ type ImagePreviewModalProps = {
   fileName: string;
 };
 
-const ImagePreviewModal = ({
-  isOpen,
-  onClose,
-  imageUrl,
-  fileName,
-}: ImagePreviewModalProps) => {
+const ImagePreviewModal = ({ isOpen, onClose, imageUrl, fileName }: ImagePreviewModalProps) => {
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,11 +51,7 @@ const ImagePreviewModal = ({
         </button>
 
         {/* Image */}
-        <img
-          src={imageUrl}
-          alt={fileName}
-          className="max-w-[90vw] max-h-[85vh] object-contain"
-        />
+        <img src={imageUrl} alt={fileName} className="max-w-[90vw] max-h-[85vh] object-contain" />
 
         {/* Filename */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-4 py-2 text-white text-sm truncate">

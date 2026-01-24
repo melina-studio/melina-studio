@@ -51,19 +51,37 @@ type Message struct {
 type streamEvent struct {
 	Type         string                 `json:"type"` // e.g. "message_start", "content_block_delta", "message_stop", etc.
 	Content      []streamContentBlock   `json:"content,omitempty"`
-	Delta        *streamDelta           `json:"delta,omitempty"`        // for content_block_delta
-	StopReason   string                 `json:"stop_reason,omitempty"`  // for message_stop
+	Delta        *streamDelta           `json:"delta,omitempty"`         // for content_block_delta
+	StopReason   string                 `json:"stop_reason,omitempty"`   // for message_stop
 	ContentBlock *streamContentBlockRef `json:"content_block,omitempty"` // for content_block_start
 	Index        int                    `json:"index,omitempty"`         // block index for content_block_delta
+	Message      *streamMessage         `json:"message,omitempty"`       // for message_start
+	Usage        *streamUsage           `json:"usage,omitempty"`         // for message_delta with usage
+}
+
+type streamMessage struct {
+	ID           string        `json:"id"`
+	Type         string        `json:"type"`
+	Role         string        `json:"role"`
+	Content      []interface{} `json:"content"`
+	Model        string        `json:"model"`
+	StopReason   string        `json:"stop_reason,omitempty"`
+	StopSequence string        `json:"stop_sequence,omitempty"`
+	Usage        *streamUsage  `json:"usage,omitempty"`
+}
+
+type streamUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
 }
 
 type streamContentBlock struct {
-	Type      string                 `json:"type"`      // "text", "tool_use", etc.
-	Text      string                 `json:"text"`      // for text blocks
-	ID        string                 `json:"id"`        // for tool_use blocks
-	Name      string                 `json:"name"`      // for tool_use blocks
-	Input     map[string]interface{} `json:"input"`     // for tool_use blocks (can be partial during streaming)
-	Index     int                    `json:"index"`     // block index
+	Type      string                 `json:"type"`                  // "text", "tool_use", etc.
+	Text      string                 `json:"text"`                  // for text blocks
+	ID        string                 `json:"id"`                    // for tool_use blocks
+	Name      string                 `json:"name"`                  // for tool_use blocks
+	Input     map[string]interface{} `json:"input"`                 // for tool_use blocks (can be partial during streaming)
+	Index     int                    `json:"index"`                 // block index
 	ToolUseID string                 `json:"tool_use_id,omitempty"` // for tool_result blocks
 }
 
@@ -78,7 +96,7 @@ type streamContentBlockRef struct {
 	Type  string `json:"type"`
 	Index int    `json:"index"`
 	ID    string `json:"id,omitempty"`   // for tool_use blocks
-	Name  string `json:"name,omitempty"`  // for tool_use blocks
+	Name  string `json:"name,omitempty"` // for tool_use blocks
 }
 
 func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int) (*ClaudeResponse, error) {
@@ -122,14 +140,14 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
-	
+
 	body := map[string]interface{}{
 		"anthropic_version": "vertex-2023-10-16",
 		"messages":          msgs,
 		"max_tokens":        maxTokensValue,
 		"stream":            false,
 	}
-	
+
 	if temperature != nil {
 		body["temperature"] = *temperature
 	}
@@ -252,14 +270,14 @@ func StreamClaudeWithMessages(
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
-	
+
 	body := map[string]interface{}{
 		"anthropic_version": "vertex-2023-10-16",
 		"messages":          msgs,
 		"max_tokens":        maxTokensValue,
 		"stream":            true, // streaming flag
 	}
-	
+
 	if temperature != nil {
 		body["temperature"] = *temperature
 	}
@@ -300,7 +318,8 @@ func StreamClaudeWithMessages(
 	// Initialize response to accumulate data
 	cr := &ClaudeResponse{
 		TextContent: []string{},
-		ToolUses:     []ToolUse{},
+		ToolUses:    []ToolUse{},
+		RawResponse: make(map[string]interface{}), // Initialize to store usage data
 	}
 
 	// Track current text block being built
@@ -311,6 +330,9 @@ func StreamClaudeWithMessages(
 	// Map of block index -> ToolUse being built
 	currentToolUseBuilders := make(map[int]*ToolUse)
 	currentToolUseInputBuilders := make(map[int]*strings.Builder) // for accumulating JSON input
+
+	// Track usage data
+	var usageData *streamUsage
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -364,7 +386,7 @@ func StreamClaudeWithMessages(
 					if jsonChunk == "" {
 						jsonChunk = ev.Delta.Delta
 					}
-					
+
 					if jsonChunk != "" {
 						// Use the index from the event to find the correct tool_use builder
 						idx := ev.Index
@@ -417,7 +439,7 @@ func StreamClaudeWithMessages(
 					indicesToFinalize = append(indicesToFinalize, idx)
 				}
 			}
-			
+
 			for _, idx := range indicesToFinalize {
 				if toolUse, ok := currentToolUseBuilders[idx]; ok {
 					// Try to get input from accumulated JSON deltas
@@ -470,7 +492,7 @@ func StreamClaudeWithMessages(
 			if ev.StopReason != "" {
 				cr.StopReason = ev.StopReason
 			}
-			
+
 			// Finalize any pending tool_use blocks that didn't get a content_block_stop
 			for idx, toolUse := range currentToolUseBuilders {
 				if toolUse.ID != "" && toolUse.Name != "" {
@@ -484,7 +506,7 @@ func StreamClaudeWithMessages(
 							fmt.Printf("[anthropic] message_stop: Failed to parse tool_use input JSON for index %d: %v\n", idx, err)
 						}
 					}
-					
+
 					// Check if this tool_use is already in the response (avoid duplicates)
 					alreadyAdded := false
 					for _, existing := range cr.ToolUses {
@@ -493,7 +515,7 @@ func StreamClaudeWithMessages(
 							break
 						}
 					}
-					
+
 					if !alreadyAdded {
 						cr.ToolUses = append(cr.ToolUses, *toolUse)
 						fmt.Printf("[anthropic] message_stop: Finalized pending tool_use: ID=%s, Name=%s, Input=%v\n", toolUse.ID, toolUse.Name, toolUse.Input)
@@ -504,16 +526,46 @@ func StreamClaudeWithMessages(
 			currentToolUseBuilders = make(map[int]*ToolUse)
 			currentToolUseInputBuilders = make(map[int]*strings.Builder)
 
+		case "message_start":
+			// Capture initial usage data from message_start event
+			if ev.Message != nil && ev.Message.Usage != nil {
+				if usageData == nil {
+					usageData = &streamUsage{}
+				}
+				// message_start typically has input tokens
+				if ev.Message.Usage.InputTokens > 0 {
+					usageData.InputTokens = ev.Message.Usage.InputTokens
+				}
+				if ev.Message.Usage.OutputTokens > 0 {
+					usageData.OutputTokens = ev.Message.Usage.OutputTokens
+				}
+				fmt.Printf("[anthropic] message_start usage: input=%d, output=%d\n", usageData.InputTokens, usageData.OutputTokens)
+			}
+
 		case "message_delta":
-			// Message-level delta (usually contains stop_reason)
+			// Message-level delta (usually contains stop_reason and updated usage)
 			if ev.StopReason != "" {
 				cr.StopReason = ev.StopReason
+			}
+			// Merge usage data if provided (message_delta typically has output tokens)
+			if ev.Usage != nil {
+				if usageData == nil {
+					usageData = &streamUsage{}
+				}
+				// Keep input tokens from message_start, update output tokens from delta
+				if ev.Usage.InputTokens > 0 {
+					usageData.InputTokens = ev.Usage.InputTokens
+				}
+				if ev.Usage.OutputTokens > 0 {
+					usageData.OutputTokens = ev.Usage.OutputTokens
+				}
+				fmt.Printf("[anthropic] message_delta usage: input=%d, output=%d (merged)\n", usageData.InputTokens, usageData.OutputTokens)
 			}
 
 		case "content_block":
 			// Full content block (used in some streaming formats)
-		for _, block := range ev.Content {
-			if block.Type == "text" && block.Text != "" {
+			for _, block := range ev.Content {
+				if block.Type == "text" && block.Text != "" {
 					// Complete text block
 					cr.TextContent = append(cr.TextContent, block.Text)
 					accumulatedText.WriteString(block.Text)
@@ -535,7 +587,7 @@ func StreamClaudeWithMessages(
 						Name:  block.Name,
 						Input: block.Input,
 					}
-					
+
 					// If input is provided directly in the block, use it
 					// Otherwise, check if we have accumulated input from deltas
 					if len(toolUse.Input) == 0 {
@@ -549,10 +601,10 @@ func StreamClaudeWithMessages(
 							}
 						}
 					}
-					
+
 					cr.ToolUses = append(cr.ToolUses, toolUse)
 					fmt.Printf("[anthropic] Found tool_use in content_block: ID=%s, Name=%s, Input=%v\n", toolUse.ID, toolUse.Name, toolUse.Input)
-					
+
 					// Also update any in-progress builder for this index
 					if block.Index >= 0 {
 						if existingToolUse, ok := currentToolUseBuilders[block.Index]; ok {
@@ -607,6 +659,17 @@ func StreamClaudeWithMessages(
 		cr.TextContent = append(cr.TextContent, accumulatedText.String())
 	}
 
+	// Store usage data in RawResponse for token extraction
+	if usageData != nil {
+		if rawMap, ok := cr.RawResponse.(map[string]interface{}); ok {
+			rawMap["usage"] = map[string]interface{}{
+				"input_tokens":  usageData.InputTokens,
+				"output_tokens": usageData.OutputTokens,
+			}
+			fmt.Printf("[anthropic] Stored usage in RawResponse: input=%d, output=%d\n", usageData.InputTokens, usageData.OutputTokens)
+		}
+	}
+
 	return cr, nil
 }
 
@@ -618,6 +681,10 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *ClaudeResponse
+
+	// Accumulate token usage across all iterations
+	var totalInputTokens, totalOutputTokens int
+
 	for iter := 0; iter < maxIterations; iter++ {
 
 		var cr *ClaudeResponse
@@ -629,9 +696,9 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			}
 		} else {
 			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens)
-		if err != nil {
-			return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
-		}
+			if err != nil {
+				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
+			}
 		}
 
 		if cr == nil {
@@ -640,8 +707,31 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 
 		lastResp = cr
 
+		// Accumulate token usage from this iteration
+		if raw, ok := cr.RawResponse.(map[string]interface{}); ok {
+			if usage, ok := raw["usage"].(map[string]interface{}); ok {
+				if inputTokens, ok := usage["input_tokens"].(int); ok {
+					totalInputTokens += inputTokens
+				}
+				if outputTokens, ok := usage["output_tokens"].(int); ok {
+					totalOutputTokens += outputTokens
+				}
+			}
+		}
+		fmt.Printf("[anthropic] Iteration %d token usage: input=%d, output=%d (cumulative: input=%d, output=%d)\n",
+			iter+1, totalInputTokens, totalOutputTokens, totalInputTokens, totalOutputTokens)
+
 		// If no tool uses, we're done
 		if len(cr.ToolUses) == 0 {
+			// Store cumulative usage in the final response
+			if rawMap, ok := cr.RawResponse.(map[string]interface{}); ok {
+				rawMap["usage"] = map[string]interface{}{
+					"input_tokens":  totalInputTokens,
+					"output_tokens": totalOutputTokens,
+				}
+				fmt.Printf("[anthropic] Final cumulative usage: input=%d, output=%d, total=%d\n",
+					totalInputTokens, totalOutputTokens, totalInputTokens+totalOutputTokens)
+			}
 			return cr, nil
 		}
 
@@ -659,7 +749,7 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		}
 
 		// Execute tools using common executor
-		execResults := ExecuteTools(ctx, toolCalls , streamCtx)
+		execResults := ExecuteTools(ctx, toolCalls, streamCtx)
 
 		// Count successes and failures for logging
 		successCount := 0
@@ -738,10 +828,39 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		return lastResp, nil
 	}
 
+	// Accumulate tokens from the final call
+	if raw, ok := finalResp.RawResponse.(map[string]interface{}); ok {
+		if usage, ok := raw["usage"].(map[string]interface{}); ok {
+			if inputTokens, ok := usage["input_tokens"].(int); ok {
+				totalInputTokens += inputTokens
+			}
+			if outputTokens, ok := usage["output_tokens"].(int); ok {
+				totalOutputTokens += outputTokens
+			}
+		}
+	}
+
+	// Store cumulative usage in the final response
+	if rawMap, ok := finalResp.RawResponse.(map[string]interface{}); ok {
+		rawMap["usage"] = map[string]interface{}{
+			"input_tokens":  totalInputTokens,
+			"output_tokens": totalOutputTokens,
+		}
+		fmt.Printf("[anthropic] Final cumulative usage (with summary): input=%d, output=%d, total=%d\n",
+			totalInputTokens, totalOutputTokens, totalInputTokens+totalOutputTokens)
+	}
+
 	// Fallback: if final response has no text content, return lastResp or default message
 	if len(finalResp.TextContent) == 0 || (len(finalResp.TextContent) == 1 && strings.TrimSpace(finalResp.TextContent[0]) == "") {
 		fmt.Printf("[anthropic] Final response has no text content. Returning last response.\n")
 		if lastResp != nil && len(lastResp.TextContent) > 0 {
+			// Update lastResp with cumulative usage before returning
+			if rawMap, ok := lastResp.RawResponse.(map[string]interface{}); ok {
+				rawMap["usage"] = map[string]interface{}{
+					"input_tokens":  totalInputTokens,
+					"output_tokens": totalOutputTokens,
+				}
+			}
 			return lastResp, nil
 		}
 		// If lastResp also has no text, add a default message

@@ -9,11 +9,7 @@ type ImageAttachmentPillProps = {
   onRemove: (id: string) => void;
 };
 
-const ImageAttachmentPill = ({
-  attachment,
-  isDark,
-  onRemove,
-}: ImageAttachmentPillProps) => {
+const ImageAttachmentPill = ({ attachment, isDark, onRemove }: ImageAttachmentPillProps) => {
   const { id, file, previewUrl, status } = attachment;
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -33,9 +29,7 @@ const ImageAttachmentPill = ({
           isError ? "ring-1 ring-red-500" : ""
         }`}
         style={{
-          background: isDark
-            ? "rgba(80, 80, 80, 0.8)"
-            : "rgba(229, 231, 235, 0.8)",
+          background: isDark ? "rgba(80, 80, 80, 0.8)" : "rgba(229, 231, 235, 0.8)",
         }}
         onClick={() => setIsPreviewOpen(true)}
       >
@@ -53,9 +47,7 @@ const ImageAttachmentPill = ({
         </div>
         <span
           className={`${
-            isError
-              ? "text-red-500 dark:text-red-400"
-              : "text-gray-600 dark:text-gray-300"
+            isError ? "text-red-500 dark:text-red-400" : "text-gray-600 dark:text-gray-300"
           }`}
           title={file.name}
         >

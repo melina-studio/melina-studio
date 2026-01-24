@@ -11,7 +11,7 @@ const (
 	ProviderLangChainOpenAI Provider = "openai"           // LangChainGo (OpenAI)
 	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
 	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
-	ProviderGemini    Provider = "gemini"
+	ProviderGemini          Provider = "gemini"
 )
 
 type Config struct {

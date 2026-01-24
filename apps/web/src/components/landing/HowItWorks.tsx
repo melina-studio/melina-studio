@@ -104,23 +104,11 @@ function StepCard({
     [200, index * -35] // Stack upward, each card offset
   );
 
-  const opacity = useTransform(
-    progress,
-    [start, start + segmentSize * 0.3],
-    [0, 1]
-  );
+  const opacity = useTransform(progress, [start, start + segmentSize * 0.3], [0, 1]);
 
-  const scale = useTransform(
-    progress,
-    [start, start + segmentSize * 0.5],
-    [0.85, 1]
-  );
+  const scale = useTransform(progress, [start, start + segmentSize * 0.5], [0.85, 1]);
 
-  const rotateX = useTransform(
-    progress,
-    [start, start + segmentSize * 0.5],
-    [35, 12]
-  );
+  const rotateX = useTransform(progress, [start, start + segmentSize * 0.5], [35, 12]);
 
   return (
     <motion.div
@@ -137,8 +125,7 @@ function StepCard({
         className="relative rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/95 to-zinc-950 p-6 lg:p-8 backdrop-blur-sm"
         style={{
           transformStyle: "preserve-3d",
-          boxShadow:
-            "0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.05)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.05)",
         }}
       >
         {/* Card header */}
@@ -146,9 +133,7 @@ function StepCard({
           <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
             <step.icon className="w-5 h-5 text-white/80" />
           </div>
-          <span className="text-white/50 text-sm font-medium tracking-widest">
-            {step.title}
-          </span>
+          <span className="text-white/50 text-sm font-medium tracking-widest">{step.title}</span>
         </div>
 
         {/* Unique card content based on step */}
@@ -224,9 +209,7 @@ function CardContent({ type }: { type: string }) {
         </div>
         <div className="flex gap-2 justify-end">
           <div className="p-2 rounded-lg bg-primary/20 border border-primary/30 max-w-[80%]">
-            <p className="text-xs text-white/80">
-              &quot;Make this a flowchart&quot;
-            </p>
+            <p className="text-xs text-white/80">&quot;Make this a flowchart&quot;</p>
           </div>
           <div className="w-6 h-6 rounded-full bg-white/20" />
         </div>
@@ -270,16 +253,11 @@ function StepContent({
   );
 
   return (
-    <motion.div
-      style={{ opacity, y }}
-      className="absolute inset-0 flex flex-col justify-center"
-    >
+    <motion.div style={{ opacity, y }} className="absolute inset-0 flex flex-col justify-center">
       <span className="text-white/40 text-sm font-medium tracking-[0.3em] mb-4">
         STEP {step.id}
       </span>
-      <h3 className="text-3xl lg:text-5xl font-bold text-white mb-6">
-        {step.headline}
-      </h3>
+      <h3 className="text-3xl lg:text-5xl font-bold text-white mb-6">{step.headline}</h3>
       <p className="text-lg lg:text-xl text-white/60 leading-relaxed max-w-md">
         {step.description}
       </p>

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useRef,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
 import {
   login as loginService,
   register as registerService,
@@ -20,7 +13,7 @@ import {
 } from "@/service/auth";
 import { RegisterPayload } from "@/lib/types";
 
-export type Subscription = "free" | "pro" | "enterprise";
+export type Subscription = "free" | "pro" | "premium" | "on_demand";
 
 export interface User {
   uuid: string;
@@ -29,6 +22,9 @@ export interface User {
   last_name: string;
   avatar?: string;
   subscription: Subscription;
+  tokens_consumed: number;
+  token_limit: number;
+  last_token_reset_date?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -77,7 +73,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const data = await getMe();
-      setUser(data.user);
+      // Merge token_limit into user object
+      const userWithTokenLimit = {
+        ...data.user,
+        token_limit: data.token_limit || 0,
+      };
+      setUser(userWithTokenLimit);
       // Update token if returned (from refresh)
       if (data.access_token) {
         updateAccessToken(data.access_token);

@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
-import { getRelativePointerPosition } from "@/utils/canvasUtils";
 
 // Helper to check if a shape has meaningful dimensions (is visible)
 const isShapeValid = (shape: Shape): boolean => {
@@ -35,9 +34,7 @@ export const useCanvasDrawing = (
   selectedIds: string[],
   setSelectedIds: (ids: string[] | ((prev: string[]) => string[])) => void,
   removeShapeById: (id: string) => void,
-  setPendingTextEdit: (
-    edit: { id: string; pos: { x: number; y: number } } | null
-  ) => void
+  setPendingTextEdit: (edit: { id: string; pos: { x: number; y: number } } | null) => void
 ) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [shapesBeforeDrawing, setShapesBeforeDrawing] = useState<Shape[]>([]);
@@ -199,16 +196,10 @@ export const useCanvasDrawing = (
         return [...arr.slice(0, -1), { ...last, points: newPoints }];
       }
       if (last.type === "rect") {
-        return [
-          ...arr.slice(0, -1),
-          { ...last, w: pos.x - last.x, h: pos.y - last.y },
-        ];
+        return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
       }
       if (last.type === "frame") {
-        return [
-          ...arr.slice(0, -1),
-          { ...last, w: pos.x - last.x, h: pos.y - last.y },
-        ];
+        return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
       }
       if (last.type === "circle") {
         const dx = pos.x - last.x;
@@ -237,16 +228,10 @@ export const useCanvasDrawing = (
           return [...arr.slice(0, -1), { ...last, points: newPoints }];
         }
         if (last.type === "rect") {
-          return [
-            ...arr.slice(0, -1),
-            { ...last, w: pos.x - last.x, h: pos.y - last.y },
-          ];
+          return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
         }
         if (last.type === "frame") {
-          return [
-            ...arr.slice(0, -1),
-            { ...last, w: pos.x - last.x, h: pos.y - last.y },
-          ];
+          return [...arr.slice(0, -1), { ...last, w: pos.x - last.x, h: pos.y - last.y }];
         }
         if (last.type === "circle") {
           const dx = pos.x - last.x;

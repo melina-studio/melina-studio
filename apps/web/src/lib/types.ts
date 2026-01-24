@@ -56,3 +56,17 @@ export type ChatImageAttachment = {
   uploadedUrl?: string; // GCP URL after upload
   status: "pending" | "uploading" | "uploaded" | "error";
 };
+
+export type TokenWarningPayload = {
+  consumed_tokens: number;
+  total_limit: number;
+  percentage: number;
+  reset_date: string;
+};
+
+export type TokenBlockedPayload = {
+  consumed_tokens: number;
+  total_limit: number;
+  percentage: number;
+  reset_date: string;
+};

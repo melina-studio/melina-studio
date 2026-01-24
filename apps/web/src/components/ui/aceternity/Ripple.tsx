@@ -112,10 +112,7 @@ const DivGrid = ({
   onCellClick = () => {},
   interactive = true,
 }: DivGridProps) => {
-  const cells = useMemo(
-    () => Array.from({ length: rows * cols }, (_, idx) => idx),
-    [rows, cols]
-  );
+  const cells = useMemo(() => Array.from({ length: rows * cols }, (_, idx) => idx), [rows, cols]);
 
   const gridStyle: React.CSSProperties = {
     display: "grid",
@@ -157,9 +154,7 @@ const DivGrid = ({
               borderColor: borderColor,
               ...style,
             }}
-            onClick={
-              interactive ? (e) => onCellClick?.(rowIdx, colIdx, e) : undefined
-            }
+            onClick={interactive ? (e) => onCellClick?.(rowIdx, colIdx, e) : undefined}
           />
         );
       })}

@@ -36,7 +36,7 @@ type ShapeImage struct {
 
 // AnnotatedSelection represents an annotated image with its shapes
 type AnnotatedSelection struct {
-	AnnotatedImage string       // base64 annotated image
+	AnnotatedImage string // base64 annotated image
 	MimeType       string
 	Shapes         []ShapeImage // shapes in this selection
 	ShapeMetadata  string       // TOON-formatted shape data for LLM
@@ -49,40 +49,40 @@ func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
 	case "openai":
 		tools := tools.GetOpenAITools()
 		cfg = llmHandlers.Config{
-			Provider: llmHandlers.ProviderLangChainOpenAI,
-			Model:    "gpt-5.1",
-			APIKey:   os.Getenv("OPENAI_API_KEY"),
-			Tools:    tools,
+			Provider:    llmHandlers.ProviderLangChainOpenAI,
+			Model:       "gpt-5.1",
+			APIKey:      os.Getenv("OPENAI_API_KEY"),
+			Tools:       tools,
 			Temperature: temperature,
-			MaxTokens: maxTokens,
+			MaxTokens:   maxTokens,
 		}
 
 	case "groq":
 		tools := tools.GetGroqTools()
 		cfg = llmHandlers.Config{
-			Provider: llmHandlers.ProviderLangChainGroq,
-			Model:    os.Getenv("GROQ_MODEL_NAME"),
-			BaseURL:  os.Getenv("GROQ_BASE_URL"),
-			APIKey:   os.Getenv("GROQ_API_KEY"),
-			Tools:    tools,
+			Provider:    llmHandlers.ProviderLangChainGroq,
+			Model:       os.Getenv("GROQ_MODEL_NAME"),
+			BaseURL:     os.Getenv("GROQ_BASE_URL"),
+			APIKey:      os.Getenv("GROQ_API_KEY"),
+			Tools:       tools,
 			Temperature: temperature,
-			MaxTokens: maxTokens,
+			MaxTokens:   maxTokens,
 		}
 
 	case "anthropic":
 		tools := tools.GetAnthropicTools()
 		cfg = llmHandlers.Config{
-			Provider: llmHandlers.ProviderVertexAnthropic,
-			Tools:    tools,
+			Provider:    llmHandlers.ProviderVertexAnthropic,
+			Tools:       tools,
 			Temperature: temperature,
-			MaxTokens: maxTokens,
+			MaxTokens:   maxTokens,
 		}
 	case "gemini":
 		cfg = llmHandlers.Config{
-			Provider: llmHandlers.ProviderGemini,
-			Tools:    tools.GetGeminiTools(),
+			Provider:    llmHandlers.ProviderGemini,
+			Tools:       tools.GetGeminiTools(),
 			Temperature: temperature,
-			MaxTokens: maxTokens,
+			MaxTokens:   maxTokens,
 		}
 
 	default:
@@ -106,13 +106,13 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 	// Default to "light" theme if not provided (prompt expects 2 placeholders: boardId and activeTheme)
 	activeTheme := "light"
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
-	
+
 	// Build user message content - may include image if boardId is provided
 	var userContent interface{} = message
-	
+
 	messages := []llmHandlers.Message{}
 
-	if len(chatHistory) >0 {
+	if len(chatHistory) > 0 {
 		messages = append(messages, chatHistory...)
 	}
 
@@ -120,7 +120,6 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 		Role:    models.RoleUser,
 		Content: userContent,
 	})
-
 
 	// Call the LLM
 	response, err := a.llmClient.Chat(ctx, systemMessage, messages)
@@ -190,6 +189,54 @@ func (a *Agent) ProcessRequestStream(
 	}
 
 	return response, nil
+}
+
+// ProcessRequestStreamWithUsage processes a user message and returns both the response and token usage
+func (a *Agent) ProcessRequestStreamWithUsage(
+	ctx context.Context,
+	hub *libraries.Hub,
+	client *libraries.Client,
+	message string,
+	chatHistory []llmHandlers.Message,
+	boardId string,
+	activeTheme string,
+	selections interface{},
+	uploadedImages []UploadedImage) (*llmHandlers.ResponseWithUsage, error) {
+
+	// Build messages for the LLM
+	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
+
+	// Build user message content - may include annotated images if selections provided
+	var userContent interface{}
+
+	// Check if we have annotated selections to include
+	if annotatedSelections, ok := selections.([]AnnotatedSelection); ok && len(annotatedSelections) > 0 {
+		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections, uploadedImages)
+		log.Printf("Built multimodal content with %d annotated selections and %d uploaded images", len(annotatedSelections), len(uploadedImages))
+	} else if images, ok := selections.([]ShapeImage); ok && len(images) > 0 {
+		userContent = buildMultimodalContent(message, images)
+		log.Printf("Built multimodal content with %d shape images (no annotation)", len(images))
+	} else if len(uploadedImages) > 0 {
+		userContent = buildMultimodalContentWithUploadedImages(message, uploadedImages)
+		log.Printf("Built multimodal content with %d uploaded images only (first image mimeType: %s, data length: %d)",
+			len(uploadedImages), uploadedImages[0].MimeType, len(uploadedImages[0].Base64Data))
+	} else {
+		userContent = message
+	}
+
+	messages := []llmHandlers.Message{}
+
+	if len(chatHistory) > 0 {
+		messages = append(messages, chatHistory...)
+	}
+
+	messages = append(messages, llmHandlers.Message{
+		Role:    models.RoleUser,
+		Content: userContent,
+	})
+
+	// Call the LLM with usage tracking
+	return a.llmClient.ChatStreamWithUsage(ctx, hub, client, boardId, systemMessage, messages)
 }
 
 // buildMultimodalContentWithAnnotations creates content with annotated images, TOON-formatted shape data, and uploaded images
@@ -337,4 +384,3 @@ func buildMultimodalContent(message string, images []ShapeImage) []map[string]in
 
 	return content
 }
-

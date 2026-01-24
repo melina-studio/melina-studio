@@ -10,9 +10,24 @@ type Model = {
 
 const MODELS: Model[] = [
   { id: "openai", name: "gpt-5.1", displayName: "GPT 5.1", dropdownName: "openai (gpt-5.1)" },
-  { id: "anthropic", name: "claude-4.5-sonnet", displayName: "Claude 4.5 Sonnet", dropdownName: "anthropic (claude-4.5-sonnet)" },
-  { id: "groq", name: "llama-3.3-70b-versatile", displayName: "Llama 3.3 70B", dropdownName: "groq (llama-3.3-70b-versatile)" },
-  { id: "gemini", name: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", dropdownName: "gemini (gemini-2.5-flash)" },
+  {
+    id: "anthropic",
+    name: "claude-4.5-sonnet",
+    displayName: "Claude 4.5 Sonnet",
+    dropdownName: "anthropic (claude-4.5-sonnet)",
+  },
+  {
+    id: "groq",
+    name: "llama-3.3-70b-versatile",
+    displayName: "Llama 3.3 70B",
+    dropdownName: "groq (llama-3.3-70b-versatile)",
+  },
+  {
+    id: "gemini",
+    name: "gemini-2.5-flash",
+    displayName: "Gemini 2.5 Flash",
+    dropdownName: "gemini (gemini-2.5-flash)",
+  },
 ];
 
 type ModelSelectorProps = {

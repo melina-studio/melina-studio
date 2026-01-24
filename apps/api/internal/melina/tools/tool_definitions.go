@@ -21,13 +21,13 @@ func init() {
 func GetAnthropicTools() []map[string]interface{} {
 	return []map[string]interface{}{
 		{
-			"name": "getBoardData",
+			"name":        "getBoardData",
 			"description": "Retrieves the current board data as an image for a given board id. Returns the base64 encoded image of the board with numbered badges overlaid on each shape (1, 2, 3...) and a list of all shapes with their IDs, numbers, and properties. Each shape in the array has a 'number' field that corresponds to the badge shown on that shape in the image. Use this to see what shapes exist on the board and identify which shape ID corresponds to which visual element before updating them.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"boardId": map[string]interface{}{
-						"type": "string",
+						"type":        "string",
 						"description": "The uuid of the board to get the data (e.g., '123e4567-e89b-12d3-a456-426614174000')",
 					},
 				},
@@ -35,7 +35,7 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
-			"name": "addShape",
+			"name":        "addShape",
 			"description": "Adds a shape to the board in react konva format. Supports rect, circle, line, arrow, ellipse, polygon, text, pencil, and path (SVG). For complex shapes like animals, break them down into multiple basic shapes. Use 'path' type with SVG path data for complex vector graphics - IMPORTANT: 'data' parameter with SVG path string (e.g., 'M10 10 L90 90 Z') is REQUIRED for path shapes. The shape will appear on the board immediately.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
@@ -45,8 +45,8 @@ func GetAnthropicTools() []map[string]interface{} {
 						"description": "The UUID of the board to add the shape to",
 					},
 					"shapeType": map[string]interface{}{
-						"type": "string",
-						"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
+						"type":        "string",
+						"enum":        []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
 						"description": "Type of shape to create. Use 'path' for SVG path shapes. Use 'frame' for grouping containers with labels.",
 					},
 					"x": map[string]interface{}{
@@ -94,8 +94,8 @@ func GetAnthropicTools() []map[string]interface{} {
 						"description": "Font family (for text shapes, default: 'Arial')",
 					},
 					"points": map[string]interface{}{
-						"type": "array",
-						"items": map[string]interface{}{"type": "number"},
+						"type":        "array",
+						"items":       map[string]interface{}{"type": "number"},
 						"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil",
 					},
 					"data": map[string]interface{}{
@@ -111,7 +111,7 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
-			"name": "renameBoard",
+			"name":        "renameBoard",
 			"description": "Renames a board by updating its title. Requires the board ID and the new name.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
@@ -129,7 +129,7 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
-			"name": "getShapeDetails",
+			"name":        "getShapeDetails",
 			"description": "Gets the full details of a specific shape by its ID. Use this when you need to know a shape's current properties (size, position, color, points, etc.) before modifying it. For example, to 'make it twice as big', first call this to get current size, then call updateShape with the new size.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
@@ -143,7 +143,7 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
-			"name": "deleteShape",
+			"name":        "deleteShape",
 			"description": "Deletes a shape from the board. Use this to remove shapes, or when transforming a shape to a different type (delete old shape, then add new shape with addShape).",
 			"input_schema": map[string]interface{}{
 				"type": "object",
@@ -161,7 +161,7 @@ func GetAnthropicTools() []map[string]interface{} {
 			},
 		},
 		{
-			"name": "updateShape",
+			"name":        "updateShape",
 			"description": "Updates an existing shape on the board. Requires boardId and shapeId. All other properties are optional and only provided properties will be updated.",
 			"input_schema": map[string]interface{}{
 				"type": "object",
@@ -219,8 +219,8 @@ func GetAnthropicTools() []map[string]interface{} {
 						"description": "Font family (for text shapes, optional)",
 					},
 					"points": map[string]interface{}{
-						"type": "array",
-						"items": map[string]interface{}{"type": "number"},
+						"type":        "array",
+						"items":       map[string]interface{}{"type": "number"},
 						"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil (optional)",
 					},
 					"name": map[string]interface{}{
@@ -266,8 +266,8 @@ func GetOpenAITools() []map[string]interface{} {
 							"description": "The UUID of the board to add the shape to",
 						},
 						"shapeType": map[string]interface{}{
-							"type": "string",
-							"enum": []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
+							"type":        "string",
+							"enum":        []string{"rect", "circle", "line", "arrow", "ellipse", "polygon", "text", "pencil", "path", "frame"},
 							"description": "Type of shape to create. Use 'path' for SVG path shapes. Use 'frame' for grouping containers with labels.",
 						},
 						"x": map[string]interface{}{
@@ -315,8 +315,8 @@ func GetOpenAITools() []map[string]interface{} {
 							"description": "Font family (for text shapes, default: 'Arial')",
 						},
 						"points": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{"type": "number"},
+							"type":        "array",
+							"items":       map[string]interface{}{"type": "number"},
 							"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil",
 						},
 						"data": map[string]interface{}{
@@ -448,8 +448,8 @@ func GetOpenAITools() []map[string]interface{} {
 							"description": "Font family (for text shapes, optional)",
 						},
 						"points": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{"type": "number"},
+							"type":        "array",
+							"items":       map[string]interface{}{"type": "number"},
 							"description": "Array of coordinates [x1, y1, x2, y2, ...] for line, arrow, polygon, or pencil (optional)",
 						},
 						"name": map[string]interface{}{
@@ -603,7 +603,7 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 	if !ok || shapeType == "" {
 		return nil, fmt.Errorf("shapeType is required and must be a string")
 	}
-	
+
 	// validate shape type
 	validateTypes := map[string]bool{
 		"rect":    true,
@@ -630,13 +630,13 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 	if !ok {
 		return nil, fmt.Errorf("y coordinate is required and must be a number")
 	}
-	
+
 	// build shape object
 	shape := map[string]interface{}{
-		"id": uuid.New().String(),
+		"id":   uuid.New().String(),
 		"type": shapeType,
-		"x": x,
-		"y": y,
+		"x":    x,
+		"y":    y,
 	}
 
 	// add shape-specific properties
@@ -724,16 +724,16 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 
 	// Return success response
 	return map[string]interface{}{
-		"success":  true,
-		"shapeId":  shape["id"],
-		"message":  fmt.Sprintf("Successfully created %s shape at (%.2f, %.2f)", shapeType, x, y),
-		"shape":    shape,
+		"success": true,
+		"shapeId": shape["id"],
+		"message": fmt.Sprintf("Successfully created %s shape at (%.2f, %.2f)", shapeType, x, y),
+		"shape":   shape,
 	}, nil
 }
 
 // RenameBoardHandler is the handler for the RenameBoard tool
 func RenameBoardHandler(ctx context.Context, input map[string]interface{}) (interface{}, error) {
-	boardIdStr , ok := input["boardId"].(string)
+	boardIdStr, ok := input["boardId"].(string)
 	if !ok {
 		return nil, fmt.Errorf("boardId is required and must be a string")
 	}
@@ -741,12 +741,12 @@ func RenameBoardHandler(ctx context.Context, input map[string]interface{}) (inte
 	if err != nil {
 		return nil, fmt.Errorf("invalid boardId: %w", err)
 	}
-	
+
 	newName, ok := input["newName"].(string)
 	if !ok {
 		return nil, fmt.Errorf("newName is required and must be a string")
 	}
-	
+
 	// Get StreamingContext from context
 	streamCtxValue := ctx.Value("streamingContext")
 	if streamCtxValue == nil {

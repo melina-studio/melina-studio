@@ -21,7 +21,7 @@ func registerBoard(r fiber.Router) {
 
 	r.Post("/boards/:boardId/save", boardHandler.SaveData)
 	r.Delete("/boards/:boardId/clear", boardHandler.ClearBoard)
-	
+
 	r.Delete("/boards/:boardId/delete", boardHandler.DeleteBoardByID)
 	r.Put("/boards/:boardId/update", boardHandler.UpdateBoardByID)
 

@@ -1,15 +1,15 @@
 // Example usage of useDebouncedCallback hook
 
-import { useDebouncedCallback } from './debounce';
-import { useState } from 'react';
+import { useDebouncedCallback } from "./debounce";
+import { useState } from "react";
 
 export function SearchComponent() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
 
   // Example 1: Debounced search
   const performSearch = async (query: string) => {
-    console.log('Searching for:', query);
+    console.log("Searching for:", query);
     // API call here
     const response = await fetch(`/api/search?q=${query}`);
     const data = await response.json();
@@ -19,7 +19,7 @@ export function SearchComponent() {
   const debouncedSearch = useDebouncedCallback(
     performSearch,
     500, // 500ms delay
-    [performSearch],
+    [performSearch]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,13 +37,13 @@ export function SearchComponent() {
 }
 
 export function AutoSaveForm() {
-  const [formData, setFormData] = useState({ name: '', email: '' });
+  const [formData, setFormData] = useState({ name: "", email: "" });
 
   // Example 2: Auto-save form
   const saveForm = async (data: typeof formData) => {
-    console.log('Saving form:', data);
-    await fetch('/api/save', {
-      method: 'POST',
+    console.log("Saving form:", data);
+    await fetch("/api/save", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   };
@@ -58,8 +58,16 @@ export function AutoSaveForm() {
 
   return (
     <form>
-      <input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} />
-      <input type="email" value={formData.email} onChange={e => handleChange('email', e.target.value)} />
+      <input
+        type="text"
+        value={formData.name}
+        onChange={(e) => handleChange("name", e.target.value)}
+      />
+      <input
+        type="email"
+        value={formData.email}
+        onChange={(e) => handleChange("email", e.target.value)}
+      />
     </form>
   );
 }
@@ -67,7 +75,7 @@ export function AutoSaveForm() {
 export function WindowResizeHandler() {
   // Example 3: Debounced window resize handler
   const handleResize = () => {
-    console.log('Window resized:', window.innerWidth, window.innerHeight);
+    console.log("Window resized:", window.innerWidth, window.innerHeight);
     // Expensive calculations here
   };
 

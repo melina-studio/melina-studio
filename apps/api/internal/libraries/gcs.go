@@ -41,11 +41,10 @@ func (c *Clients) Upload(
 
 	// Public, non-expiring URL
 	base_url := os.Getenv("GCS_BASE_URL")
-	publicURL := fmt.Sprintf("%s/%s/%s", base_url , bucket, objectKey)
+	publicURL := fmt.Sprintf("%s/%s/%s", base_url, bucket, objectKey)
 
 	return publicURL, nil
 }
-
 
 // Replace replaces an existing file at bucket/key
 // (GCS overwrite is implicit)

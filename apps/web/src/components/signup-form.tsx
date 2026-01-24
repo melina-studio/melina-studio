@@ -21,11 +21,7 @@ interface SignupFormProps extends React.ComponentProps<"form"> {
   onSwitchToLogin?: () => void;
 }
 
-export function SignupForm({
-  className,
-  onSwitchToLogin,
-  ...props
-}: SignupFormProps) {
+export function SignupForm({ className, onSwitchToLogin, ...props }: SignupFormProps) {
   const { signup, googleLogin, githubLogin } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,11 +100,7 @@ export function SignupForm({
   }
 
   return (
-    <form
-      className={cn("flex flex-col gap-4", className)}
-      {...props}
-      onSubmit={handleSubmit}
-    >
+    <form className={cn("flex flex-col gap-4", className)} {...props} onSubmit={handleSubmit}>
       <FieldGroup className="gap-3">
         <div className="flex flex-col items-center gap-1 text-center mb-2">
           <h1 className="text-2xl font-bold">Create an account</h1>
@@ -119,34 +111,16 @@ export function SignupForm({
         <div className="flex gap-3">
           <Field className="gap-1.5 flex-1">
             <FieldLabel htmlFor="firstName">First Name</FieldLabel>
-            <Input
-              id="firstName"
-              name="firstName"
-              type="text"
-              placeholder="John"
-              required
-            />
+            <Input id="firstName" name="firstName" type="text" placeholder="John" required />
           </Field>
           <Field className="gap-1.5 flex-1">
             <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
-            <Input
-              id="lastName"
-              name="lastName"
-              type="text"
-              placeholder="Doe"
-              required
-            />
+            <Input id="lastName" name="lastName" type="text" placeholder="Doe" required />
           </Field>
         </div>
         <Field className="gap-1.5">
           <FieldLabel htmlFor="signup-email">Email</FieldLabel>
-          <Input
-            id="signup-email"
-            name="email"
-            type="email"
-            placeholder="m@example.com"
-            required
-          />
+          <Input id="signup-email" name="email" type="email" placeholder="m@example.com" required />
         </Field>
         <Field className="gap-1.5">
           <FieldLabel htmlFor="signup-password">Password</FieldLabel>
@@ -172,11 +146,7 @@ export function SignupForm({
           {passwordMismatch && <FieldError>Passwords do not match</FieldError>}
         </Field>
         <Field className="mb-3 mt-1">
-          <Button
-            type="submit"
-            className="cursor-pointer"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
             {isSubmitting ? "Creating account..." : "Sign up"}
           </Button>
         </Field>

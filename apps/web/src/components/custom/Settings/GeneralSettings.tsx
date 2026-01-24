@@ -14,7 +14,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Monitor, Mail, Calendar, CreditCard, Pencil, Camera, Check, X } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Mail,
+  Calendar,
+  CreditCard,
+  Pencil,
+  Camera,
+  Check,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 
 export function GeneralSettings() {
@@ -43,17 +54,21 @@ export function GeneralSettings() {
   }, [user]);
 
   // Update user profile
-  const updateUserProfile = async (data: { first_name?: string; last_name?: string; avatar?: File }) => {
+  const updateUserProfile = async (data: {
+    first_name?: string;
+    last_name?: string;
+    avatar?: File;
+  }) => {
     const formData = new FormData();
     // Use !== undefined to allow empty strings if needed
-    if (data.first_name !== undefined) formData.append('first_name', data.first_name);
-    if (data.last_name !== undefined) formData.append('last_name', data.last_name);
-    if (data.avatar) formData.append('avatar', data.avatar);
+    if (data.first_name !== undefined) formData.append("first_name", data.first_name);
+    if (data.last_name !== undefined) formData.append("last_name", data.last_name);
+    if (data.avatar) formData.append("avatar", data.avatar);
 
-    console.log('Updating profile with:', {
+    console.log("Updating profile with:", {
       first_name: data.first_name,
       last_name: data.last_name,
-      avatar: data.avatar?.name
+      avatar: data.avatar?.name,
     });
 
     await updateUser(formData);
@@ -67,12 +82,12 @@ export function GeneralSettings() {
       await updateUserProfile({
         first_name: editedFirstName,
         last_name: editedLastName,
-        avatar: pendingAvatarFile || undefined
+        avatar: pendingAvatarFile || undefined,
       });
       setPendingAvatarFile(null);
       setIsEditingName(false);
     } catch (error) {
-      console.error('Failed to save profile:', error);
+      console.error("Failed to save profile:", error);
     } finally {
       setIsSaving(false);
     }
@@ -107,7 +122,7 @@ export function GeneralSettings() {
         try {
           await updateUserProfile({ avatar: file });
         } catch (error) {
-          console.error('Failed to upload avatar:', error);
+          console.error("Failed to upload avatar:", error);
         } finally {
           setIsSaving(false);
         }
@@ -147,9 +162,17 @@ export function GeneralSettings() {
   const getSubscriptionBadge = (subscription?: string) => {
     switch (subscription) {
       case "pro":
-        return <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">Pro</Badge>;
+        return (
+          <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+            Pro
+          </Badge>
+        );
       case "enterprise":
-        return <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">Enterprise</Badge>;
+        return (
+          <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+            Enterprise
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">Free</Badge>;
     }
@@ -157,10 +180,7 @@ export function GeneralSettings() {
 
   if (!mounted) {
     return (
-      <SettingsSection
-        title="General"
-        description="Manage your profile and preferences."
-      >
+      <SettingsSection title="General" description="Manage your profile and preferences.">
         <SettingsRow label="Profile" description="Your account information.">
           <div className="h-16 w-full max-w-[300px] bg-muted animate-pulse rounded-md" />
         </SettingsRow>
@@ -172,10 +192,7 @@ export function GeneralSettings() {
   }
 
   return (
-    <SettingsSection
-      title="General"
-      description="Manage your profile and preferences."
-    >
+    <SettingsSection title="General" description="Manage your profile and preferences.">
       {/* User Profile Section */}
       <SettingsRow label="Profile" description="Your account information.">
         <div className="flex items-center gap-4">

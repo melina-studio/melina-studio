@@ -45,10 +45,7 @@ type UseMentionCommandProps = {
   onCommandExecute?: (commandId: string) => void;
 };
 
-export function useMentionCommand({
-  textareaRef,
-  onCommandExecute,
-}: UseMentionCommandProps) {
+export function useMentionCommand({ textareaRef, onCommandExecute }: UseMentionCommandProps) {
   const [popupState, setPopupState] = useState<PopupState>({
     isOpen: false,
     triggerType: null,
@@ -173,9 +170,7 @@ export function useMentionCommand({
           e.preventDefault();
           setPopupState((prev) => ({
             ...prev,
-            selectedIndex:
-              (prev.selectedIndex - 1 + filteredItems.length) %
-              filteredItems.length,
+            selectedIndex: (prev.selectedIndex - 1 + filteredItems.length) % filteredItems.length,
           }));
           return true;
 
