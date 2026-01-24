@@ -63,7 +63,7 @@ const CanvasHeader = ({
   const { theme } = useTheme();
   const router = useRouter();
   const { updateBoardById } = useBoard();
-  const initialChatWidthRef = useRef<number>(chatWidth || 500);
+  const [initialChatWidth, setInitialChatWidth] = useState<number>(chatWidth || 500);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -145,22 +145,16 @@ const CanvasHeader = ({
   useEffect(() => {
     if (chatWidth > 0 && !hasChatResized) {
       // Chat is open and hasn't been resized - this is the initial width
-      if (initialChatWidthRef.current === 0 || initialChatWidthRef.current === 500) {
-        initialChatWidthRef.current = chatWidth;
-      }
+      setInitialChatWidth((prev) => (prev === 0 || prev === 500 ? chatWidth : prev));
     }
     // Reset when chat is closed
     if (chatWidth === 0) {
-      initialChatWidthRef.current = 0;
+      setInitialChatWidth(0);
     }
   }, [chatWidth, hasChatResized]);
 
-  // Calculate offset to move header based on resize
-  // On first render (hasChatResized = false): center in full viewport (offset = 0)
-  // After resize (hasChatResized = true): move left proportionally to the change in chat width
-  // If header would overlap with chat window, stick it to the chat window's left edge
-  const initialWidth = initialChatWidthRef.current || 500; // Default to 500 if not set
-  const widthChange = hasChatResized ? chatWidth - initialWidth : 0;
+  // Calculate width change for header positioning
+  const widthChange = hasChatResized ? chatWidth - (initialChatWidth || 500) : 0;
   
   // Calculate header position and check for overlap
   const [headerOffset, setHeaderOffset] = useState(0);

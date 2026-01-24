@@ -27,12 +27,6 @@ type Message = {
   content: string;
 };
 
-type AiMessageResponse = {
-  ai_message_id: string;
-  human_message_id: string;
-  message: string;
-};
-
 type ChatResponse = {
   type: string;
   data: {
@@ -105,8 +99,8 @@ function AIController({
   // Sync chatHistory from parent to local state when it changes
   // This handles the case where API fetches messages after component mounts
   useEffect(() => {
-    if (chatHistory.length > 0 && messages.length === 0) {
-      setMessages(chatHistory);
+    if (chatHistory.length > 0) {
+      setMessages((prev) => (prev.length === 0 ? chatHistory : prev));
     }
   }, [chatHistory]);
 
@@ -517,6 +511,7 @@ Type \`/\` to see available commands.`,
       }, 500);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, boardId]);
 
   useEffect(() => {
@@ -646,13 +641,15 @@ Type \`/\` to see available commands.`,
 
   // Resize handlers
   useEffect(() => {
+    const container = containerRef.current;
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current || !onWidthChange) return;
-      
-      const containerRect = containerRef.current.getBoundingClientRect();
+      if (!isResizing || !container || !onWidthChange) return;
+
+      const containerRect = container.getBoundingClientRect();
       // Since resize handle is on left edge and chat is on right side, calculate width from right edge
       const newWidth = containerRect.right - e.clientX;
-      
+
       // Constrain width between initial width (500px) and 60% of viewport width
       const minWidth = 500; // Same as first render width
       const maxWidth = window.innerWidth * 0.6; // Maximum is 60% of screen width
@@ -663,17 +660,17 @@ Type \`/\` to see available commands.`,
     const handleMouseUp = () => {
       setIsResizing(false);
       // Re-enable transitions after resize
-      if (containerRef.current) {
-        containerRef.current.style.transition = "";
+      if (container) {
+        container.style.transition = "";
       }
     };
 
     if (isResizing) {
       // Disable transitions during resize for smooth performance
-      if (containerRef.current) {
-        containerRef.current.style.transition = "none";
+      if (container) {
+        container.style.transition = "none";
       }
-      
+
       document.addEventListener("mousemove", handleMouseMove, { passive: true });
       document.addEventListener("mouseup", handleMouseUp);
       document.body.style.cursor = "ew-resize";
@@ -685,10 +682,10 @@ Type \`/\` to see available commands.`,
       document.removeEventListener("mouseup", handleMouseUp);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      
+
       // Re-enable transitions on cleanup
-      if (containerRef.current) {
-        containerRef.current.style.transition = "";
+      if (container) {
+        container.style.transition = "";
       }
     };
   }, [isResizing, onWidthChange]);
