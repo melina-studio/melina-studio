@@ -8,7 +8,10 @@
       "mcp__ide__getDiagnostics",
       "Bash(go clean:*)",
       "Bash(echo:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run lint:fix:*)",
+      "Bash(npm run lint)"
     ]
   }
 }

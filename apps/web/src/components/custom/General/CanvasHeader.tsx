@@ -37,6 +37,8 @@ const CanvasHeader = ({
   handleClearBoard,
   handleGetBoardState,
   melinaStatus = "idle",
+  chatWidth = 0,
+  hasChatResized = false,
 }: {
   handleBack: () => void;
   id: string;
@@ -49,15 +51,19 @@ const CanvasHeader = ({
   handleClearBoard: () => void;
   handleGetBoardState: () => void;
   melinaStatus?: MelinaStatus;
+  chatWidth?: number;
+  hasChatResized?: boolean;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [boardName, setBoardName] = useState(board?.title || "Untitled");
   const [isHovering, setIsHovering] = useState(false);
   const [originalName, setOriginalName] = useState(board?.title || "Untitled");
   const inputRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const router = useRouter();
   const { updateBoardById } = useBoard();
+  const [initialChatWidth, setInitialChatWidth] = useState<number>(chatWidth || 500);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -135,8 +141,92 @@ const CanvasHeader = ({
     }
   };
 
+  // Track initial chat width - capture it when chat first opens and hasn't been resized yet
+  useEffect(() => {
+    if (chatWidth > 0 && !hasChatResized) {
+      // Chat is open and hasn't been resized - this is the initial width
+      setInitialChatWidth((prev) => (prev === 0 || prev === 500 ? chatWidth : prev));
+    }
+    // Reset when chat is closed
+    if (chatWidth === 0) {
+      setInitialChatWidth(0);
+    }
+  }, [chatWidth, hasChatResized]);
+
+  // Calculate width change for header positioning
+  const widthChange = hasChatResized ? chatWidth - (initialChatWidth || 500) : 0;
+  
+  // Calculate header position and check for overlap
+  const [headerOffset, setHeaderOffset] = useState(0);
+  const [headerWidth, setHeaderWidth] = useState(0);
+  
+  // Measure header width using ResizeObserver for accurate measurements
+  useEffect(() => {
+    if (!headerRef.current) return;
+    
+    const updateWidth = () => {
+      if (headerRef.current) {
+        setHeaderWidth(headerRef.current.offsetWidth);
+      }
+    };
+    
+    // Initial measurement
+    updateWidth();
+    
+    // Use ResizeObserver to track width changes
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(headerRef.current);
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [boardName, saving, melinaStatus]);
+  
+  // Calculate offset based on chat width and overlap detection
+  useEffect(() => {
+    const calculateOffset = () => {
+      if (!hasChatResized || chatWidth === 0) {
+        setHeaderOffset(0);
+        return;
+      }
+      
+      const viewportWidth = window.innerWidth;
+      const chatAreaWidth = chatWidth + 68; // 68px = 16 (right-4) + 44 (toggle) + 8 (gap)
+      const chatLeftEdge = viewportWidth - chatAreaWidth;
+      
+      // Calculate header position when centered with proportional offset
+      const proportionalOffset = -(widthChange / 2);
+      const headerCenter = viewportWidth / 2 + proportionalOffset;
+      const headerRightEdge = headerCenter + headerWidth / 2;
+      
+      // Check if header would overlap with chat window (with 8px gap for visual spacing)
+      const gap = 8;
+      if (headerRightEdge > chatLeftEdge - gap) {
+        // Stick header to chat window's left edge with gap
+        // Position header so its right edge is at chat's left edge minus gap
+        const stickOffset = (chatLeftEdge - gap) - (viewportWidth / 2) - (headerWidth / 2);
+        setHeaderOffset(stickOffset);
+      } else {
+        // Use proportional offset
+        setHeaderOffset(proportionalOffset);
+      }
+    };
+    
+    calculateOffset();
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculateOffset);
+    return () => window.removeEventListener('resize', calculateOffset);
+  }, [chatWidth, hasChatResized, widthChange, headerWidth]);
+
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+    <div 
+      ref={headerRef}
+      className="fixed top-4 left-1/2 z-50 transition-transform duration-200 ease-out"
+      style={{
+        transform: `translate(calc(-50% + ${headerOffset}px), 0)`,
+      }}
+    >
       {/* Floating control bar with blur */}
       <div className="flex items-center gap-3 px-4 py-2 rounded-full backdrop-blur-sm bg-transparent dark:bg-[#323332]/50 border border-gray-200/50 dark:border-[#565656FF] shadow-lg">
         {/* Back button */}
