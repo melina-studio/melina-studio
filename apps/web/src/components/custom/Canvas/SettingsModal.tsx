@@ -1,9 +1,12 @@
 import React from "react";
+import { Lock } from "lucide-react";
 import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "../../ui/select";
 import { Slider } from "../../ui/slider";
 import { ThemeToggle } from "../General/ThemeToggle";
 import { Input } from "../../ui/input";
 import { Settings } from "@/app/playground/[id]/page";
+import { useModelAccess } from "@/hooks/useModelAccess";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -18,13 +21,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   activeSettings,
   setActiveSettings,
 }) => {
-  const [activeModel, setActiveModel] = React.useState("openai");
+  const { modelsWithStatus, canAccessModel, handleModelChange } = useModelAccess();
+
+  const [activeModel, setActiveModel] = React.useState("anthropic");
   const [temperature, setTemperature] = React.useState(0.5);
   const [maxTokens, setMaxTokens] = React.useState(1000);
 
   React.useEffect(() => {
     // update state with active settings
-    setActiveModel(activeSettings?.activeModel || "openai");
+    setActiveModel(activeSettings?.activeModel || "anthropic");
     setTemperature(activeSettings?.temperature || 0.5);
     setMaxTokens(activeSettings?.maxTokens || 1000);
   }, [activeSettings]);
@@ -46,6 +51,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setActiveSettings(settings as Settings);
   };
 
+  const handleModelSelect = (modelId: string) => {
+    if (!canAccessModel(modelId as ModelId)) {
+      return;
+    }
+    handleModelChange(modelId as ModelId);
+    handleSaveSettings("activeModel", modelId);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -60,26 +73,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* active llm model selector */}
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-gray-500 dark:text-white">Active Model</p>
-            <Select
-              value={activeModel}
-              onValueChange={(value) => handleSaveSettings("activeModel", value)}
-            >
-              <SelectTrigger className="w-[180px] h-[16px]">
+            <Select value={activeModel} onValueChange={handleModelSelect}>
+              <SelectTrigger className="w-[180px] h-[16px] cursor-pointer">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai" className="text-sm">
-                  openai (gpt-5.1)
-                </SelectItem>
-                <SelectItem value="anthropic" className="text-sm">
-                  anthropic (claude-4.5-sonnet)
-                </SelectItem>
-                <SelectItem value="groq" className="text-sm">
-                  groq (llama-3.3-70b-versatile)
-                </SelectItem>
-                <SelectItem value="gemini" className="text-sm">
-                  gemini (gemini-2.5-flash)
-                </SelectItem>
+                {modelsWithStatus.map((model) => (
+                  <SelectItem
+                    key={model.id}
+                    value={model.id}
+                    disabled={!model.isAvailable}
+                    className={`text-sm cursor-pointer ${!model.isAvailable ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{model.dropdownName}</span>
+                      {!model.isAvailable && (
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                          <Lock className="w-3 h-3" />
+                          {SUBSCRIPTION_TIER_DISPLAY_NAMES[model.minimumTier]}
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
