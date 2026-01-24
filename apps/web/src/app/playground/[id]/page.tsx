@@ -105,6 +105,8 @@ export default function BoardPage() {
   const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [chatWidth, setChatWidth] = useState(500);
+  const [hasChatResized, setHasChatResized] = useState(false);
 
   // Canvas transform state for background parallax effect
   const [canvasTransform, setCanvasTransform] = useState({
@@ -699,6 +701,8 @@ export default function BoardPage() {
         handleClearBoard={handleClearBoard}
         handleGetBoardState={handleGetBoardState}
         melinaStatus={melinaStatus}
+        chatWidth={showAiController ? chatWidth : 0}
+        hasChatResized={hasChatResized}
       />
       <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50">
         <Toaster position="top-center" gap={8} />
@@ -721,17 +725,25 @@ export default function BoardPage() {
       />
 
       {/* konva canvas */}
-      <KonvaCanvas
-        canvasRef={stageRef}
-        activeTool={activeTool}
-        setShapesWithHistory={setShapesWithHistory}
-        strokeColor={activeColor}
-        activeColor={activeColor}
-        shapes={presentShapes}
-        handleSave={handleSave}
-        onCanvasTransform={setCanvasTransform}
-        isDarkMode={resolvedTheme === "dark"}
-      />
+      <div
+        className="fixed inset-0 transition-all duration-200 ease-out"
+        style={{
+          right: showAiController ? `${chatWidth + 16}px` : "0px",
+          width: showAiController ? `calc(100% - ${chatWidth + 16}px)` : "100%",
+        }}
+      >
+        <KonvaCanvas
+          canvasRef={stageRef}
+          activeTool={activeTool}
+          setShapesWithHistory={setShapesWithHistory}
+          strokeColor={activeColor}
+          activeColor={activeColor}
+          shapes={presentShapes}
+          handleSave={handleSave}
+          onCanvasTransform={setCanvasTransform}
+          isDarkMode={resolvedTheme === "dark"}
+        />
+      </div>
 
       {/* Empty canvas state - grid and hint text */}
       {presentShapes.length === 0 && (
@@ -758,34 +770,40 @@ export default function BoardPage() {
       )}
       {/* <ElephantDrawing /> */}
 
-      {/* ai controller toggle icon - Always visible and accessible */}
-      <div
-        className={`fixed top-4 right-4 z-[70] ${
-          showAiController ? "bg-gray-200" : "bg-white"
-        } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
-        onClick={() => setShowAiController((v) => !v)}
-      >
-        <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
-      </div>
-
       {/* ai controller */}
-      <div
-        className={`fixed top-4 right-4 z-[60] transition-opacity duration-300 ease-out ${
-          showAiController
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
-        style={{ height: "97vh" }}
-      >
-        {showAiController && (
-          <AIController
-            chatHistory={chatHistory}
-            onMessagesChange={setChatHistory}
-            initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
-            onInitialMessageSent={handleInitialMessageSent}
-            onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
-          />
-        )}
+      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97vh]">
+        {/* ai controller toggle icon */}
+        <div
+          className={`${
+            showAiController ? "bg-gray-200" : "bg-white"
+          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
+          onClick={() => setShowAiController((v) => !v)}
+        >
+          <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
+        </div>
+        {/* ai controller */}
+        <div
+          className={`h-full transition-all duration-300 ease-out ${
+            showAiController
+              ? "opacity-100 translate-x-0 scale-100"
+              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
+          }`}
+        >
+          {showAiController && (
+            <AIController
+              chatHistory={chatHistory}
+              onMessagesChange={setChatHistory}
+              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+              onInitialMessageSent={handleInitialMessageSent}
+              onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
+              width={chatWidth}
+              onWidthChange={(width) => {
+                setChatWidth(width);
+                setHasChatResized(true);
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
