@@ -45,9 +45,7 @@ export default function Navbar() {
             <Button
               variant="ghost"
               className={`text-sm font-medium cursor-pointer ${
-                isOnDark
-                  ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : ""
+                isOnDark ? "text-white/80 hover:text-white hover:bg-white/10" : ""
               }`}
             >
               Log in

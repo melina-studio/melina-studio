@@ -16,12 +16,7 @@ export function HalftoneImage({ src, alt, className }: HalftoneImageProps) {
         <defs>
           <filter id="halftone" x="0" y="0" width="100%" height="100%">
             <feGaussianBlur in="SourceGraphic" stdDeviation="0.5" result="blur" />
-            <feColorMatrix
-              type="saturate"
-              values="0"
-              in="blur"
-              result="gray"
-            />
+            <feColorMatrix type="saturate" values="0" in="blur" result="gray" />
             <feComponentTransfer in="gray" result="contrast">
               <feFuncR type="linear" slope="1.5" intercept="-0.25" />
               <feFuncG type="linear" slope="1.5" intercept="-0.25" />

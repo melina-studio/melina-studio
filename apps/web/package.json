@@ -7,6 +7,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "eslint",
+		"lint:fix": "eslint --fix",
 		"format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
 		"format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
 	},
@@ -69,6 +70,7 @@
 		"eslint": "^9",
 		"eslint-config-next": "16.0.1",
 		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-unused-imports": "^4.3.0",
 		"jsrepo": "^3.0.10",
 		"prettier": "^3.8.1",
 		"tailwindcss": "^4",

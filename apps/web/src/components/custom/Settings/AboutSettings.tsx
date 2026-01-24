@@ -45,14 +45,28 @@ export function AboutSettings() {
 
       <SettingsRow label="Resources" description="Helpful links and documentation.">
         <div className="flex flex-col gap-2">
-          <Button variant="outline" size="sm" className="w-fit justify-start gap-2 cursor-pointer" asChild>
-            <a href="https://github.com/melina-studio/melina-studio" target="_blank" rel="noopener noreferrer">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit justify-start gap-2 cursor-pointer"
+            asChild
+          >
+            <a
+              href="https://github.com/melina-studio/melina-studio"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <GitHubIcon className="h-4 w-4" />
               GitHub Repository
               <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
             </a>
           </Button>
-          <Button variant="outline" size="sm" className="w-fit justify-start gap-2 cursor-pointer" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit justify-start gap-2 cursor-pointer"
+            asChild
+          >
             <a href="#" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />
               Documentation
@@ -62,11 +76,10 @@ export function AboutSettings() {
         </div>
       </SettingsRow>
 
-
-
       <div className="pt-4 border-t border-border/50">
         <p className="text-xs text-muted-foreground flex items-center gap-1">
-          Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" />by<span className="font-medium underline"> Aryan Shaw</span>
+          Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+          by<span className="font-medium underline"> Aryan Shaw</span>
         </p>
       </div>
     </SettingsSection>

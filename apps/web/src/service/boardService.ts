@@ -37,10 +37,7 @@ export const getBoardData = async (boardId: string) => {
 
 export const saveBoardData = async (boardId: string, data: any) => {
   try {
-    const response = await axios.post(
-      `${BaseURL}/api/v1/boards/${boardId}/save`,
-      data
-    );
+    const response = await axios.post(`${BaseURL}/api/v1/boards/${boardId}/save`, data);
     return response.data;
   } catch (error: any) {
     console.log(error, "Error saving board data");
@@ -50,9 +47,7 @@ export const saveBoardData = async (boardId: string, data: any) => {
 
 export const clearBoardData = async (boardId: string) => {
   try {
-    const response = await axios.delete(
-      `${BaseURL}/api/v1/boards/${boardId}/clear`
-    );
+    const response = await axios.delete(`${BaseURL}/api/v1/boards/${boardId}/clear`);
     return response.data;
   } catch (error: any) {
     console.log(error, "Error clearing board data");
@@ -89,9 +84,7 @@ export const toggleStarredBoard = async (boardId: string) => {
 // delete a board
 export const deleteBoard = async (boardId: string) => {
   try {
-    const response = await axios.delete(
-      `${BaseURL}/api/v1/boards/${boardId}/delete`
-    );
+    const response = await axios.delete(`${BaseURL}/api/v1/boards/${boardId}/delete`);
     return response.data;
   } catch (error: any) {
     console.log(error, "Error deleting board");
@@ -100,15 +93,9 @@ export const deleteBoard = async (boardId: string) => {
 };
 
 // update a board
-export const updateBoard = async (
-  boardId: string,
-  payload: UpdateBoardPayload
-) => {
+export const updateBoard = async (boardId: string, payload: UpdateBoardPayload) => {
   try {
-    const response = await axios.put(
-      `${BaseURL}/api/v1/boards/${boardId}/update`,
-      payload
-    );
+    const response = await axios.put(`${BaseURL}/api/v1/boards/${boardId}/update`, payload);
     return response.data;
   } catch (error: any) {
     console.log(error, "Error updating board");

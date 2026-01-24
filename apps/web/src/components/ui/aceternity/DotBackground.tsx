@@ -10,11 +10,7 @@ interface DotBackgroundProps {
   scale?: number;
 }
 
-export function DotBackground({
-  offsetX = 0,
-  offsetY = 0,
-  scale = 1,
-}: DotBackgroundProps) {
+export function DotBackground({ offsetX = 0, offsetY = 0, scale = 1 }: DotBackgroundProps) {
   // Base dot spacing - increases when zoomed out (more dots), decreases when zoomed in (fewer dots)
   const baseDotSpacing = 20;
   const dotSpacing = baseDotSpacing * scale;

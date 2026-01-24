@@ -276,14 +276,10 @@ export default function ElephantDrawing() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 to-green-100 p-8">
-      <h1 className="text-3xl font-bold mb-4 text-gray-800">
-        React Konva Elephant
-      </h1>
+      <h1 className="text-3xl font-bold mb-4 text-gray-800">React Konva Elephant</h1>
       <div className="bg-white rounded-lg shadow-2xl p-4">
         <Stage width={600} height={500}>
-          <Layer>
-            {shapes.map((shape, index) => renderShape(shape, index))}
-          </Layer>
+          <Layer>{shapes.map((shape, index) => renderShape(shape, index))}</Layer>
         </Stage>
       </div>
       <div className="mt-6 p-4 bg-white rounded-lg shadow-lg max-w-2xl">

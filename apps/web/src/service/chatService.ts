@@ -24,19 +24,14 @@ export const sendMessage = async (id: string, message: string) => {
   }
 };
 
-export const uploadChatImage = async (
-  boardId: string,
-  file: File
-): Promise<{ url: string }> => {
+export const uploadChatImage = async (boardId: string, file: File): Promise<{ url: string }> => {
   try {
     const formData = new FormData();
     formData.append("image", file);
 
-    const response = await axios.post(
-      `${BaseURL}/api/v1/chat/${boardId}/upload-image`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+    const response = await axios.post(`${BaseURL}/api/v1/chat/${boardId}/upload-image`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return response.data;
   } catch (error: any) {
     console.log(error, "Error uploading chat image");

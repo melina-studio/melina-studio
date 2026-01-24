@@ -16,10 +16,7 @@ const ModelViewer = dynamic(
   { ssr: false }
 );
 
-const LightRays = dynamic(
-  () => import("@/blocks/Backgrounds/LightRays/LightRays"),
-  { ssr: false }
-);
+const LightRays = dynamic(() => import("@/blocks/Backgrounds/LightRays/LightRays"), { ssr: false });
 
 export default function Hero() {
   const headerRef = useRef<HTMLDivElement>(null);

@@ -23,11 +23,7 @@ const Logo = () => {
     >
       <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
         <Image
-          src={
-            mounted && theme === "dark"
-              ? "/icons/logo.svg"
-              : "/icons/logo-dark.svg"
-          }
+          src={mounted && theme === "dark" ? "/icons/logo.svg" : "/icons/logo-dark.svg"}
           alt="Melina Studio"
           width={16}
           height={16}

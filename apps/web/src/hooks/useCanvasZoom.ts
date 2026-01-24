@@ -1,9 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  STAGE_MIN_SCALE,
-  STAGE_MAX_SCALE,
-  STAGE_DEFAULT_SCALE,
-} from "@/lib/constants";
+import { STAGE_MIN_SCALE, STAGE_MAX_SCALE, STAGE_DEFAULT_SCALE } from "@/lib/constants";
 import { clamp, getDistance } from "@/utils/canvasUtils";
 
 const ZOOM_STEP = 0.1; // 10% increment
@@ -34,10 +30,7 @@ const zoomStage = (stage: any, pointer: any, scaleBy: number) => {
   stage.batchDraw();
 };
 
-export const useCanvasZoom = (
-  canvasRef: any,
-  dimensions: { width: number; height: number }
-) => {
+export const useCanvasZoom = (canvasRef: any, dimensions: { width: number; height: number }) => {
   const [scale, setScale] = useState(STAGE_DEFAULT_SCALE);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const pinchRef = useRef({ lastDist: 0 });
@@ -85,10 +78,7 @@ export const useCanvasZoom = (
 
   const handleTouchStart = (e: any) => {
     if (e.evt.touches && e.evt.touches.length === 2) {
-      pinchRef.current.lastDist = getDistance(
-        e.evt.touches[0],
-        e.evt.touches[1]
-      );
+      pinchRef.current.lastDist = getDistance(e.evt.touches[0], e.evt.touches[1]);
     }
   };
 
@@ -122,11 +112,7 @@ export const useCanvasZoom = (
     if (!stage) return;
 
     const currentScale = stage.scaleX();
-    const newScale = clamp(
-      currentScale + ZOOM_STEP,
-      STAGE_MIN_SCALE,
-      STAGE_MAX_SCALE
-    );
+    const newScale = clamp(currentScale + ZOOM_STEP, STAGE_MIN_SCALE, STAGE_MAX_SCALE);
 
     const pointer = { x: dimensions.width / 2, y: dimensions.height / 2 };
     const scaleBy = newScale / currentScale;
@@ -141,11 +127,7 @@ export const useCanvasZoom = (
     if (!stage) return;
 
     const currentScale = stage.scaleX();
-    const newScale = clamp(
-      currentScale - ZOOM_STEP,
-      STAGE_MIN_SCALE,
-      STAGE_MAX_SCALE
-    );
+    const newScale = clamp(currentScale - ZOOM_STEP, STAGE_MIN_SCALE, STAGE_MAX_SCALE);
 
     const pointer = { x: dimensions.width / 2, y: dimensions.height / 2 };
     const scaleBy = newScale / currentScale;

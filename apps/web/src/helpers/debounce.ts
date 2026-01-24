@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from "react";
 
 // Basic debounce function (non-React)
 export function debounce<T extends (...args: any[]) => void>(func: T, delay: number = 300) {
@@ -17,7 +17,7 @@ export function debounce<T extends (...args: any[]) => void>(func: T, delay: num
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
   delay: number = 300,
-  deps: React.DependencyList = [],
+  deps: React.DependencyList = []
 ) {
   // Memoize the callback to prevent unnecessary recreations
   const memoizedCallback = useCallback(callback, deps);

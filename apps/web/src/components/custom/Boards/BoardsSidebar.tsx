@@ -138,7 +138,10 @@ export function BoardsSidebar() {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/playground/settings")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => router.push("/playground/settings")}
+              >
                 <Settings className="size-4 mr-2" />
                 Workspace settings
               </DropdownMenuItem>
@@ -146,10 +149,7 @@ export function BoardsSidebar() {
                 <Receipt className="size-4 mr-2" />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={handleLogout}
-              >
+              <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                 <LogOut className="size-4 mr-2" />
                 Log out
               </DropdownMenuItem>
@@ -177,16 +177,13 @@ export function BoardsSidebar() {
                       tooltip={item.title}
                       className={cn(
                         "w-full justify-start",
-                        isActive &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                        isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
                       )}
                     >
                       <Icon className="size-4" />
                       <span>{item.title}</span>
                       {item.badge && (
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {item.badge}
-                        </span>
+                        <span className="ml-auto text-xs text-muted-foreground">{item.badge}</span>
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -252,9 +249,7 @@ export function BoardsSidebar() {
 
         {/* Version info */}
         <div className="px-2 pt-2 pb-1">
-          <p className="text-[10px] text-muted-foreground/50 font-medium">
-            Melina Studio · v0.1
-          </p>
+          <p className="text-[10px] text-muted-foreground/50 font-medium">Melina Studio · v0.1</p>
         </div>
       </SidebarFooter>
     </Sidebar>

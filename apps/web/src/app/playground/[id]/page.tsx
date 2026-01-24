@@ -1,40 +1,23 @@
 // app/playground/[id]/page.tsx
 "use client";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import {
-  Download,
-  Loader,
-  Menu,
-  Redo,
-  Settings2,
-  StepBack,
-  Undo,
-} from "lucide-react";
-import { KonvaEventObject } from "konva/lib/Node";
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { DotBackground } from "@/components/ui/aceternity/DotBackground";
-import { ACTION_BUTTONS, ACTIONS, COLORS, Shape } from "@/lib/konavaTypes";
+import { ACTIONS, Shape } from "@/lib/konavaTypes";
 import KonvaCanvas from "@/components/custom/Canvas/KonvaCanvas";
 import { HISTORY_LIMIT } from "@/lib/constants";
 import ToolControls from "@/components/custom/Canvas/ToolControls";
-import {
-  saveBoardData,
-  getBoardData,
-  clearBoardData,
-} from "@/service/boardService";
+import { saveBoardData, getBoardData, clearBoardData } from "@/service/boardService";
 import { useDebouncedCallback } from "@/helpers/debounce";
 import {
   buildShapes,
   exportCompositedImageWithBoth,
-  getBoardStateSnapshot,
 } from "@/helpers/helpers";
 import AIController from "@/components/custom/Chat/AIController";
 import { getChatHistory } from "@/service/chatService";
 import Image from "next/image";
-import ElephantDrawing from "@/components/custom/General/Elephant";
 import { useWebsocket } from "@/hooks/useWebsocket";
-import { SettingsModal } from "@/components/custom/Canvas/SettingsModal";
 import CanvasHeader from "@/components/custom/General/CanvasHeader";
 import { useBoard } from "@/hooks/useBoard";
 import type { Board } from "@/lib/types";
@@ -129,9 +112,7 @@ export default function BoardPage() {
     scale: 1,
   });
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [melinaStatus, setMelinaStatus] = useState<
-    "idle" | "thinking" | "editing"
-  >("idle");
+  const [melinaStatus, setMelinaStatus] = useState<"idle" | "thinking" | "editing">("idle");
   const [boardInfo, setBoardInfo] = useState<Board | null>(null);
   const { updateBoardById } = useBoard();
   const boardIdRef = useRef(id);
@@ -145,9 +126,7 @@ export default function BoardPage() {
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ref to store latest save function to avoid stale closures
-  const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(
-    null
-  );
+  const saveShapesRef = useRef<((shapes: Shape[]) => Promise<void>) | null>(null);
   // Ref to track pending save and prevent duplicate API calls
   const pendingSaveRef = useRef<{
     timeoutId: NodeJS.Timeout | null;
@@ -243,16 +222,10 @@ export default function BoardPage() {
       cleanupTimeoutRef.current = setTimeout(() => {
         if (!thumbnailSaveCalledRef.current) {
           thumbnailSaveCalledRef.current = true;
-          updateBoardByIdRef
-            .current(currentId, { saveThumbnail: true })
-            .catch((error) => {
-              console.error("Thumbnail save failed:", error);
-              toast.error(
-                error instanceof Error
-                  ? error.message
-                  : "Failed to save thumbnail"
-              );
-            });
+          updateBoardByIdRef.current(currentId, { saveThumbnail: true }).catch((error) => {
+            console.error("Thumbnail save failed:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to save thumbnail");
+          });
         }
       }, 100);
     };
@@ -280,9 +253,7 @@ export default function BoardPage() {
         setChatHistory(chatHistory?.chats);
       } catch (error) {
         console.error("Failed fetching board data:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to load board data"
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to load board data");
       }
     };
 
@@ -305,19 +276,14 @@ export default function BoardPage() {
       "board_renamed",
       (data: { data: { board_id: string; new_name: string } }) => {
         setBoardInfo((prev: Board | null) =>
-          prev && prev.uuid === data.data.board_id
-            ? { ...prev, title: data.data.new_name }
-            : prev
+          prev && prev.uuid === data.data.board_id ? { ...prev, title: data.data.new_name } : prev
         );
       }
     );
 
-    const unsubscribeError = subscribe(
-      "error",
-      (data: { data: { message: string } }) => {
-        toast.error(data.data.message);
-      }
-    );
+    const unsubscribeError = subscribe("error", (data: { data: { message: string } }) => {
+      toast.error(data.data.message);
+    });
 
     return () => {
       unsubscribeChatStart();
@@ -395,9 +361,7 @@ export default function BoardPage() {
             ? []
             : cloneShapes(cur.present);
 
-      const nextPast = [...cur.past, stateToPushToHistory].slice(
-        -HISTORY_LIMIT
-      );
+      const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
       return {
         past: nextPast,
         present: cloneShapes(newShapes),
@@ -407,9 +371,7 @@ export default function BoardPage() {
   };
 
   // Batch update multiple shapes' imageUrls at once (avoids race conditions)
-  const handleBatchShapeImageUrlUpdate = (
-    updates: { shapeId: string; imageUrl: string }[]
-  ) => {
+  const handleBatchShapeImageUrlUpdate = (updates: { shapeId: string; imageUrl: string }[]) => {
     if (updates.length === 0) return;
     setHistory((cur) => ({
       ...cur,
@@ -465,16 +427,10 @@ export default function BoardPage() {
         fd.append("image", blob, `board-${id}.png`);
 
         await saveBoardData(id, fd);
-        console.log(
-          "Board saved successfully with",
-          filteredShapes.length,
-          "shapes"
-        );
+        console.log("Board saved successfully with", filteredShapes.length, "shapes");
       } catch (error) {
         console.error("Save failed:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to save board"
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to save board");
         throw error;
       } finally {
         pendingSaveRef.current.isSaving = false;
@@ -504,10 +460,7 @@ export default function BoardPage() {
       if (cur.past.length === 0) return cur;
       const previous = cur.past[cur.past.length - 1];
       const newPast = cur.past.slice(0, -1);
-      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(
-        0,
-        HISTORY_LIMIT
-      );
+      const newFuture = [cloneShapes(cur.present), ...cur.future].slice(0, HISTORY_LIMIT);
       newShapes = cloneShapes(previous);
       return {
         past: newPast,
@@ -529,9 +482,7 @@ export default function BoardPage() {
       if (cur.future.length === 0) return cur;
       const nextState = cur.future[0];
       const newFuture = cur.future.slice(1);
-      const newPast = [...cur.past, cloneShapes(cur.present)].slice(
-        -HISTORY_LIMIT
-      );
+      const newPast = [...cur.past, cloneShapes(cur.present)].slice(-HISTORY_LIMIT);
       newShapes = cloneShapes(nextState);
       return {
         past: newPast,
@@ -610,70 +561,58 @@ export default function BoardPage() {
   // listen for board updates event
   useEffect(() => {
     // listen for new shape created event
-    const unsubscribeBoardUpdates = subscribe(
-      "shape_created",
-      (data: ShapeCreatedEvent) => {
-        console.log("Shape created:", data);
-        const { shape } = data.data;
+    const unsubscribeBoardUpdates = subscribe("shape_created", (data: ShapeCreatedEvent) => {
+      console.log("Shape created:", data);
+      const { shape } = data.data;
 
-        // Update Melina status
-        setMelinaStatus("editing");
-        setTimeout(() => setMelinaStatus("idle"), 1000);
+      // Update Melina status
+      setMelinaStatus("editing");
+      setTimeout(() => setMelinaStatus("idle"), 1000);
 
-        // Use functional update to get the current state and append the new shape
-        setHistory((cur) => {
-          const currentShapes = cloneShapes(cur.present);
-          const newShapes = [...currentShapes, shape];
+      // Use functional update to get the current state and append the new shape
+      setHistory((cur) => {
+        const currentShapes = cloneShapes(cur.present);
+        const newShapes = [...currentShapes, shape];
 
-          // Debounce the save - cancel any pending save and schedule a new one
-          // This batches rapid successive shape_created events into a single save
-          if (pendingSaveRef.current.timeoutId) {
-            clearTimeout(pendingSaveRef.current.timeoutId);
+        // Debounce the save - cancel any pending save and schedule a new one
+        // This batches rapid successive shape_created events into a single save
+        if (pendingSaveRef.current.timeoutId) {
+          clearTimeout(pendingSaveRef.current.timeoutId);
+        }
+
+        pendingSaveRef.current.timeoutId = setTimeout(() => {
+          pendingSaveRef.current.timeoutId = null;
+          if (saveShapesRef.current) {
+            saveShapesRef.current(newShapes);
           }
+        }, 300); // 300ms debounce to batch rapid events
 
-          pendingSaveRef.current.timeoutId = setTimeout(() => {
-            pendingSaveRef.current.timeoutId = null;
-            if (saveShapesRef.current) {
-              saveShapesRef.current(newShapes);
-            }
-          }, 300); // 300ms debounce to batch rapid events
-
-          // Push current state to history before adding new shape
-          const stateToPushToHistory =
-            cur.past.length === 0 && cur.present.length === 0
-              ? []
-              : cloneShapes(cur.present);
-          const nextPast = [...cur.past, stateToPushToHistory].slice(
-            -HISTORY_LIMIT
-          );
-          return {
-            past: nextPast,
-            present: cloneShapes(newShapes),
-            future: [],
-          };
-        });
-      }
-    );
+        // Push current state to history before adding new shape
+        const stateToPushToHistory =
+          cur.past.length === 0 && cur.present.length === 0 ? [] : cloneShapes(cur.present);
+        const nextPast = [...cur.past, stateToPushToHistory].slice(-HISTORY_LIMIT);
+        return {
+          past: nextPast,
+          present: cloneShapes(newShapes),
+          future: [],
+        };
+      });
+    });
 
     // listen for shape updated event
-    const unsubscribeShapeUpdated = subscribe(
-      "shape_updated",
-      (data: ShapeUpdatedEvent) => {
-        console.log("Shape updated:", data);
-        const { shape } = data.data;
-        setHistory((cur) => {
-          const currentShapes = cloneShapes(cur.present);
-          const newShapes = currentShapes.map((s) =>
-            s.id === shape.id ? shape : s
-          );
-          return {
-            past: cur.past,
-            present: cloneShapes(newShapes),
-            future: cur.future,
-          };
-        });
-      }
-    );
+    const unsubscribeShapeUpdated = subscribe("shape_updated", (data: ShapeUpdatedEvent) => {
+      console.log("Shape updated:", data);
+      const { shape } = data.data;
+      setHistory((cur) => {
+        const currentShapes = cloneShapes(cur.present);
+        const newShapes = currentShapes.map((s) => (s.id === shape.id ? shape : s));
+        return {
+          past: cur.past,
+          present: cloneShapes(newShapes),
+          future: cur.future,
+        };
+      });
+    });
 
     // listen for shape update start event
     const unsubscribeShapeUpdateStart = subscribe("shape_update_start", () => {
@@ -684,22 +623,19 @@ export default function BoardPage() {
     });
 
     // listen for shape deleted event
-    const unsubscribeShapeDeleted = subscribe(
-      "shape_deleted",
-      (data: ShapeDeletedEvent) => {
-        console.log("Shape deleted:", data);
-        const { shape_id } = data.data;
-        setHistory((cur) => {
-          const currentShapes = cloneShapes(cur.present);
-          const newShapes = currentShapes.filter((s) => s.id !== shape_id);
-          return {
-            past: cur.past,
-            present: cloneShapes(newShapes),
-            future: cur.future,
-          };
-        });
-      }
-    );
+    const unsubscribeShapeDeleted = subscribe("shape_deleted", (data: ShapeDeletedEvent) => {
+      console.log("Shape deleted:", data);
+      const { shape_id } = data.data;
+      setHistory((cur) => {
+        const currentShapes = cloneShapes(cur.present);
+        const newShapes = currentShapes.filter((s) => s.id !== shape_id);
+        return {
+          past: cur.past,
+          present: cloneShapes(newShapes),
+          future: cur.future,
+        };
+      });
+    });
 
     // listen for shape creation start event
     const unsubscribeShapeCreationStart = subscribe("shape_start", () => {
@@ -728,9 +664,7 @@ export default function BoardPage() {
       setShapesWithHistory([]);
     } catch (error) {
       console.error("Clear board failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to clear board"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to clear board");
     }
   };
 
@@ -828,31 +762,26 @@ export default function BoardPage() {
       <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97%]">
         {/* ai controller toggle icon */}
         <div
-          className={`${showAiController ? "bg-gray-200" : "bg-white"
-            } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
+          className={`${
+            showAiController ? "bg-gray-200" : "bg-white"
+          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
           onClick={() => setShowAiController((v) => !v)}
         >
-          <Image
-            src="/icons/ai_controller.png"
-            alt="AIController"
-            width={20}
-            height={20}
-          />
+          <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
         </div>
         {/* ai controller */}
         <div
-          className={`h-full transition-all duration-300 ease-out ${showAiController
-            ? "opacity-100 translate-x-0 scale-100"
-            : "opacity-0 translate-x-4 scale-95 pointer-events-none"
-            }`}
+          className={`h-full transition-all duration-300 ease-out ${
+            showAiController
+              ? "opacity-100 translate-x-0 scale-100"
+              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
+          }`}
         >
           {showAiController && (
             <AIController
               chatHistory={chatHistory}
               onMessagesChange={setChatHistory}
-              initialMessage={
-                initialMessageConsumed ? undefined : initialMessage || undefined
-              }
+              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
               onInitialMessageSent={handleInitialMessageSent}
               onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
             />

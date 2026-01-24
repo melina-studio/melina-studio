@@ -54,9 +54,7 @@ export default function Demo() {
       <div className="max-w-6xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Watch Melina think with you
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Watch Melina think with you</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             One prompt. Instant creation.
           </p>
@@ -234,12 +232,10 @@ export default function Demo() {
                       <span className="text-xs font-bold text-primary">M</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Melina
-                      </p>
+                      <p className="text-xs text-muted-foreground mb-1">Melina</p>
                       <p className="text-sm">
-                        I&apos;ve created a flowchart with the authentication
-                        flow. You can drag the shapes to rearrange them.
+                        I&apos;ve created a flowchart with the authentication flow. You can drag the
+                        shapes to rearrange them.
                       </p>
                     </div>
                   </motion.div>

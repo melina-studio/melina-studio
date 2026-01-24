@@ -28,11 +28,7 @@ function FloatingShapes() {
       <Float speed={2} rotationIntensity={1} floatIntensity={2}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[1.5, 1.5, 1.5]} />
-          <meshStandardMaterial
-            color="#6366f1"
-            metalness={0.8}
-            roughness={0.2}
-          />
+          <meshStandardMaterial color="#6366f1" metalness={0.8} roughness={0.2} />
         </mesh>
       </Float>
 
@@ -40,22 +36,14 @@ function FloatingShapes() {
       <Float speed={3} rotationIntensity={0.5} floatIntensity={1}>
         <mesh position={[2.5, 1, 0]}>
           <sphereGeometry args={[0.5, 32, 32]} />
-          <meshStandardMaterial
-            color="#ec4899"
-            metalness={0.6}
-            roughness={0.3}
-          />
+          <meshStandardMaterial color="#ec4899" metalness={0.6} roughness={0.3} />
         </mesh>
       </Float>
 
       <Float speed={2.5} rotationIntensity={0.5} floatIntensity={1.5}>
         <mesh position={[-2, -0.5, 1]}>
           <sphereGeometry args={[0.4, 32, 32]} />
-          <meshStandardMaterial
-            color="#22d3ee"
-            metalness={0.6}
-            roughness={0.3}
-          />
+          <meshStandardMaterial color="#22d3ee" metalness={0.6} roughness={0.3} />
         </mesh>
       </Float>
 
@@ -63,11 +51,7 @@ function FloatingShapes() {
       <Float speed={1.5} rotationIntensity={2} floatIntensity={1}>
         <mesh position={[-1.5, 1.5, -1]} rotation={[Math.PI / 4, 0, 0]}>
           <torusGeometry args={[0.6, 0.2, 16, 32]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            metalness={0.7}
-            roughness={0.2}
-          />
+          <meshStandardMaterial color="#fbbf24" metalness={0.7} roughness={0.2} />
         </mesh>
       </Float>
 
@@ -75,22 +59,14 @@ function FloatingShapes() {
       <Float speed={4} rotationIntensity={1} floatIntensity={2}>
         <mesh position={[1.5, -1.5, 0.5]} rotation={[0.5, 0.5, 0]}>
           <boxGeometry args={[0.5, 0.5, 0.5]} />
-          <meshStandardMaterial
-            color="#10b981"
-            metalness={0.8}
-            roughness={0.2}
-          />
+          <meshStandardMaterial color="#10b981" metalness={0.8} roughness={0.2} />
         </mesh>
       </Float>
 
       <Float speed={3.5} rotationIntensity={1.5} floatIntensity={1}>
         <mesh position={[0, 2, -0.5]} rotation={[0.3, 0.7, 0]}>
           <octahedronGeometry args={[0.4]} />
-          <meshStandardMaterial
-            color="#f43f5e"
-            metalness={0.7}
-            roughness={0.3}
-          />
+          <meshStandardMaterial color="#f43f5e" metalness={0.7} roughness={0.3} />
         </mesh>
       </Float>
     </group>
@@ -114,21 +90,24 @@ function StaticFallback() {
     <div className="w-full h-full flex items-center justify-center">
       <div className="relative">
         {/* Animated CSS shapes as fallback */}
-        <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl animate-pulse shadow-lg shadow-indigo-500/30"
-             style={{ transform: "rotate(12deg)" }} />
-        <div className="absolute -top-8 -right-8 w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full animate-bounce shadow-lg shadow-pink-500/30"
-             style={{ animationDelay: "0.2s" }} />
-        <div className="absolute -bottom-4 -left-6 w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg animate-pulse shadow-lg shadow-cyan-500/30"
-             style={{ animationDelay: "0.4s", transform: "rotate(-15deg)" }} />
+        <div
+          className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl animate-pulse shadow-lg shadow-indigo-500/30"
+          style={{ transform: "rotate(12deg)" }}
+        />
+        <div
+          className="absolute -top-8 -right-8 w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full animate-bounce shadow-lg shadow-pink-500/30"
+          style={{ animationDelay: "0.2s" }}
+        />
+        <div
+          className="absolute -bottom-4 -left-6 w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg animate-pulse shadow-lg shadow-cyan-500/30"
+          style={{ animationDelay: "0.4s", transform: "rotate(-15deg)" }}
+        />
       </div>
     </div>
   );
 }
 
-export function ModelViewer({
-  modelUrl,
-  className = "",
-}: ModelViewerProps) {
+export function ModelViewer({ modelUrl, className = "" }: ModelViewerProps) {
   const [webGLSupported, setWebGLSupported] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -163,12 +142,7 @@ export function ModelViewer({
         <Suspense fallback={null}>
           {/* Lighting - enhanced for visibility on light background */}
           <ambientLight intensity={0.8} />
-          <spotLight
-            position={[10, 10, 10]}
-            angle={0.15}
-            penumbra={1}
-            intensity={1.5}
-          />
+          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} />
           <pointLight position={[-10, -10, -10]} intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.5} />
 
@@ -186,11 +160,7 @@ export function ModelViewer({
           </PresentationControls>
 
           {/* Orbit controls - disabled autoRotate to prevent shift with CSS transforms */}
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            enableRotate={false}
-          />
+          <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} />
         </Suspense>
       </Canvas>
     </div>

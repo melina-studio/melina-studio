@@ -30,10 +30,7 @@ function KonvaCanvas({
   activeColor: string;
   shapes: Shape[];
   handleSave: any;
-  onCanvasTransform?: (transform: {
-    position: { x: number; y: number };
-    scale: number;
-  }) => void;
+  onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
   isDarkMode?: boolean;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -139,11 +136,7 @@ function KonvaCanvas({
   useEffect(() => {
     const prev = prevTransformRef.current;
     // Only call if values actually changed
-    if (
-      prev.position.x !== position.x ||
-      prev.position.y !== position.y ||
-      prev.scale !== scale
-    ) {
+    if (prev.position.x !== position.x || prev.position.y !== position.y || prev.scale !== scale) {
       prevTransformRef.current = { position, scale };
       onCanvasTransform?.({ position, scale });
     }
@@ -162,11 +155,8 @@ function KonvaCanvas({
   }, [pendingTextEdit, shapes]);
 
   // Export functionality
-  const {
-    exportSelectedShapesJSON,
-    exportSelectedShapesImage,
-    captureSelectedShapesSnapshot,
-  } = useCanvasExport(getSelectedShapes);
+  const { exportSelectedShapesJSON, exportSelectedShapesImage, captureSelectedShapesSnapshot } =
+    useCanvasExport(getSelectedShapes);
 
   // Helper function to edit cursor
   const setStageCursor = (c: string) => {
@@ -189,10 +179,17 @@ function KonvaCanvas({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if we have selected shapes and user pressed delete keys
-      if (selectedIds.length > 0 && (e.key === "Delete" || e.key === "Backspace" || (e.metaKey && e.key === "Backspace"))) {
+      if (
+        selectedIds.length > 0 &&
+        (e.key === "Delete" || e.key === "Backspace" || (e.metaKey && e.key === "Backspace"))
+      ) {
         // Don't delete if user is typing in an input/textarea
         const target = e.target as HTMLElement;
-        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        if (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable
+        ) {
           return;
         }
 
@@ -471,8 +468,7 @@ function KonvaCanvas({
 
     // restore stage cursor to grab if SELECT tool and not panning
     if (
-      (activeTool === ACTIONS.SELECT ||
-        activeTool === ACTIONS.MARQUEE_SELECT) &&
+      (activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT) &&
       !isDraggingStage
     )
       setStageCursor("grab");
@@ -515,8 +511,9 @@ function KonvaCanvas({
 
         // Closed shapes: rect, circle, ellipse, path, frame
         // Pencil is only closed if it's naturally closed (start/end points close together)
-        const isClosedShape = ["rect", "circle", "ellipse", "path", "frame"].includes(s.type)
-          || (s.type === "pencil" && isPencilNaturallyClosed(s));
+        const isClosedShape =
+          ["rect", "circle", "ellipse", "path", "frame"].includes(s.type) ||
+          (s.type === "pencil" && isPencilNaturallyClosed(s));
 
         if (isClosedShape) {
           // Alt/Meta click changes stroke, normal click changes fill
@@ -559,33 +556,35 @@ function KonvaCanvas({
       >
         <Layer>
           {/* Sort shapes so text is always rendered on top (last in array = highest z-index) */}
-          {[...shapes].sort((a, b) => {
-            // Text shapes should be rendered last (on top)
-            if (a.type === "text" && b.type !== "text") return 1;
-            if (a.type !== "text" && b.type === "text") return -1;
-            return 0; // Preserve relative order for same types
-          }).map((s) => (
-            <ShapeRenderer
-              key={s.id}
-              shape={s}
-              activeTool={activeTool}
-              isDraggingShape={isDraggingShape}
-              isDraggingStage={isDraggingStage}
-              cursor={cursor}
-              isDarkMode={isDarkMode}
-              onShapeClick={handleShapeClick}
-              onShapeDragStart={onShapeDragStart}
-              onShapeDragEnd={onShapeDragEnd}
-              onShapeDragMove={onShapeDragMove}
-              onRectTransform={onRectTransform}
-              onEllipseTransform={onEllipseTransform}
-              onImageTransform={onImageTransform}
-              onTextDoubleClick={(id, pos) => openTextEditor(id, pos)}
-              onColorClick={handleColorClick}
-              setStageCursor={setStageCursor}
-              setIsDraggingStage={setIsDraggingStage}
-            />
-          ))}
+          {[...shapes]
+            .sort((a, b) => {
+              // Text shapes should be rendered last (on top)
+              if (a.type === "text" && b.type !== "text") return 1;
+              if (a.type !== "text" && b.type === "text") return -1;
+              return 0; // Preserve relative order for same types
+            })
+            .map((s) => (
+              <ShapeRenderer
+                key={s.id}
+                shape={s}
+                activeTool={activeTool}
+                isDraggingShape={isDraggingShape}
+                isDraggingStage={isDraggingStage}
+                cursor={cursor}
+                isDarkMode={isDarkMode}
+                onShapeClick={handleShapeClick}
+                onShapeDragStart={onShapeDragStart}
+                onShapeDragEnd={onShapeDragEnd}
+                onShapeDragMove={onShapeDragMove}
+                onRectTransform={onRectTransform}
+                onEllipseTransform={onEllipseTransform}
+                onImageTransform={onImageTransform}
+                onTextDoubleClick={(id, pos) => openTextEditor(id, pos)}
+                onColorClick={handleColorClick}
+                setStageCursor={setStageCursor}
+                setIsDraggingStage={setIsDraggingStage}
+              />
+            ))}
 
           {/* Selection box for marquee selection */}
           {selectionBox && (
@@ -607,28 +606,21 @@ function KonvaCanvas({
             <Transformer
               ref={trRef}
               rotateEnabled={true}
-              enabledAnchors={[
-                "top-left",
-                "top-right",
-                "bottom-left",
-                "bottom-right",
-              ]}
+              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
             />
           )}
         </Layer>
       </Stage>
 
       {/* Selection buttons overlay */}
-      {selectedIds.length > 0 &&
-        activeTool === ACTIONS.MARQUEE_SELECT &&
-        getButtonPosition() && (
-          <SelectionButtons
-            buttonPosition={getButtonPosition()}
-            onAIClick={handleAIClick}
-            onExportImage={exportSelectedShapesImage}
-            onExportJSON={exportSelectedShapesJSON}
-          />
-        )}
+      {selectedIds.length > 0 && activeTool === ACTIONS.MARQUEE_SELECT && getButtonPosition() && (
+        <SelectionButtons
+          buttonPosition={getButtonPosition()}
+          onAIClick={handleAIClick}
+          onExportImage={exportSelectedShapesImage}
+          onExportJSON={exportSelectedShapesJSON}
+        />
+      )}
 
       {/* Zoom controls */}
       <ZoomControls scale={scale} zoomIn={zoomIn} zoomOut={zoomOut} />

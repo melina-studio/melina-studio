@@ -8,7 +8,8 @@
       "Bash(magick identify:*)",
       "Bash(SRC=\"/Users/aryanshaw/Downloads/ChatGPT Image Jan 22, 2026, 12_12_19 PM \\(1\\).png\")",
       "Bash(magick:*)",
-      "Bash(sips -g all:*)"
+      "Bash(sips -g all:*)",
+      "Bash(npm run lint:fix:*)"
     ]
   }
 }

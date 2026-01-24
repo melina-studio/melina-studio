@@ -1,13 +1,5 @@
 import React from "react";
-import { useTheme } from "next-themes";
-import { X } from "lucide-react";
-import {
-  Select,
-  SelectValue,
-  SelectTrigger,
-  SelectItem,
-  SelectContent,
-} from "../../ui/select";
+import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "../../ui/select";
 import { Slider } from "../../ui/slider";
 import { ThemeToggle } from "../General/ThemeToggle";
 import { Input } from "../../ui/input";
@@ -67,14 +59,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* active llm model selector */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-500 dark:text-white">
-              Active Model
-            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-white">Active Model</p>
             <Select
               value={activeModel}
-              onValueChange={(value) =>
-                handleSaveSettings("activeModel", value)
-              }
+              onValueChange={(value) => handleSaveSettings("activeModel", value)}
             >
               <SelectTrigger className="w-[180px] h-[16px]">
                 <SelectValue placeholder="Select a model" />
@@ -98,15 +86,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* temperature slider */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-500 dark:text-white">
-              Temperature
-            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-white">Temperature</p>
             <div className="w-[180px]">
               <Slider
                 value={[temperature]}
-                onValueChange={(value) =>
-                  handleSaveSettings("temperature", value[0])
-                }
+                onValueChange={(value) => handleSaveSettings("temperature", value[0])}
                 max={1}
                 min={0}
                 step={0.1}
@@ -116,15 +100,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* max tokens input */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-500 dark:text-white">
-              Max Tokens
-            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-white">Max Tokens</p>
             <Input
               type="number"
               value={maxTokens}
-              onChange={(e) =>
-                handleSaveSettings("maxTokens", Number(e.target.value))
-              }
+              onChange={(e) => handleSaveSettings("maxTokens", Number(e.target.value))}
               className="w-[180px] h-8 text-sm"
               min={1}
               max={10000}
@@ -138,9 +118,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* theme toggler */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-500 dark:text-white">
-              Appearance
-            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-white">Appearance</p>
             <ThemeToggle />
           </div>
         </div>

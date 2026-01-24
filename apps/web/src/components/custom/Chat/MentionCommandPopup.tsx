@@ -20,9 +20,7 @@ const MentionCommandPopup = forwardRef<HTMLDivElement, MentionCommandPopupProps>
         className="absolute bottom-full left-0 mb-1 rounded-md shadow-lg border overflow-hidden z-50 min-w-[200px] max-w-[280px]"
         style={{
           background: isDark ? "#252528" : "#ffffff",
-          borderColor: isDark
-            ? "rgba(107, 114, 128, 0.2)"
-            : "rgba(209, 213, 219, 0.6)",
+          borderColor: isDark ? "rgba(107, 114, 128, 0.2)" : "rgba(209, 213, 219, 0.6)",
         }}
       >
         <div className="py-0.5">

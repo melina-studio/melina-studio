@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ACTIONS, TOOL_CURSOR } from "@/lib/konavaTypes";
 import { isShapeInSelectionBox } from "@/utils/canvasUtils";
 import { Shape } from "@/lib/konavaTypes";
 
@@ -18,8 +17,7 @@ export const useCanvasSelection = (
 ) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
-  const [finalSelectionBox, setFinalSelectionBox] =
-    useState<SelectionBox | null>(null);
+  const [finalSelectionBox, setFinalSelectionBox] = useState<SelectionBox | null>(null);
   const trRef = useRef<any>(null);
 
   // transformer selection - supports multiple nodes
@@ -49,9 +47,7 @@ export const useCanvasSelection = (
   const handleShapeClick = (e: any, shapeId: string) => {
     if (e.evt.shiftKey) {
       setSelectedIds((prev) =>
-        prev.includes(shapeId)
-          ? prev.filter((id) => id !== shapeId)
-          : [...prev, shapeId]
+        prev.includes(shapeId) ? prev.filter((id) => id !== shapeId) : [...prev, shapeId]
       );
     } else {
       setSelectedIds([shapeId]);

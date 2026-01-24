@@ -77,10 +77,7 @@ export function AIModelSettings() {
 
   if (!mounted) {
     return (
-      <SettingsSection
-        title="Melina"
-        description="Configure generation parameters for Melina."
-      >
+      <SettingsSection title="Melina" description="Configure generation parameters for Melina.">
         <SettingsRow label="Model Provider" description="Select the model provider.">
           <div className="h-9 w-full max-w-[280px] bg-muted animate-pulse rounded-md" />
         </SettingsRow>
@@ -100,12 +97,12 @@ export function AIModelSettings() {
   const selectedModel = MODEL_OPTIONS.find((m) => m.value === settings.activeModel);
 
   return (
-    <SettingsSection
-      title="Melina"
-      description="Configure generation parameters for Melina."
-    >
+    <SettingsSection title="Melina" description="Configure generation parameters for Melina.">
       <SettingsRow label="Model Provider" description="Select the model provider to use.">
-        <Select value={settings.activeModel} onValueChange={(v) => updateSettings({ activeModel: v })}>
+        <Select
+          value={settings.activeModel}
+          onValueChange={(v) => updateSettings({ activeModel: v })}
+        >
           <SelectTrigger className="w-full max-w-[280px]">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
@@ -180,12 +177,15 @@ export function AIModelSettings() {
         <div className="flex flex-col gap-2 w-full max-w-[400px]">
           <Textarea
             value={customRules}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateCustomRules(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              updateCustomRules(e.target.value)
+            }
             placeholder="e.g., Always respond in a formal tone. Focus on minimalist designs. Use pastel colors by default..."
             className="min-h-[120px] resize-y"
           />
           <p className="text-xs text-muted-foreground">
-            These rules will be added to Melina&apos;s system prompt to customize how it generates designs and responds to your requests.
+            These rules will be added to Melina&apos;s system prompt to customize how it generates
+            designs and responds to your requests.
           </p>
         </div>
       </SettingsRow>

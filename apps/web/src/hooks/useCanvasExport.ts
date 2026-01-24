@@ -88,11 +88,7 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
         }
       }
       // Handle line/pencil shapes (they have points array)
-      else if (
-        shape.type === "line" ||
-        shape.type === "pencil" ||
-        shape.type === "eraser"
-      ) {
+      else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
         const points = (shape as any).points || [];
         if (points.length >= 2) {
           for (let i = 0; i < points.length; i += 2) {
@@ -228,11 +224,7 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
             lineJoin: (shape as any).lineJoin || "round",
           });
           tempLayer.add(path);
-        } else if (
-          shape.type === "line" ||
-          shape.type === "pencil" ||
-          shape.type === "eraser"
-        ) {
+        } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
           const points = (shape as any).points || [];
           // Offset all points
           const offsetPoints = [];
@@ -346,11 +338,7 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
         }
       }
       // Line / Pencil / Eraser (points[])
-      else if (
-        shape.type === "line" ||
-        shape.type === "pencil" ||
-        shape.type === "eraser"
-      ) {
+      else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
         const points = (shape as any).points || [];
         for (let i = 0; i < points.length; i += 2) {
           minX = Math.min(minX, points[i]);
@@ -457,11 +445,7 @@ export const useCanvasExport = (getSelectedShapes: () => Shape[]) => {
             strokeWidth: (shape as any).strokeWidth || 2,
           })
         );
-      } else if (
-        shape.type === "line" ||
-        shape.type === "pencil" ||
-        shape.type === "eraser"
-      ) {
+      } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
         const pts = (shape as any).points || [];
         const offsetPts: number[] = [];
         for (let i = 0; i < pts.length; i += 2) {

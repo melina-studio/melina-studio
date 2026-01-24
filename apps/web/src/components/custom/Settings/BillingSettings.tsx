@@ -20,12 +20,8 @@ const PLANS: Plan[] = [
     name: "Free",
     price: "$0",
     period: "forever",
-    tokenLimit: "100K tokens/month",
-    features: [
-      "100,000 tokens per month",
-      "Basic AI assistance",
-      "Community support",
-    ],
+    tokenLimit: "50K tokens/month",
+    features: ["50,000 tokens per month", "Basic AI assistance", "Community support"],
   },
   {
     id: "pro",
@@ -83,7 +79,7 @@ export function BillingSettings() {
 
   const currentPlanId = user?.subscription || "free";
   const tokensConsumed = user?.tokens_consumed || 0;
-  const tokenLimit = user?.token_limit || 100000;
+  const tokenLimit = user?.token_limit || 50000; // 50,000 tokens per month for free
   const tokensRemaining = Math.max(0, tokenLimit - tokensConsumed);
   const usagePercentage = tokenLimit > 0 ? (tokensConsumed / tokenLimit) * 100 : 0;
 
@@ -96,9 +92,7 @@ export function BillingSettings() {
     >
       <SettingsRow label="Current Plan" description="Your active subscription plan.">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">
-            {currentPlan.name} Plan
-          </span>
+          <span className="text-sm font-medium text-foreground">{currentPlan.name} Plan</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
             Active
           </span>
@@ -108,12 +102,8 @@ export function BillingSettings() {
       <SettingsRow label="Token Usage" description="Your monthly token consumption.">
         <div className="w-full max-w-md">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-muted-foreground">
-              {formatTokens(tokensConsumed)} used
-            </span>
-            <span className="text-muted-foreground">
-              {formatTokens(tokensRemaining)} remaining
-            </span>
+            <span className="text-muted-foreground">{formatTokens(tokensConsumed)} used</span>
+            <span className="text-muted-foreground">{formatTokens(tokensRemaining)} remaining</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -121,8 +111,8 @@ export function BillingSettings() {
                 usagePercentage >= 100
                   ? "bg-red-500"
                   : usagePercentage >= 80
-                  ? "bg-yellow-500"
-                  : "bg-green-500"
+                    ? "bg-yellow-500"
+                    : "bg-green-500"
               }`}
               style={{ width: `${Math.min(100, usagePercentage)}%` }}
             />
@@ -169,10 +159,7 @@ export function BillingSettings() {
                 </div>
                 <ul className="mt-4 space-y-2">
                   {plan.features.map((feature, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
+                    <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Check className="h-4 w-4 text-green-500" />
                       {feature}
                     </li>

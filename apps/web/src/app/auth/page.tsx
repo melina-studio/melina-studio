@@ -71,12 +71,10 @@ export default function AuthPage() {
 
         {/* Branding text at bottom */}
         <div className="absolute bottom-8 left-8 right-8 z-10">
-          <h2 className="text-white text-3xl font-bold mb-2">
-            Design without limits
-          </h2>
+          <h2 className="text-white text-3xl font-bold mb-2">Design without limits</h2>
           <p className="text-white/70 text-sm max-w-md">
-            Create stunning visuals with our intuitive design platform. Your
-            imagination is the only boundary.
+            Create stunning visuals with our intuitive design platform. Your imagination is the only
+            boundary.
           </p>
         </div>
       </div>

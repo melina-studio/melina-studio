@@ -3,7 +3,6 @@ import {
   Loader,
   Settings2,
   MoreVertical,
-  Download,
   Trash2,
   Pencil,
   Plus,
@@ -15,7 +14,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -152,9 +150,7 @@ const CanvasHeader = ({
         {/* Melina status indicator */}
         <div className="relative">
           <div
-            className={`w-2 h-2 rounded-full ${getMelinaStatusColor(
-              melinaStatus
-            )}`}
+            className={`w-2 h-2 rounded-full ${getMelinaStatusColor(melinaStatus)}`}
             title={`Melina is ${melinaStatus}`}
           />
         </div>
@@ -184,9 +180,7 @@ const CanvasHeader = ({
               className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 px-1 transition-colors cursor-text max-w-[150px] truncate"
               title="Double-click to rename"
             >
-              <span className="block truncate max-w-[150px]">
-                {boardName.trim() || "Untitled"}
-              </span>
+              <span className="block truncate max-w-[150px]">{boardName.trim() || "Untitled"}</span>
             </button>
             {/* Pencil icon that fades in on hover */}
             <Pencil
@@ -213,25 +207,16 @@ const CanvasHeader = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 dark:bg-[#323332]">
-            <DropdownMenuItem
-              onClick={handleNewBoard}
-              className="cursor-pointer"
-            >
+            <DropdownMenuItem onClick={handleNewBoard} className="cursor-pointer">
               <Plus className="w-4 h-4 mr-2" />
               New board
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleDuplicateBoard}
-              className="cursor-pointer"
-            >
+            <DropdownMenuItem onClick={handleDuplicateBoard} className="cursor-pointer">
               <Copy className="w-4 h-4 mr-2" />
               Duplicate board
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setShowSettings(true)}
-              className="cursor-pointer"
-            >
+            <DropdownMenuItem onClick={() => setShowSettings(true)} className="cursor-pointer">
               <Settings2 className="w-4 h-4 mr-2" />
               Board settings
             </DropdownMenuItem>

@@ -61,9 +61,7 @@ function ToolControls({
             className={`
           cursor-pointer p-2 rounded-md transition-colors duration-200 ease-linear
           ${
-            open
-              ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]"
-              : "bg-[#9AC2FEFF] dark:bg-[#000000]"
+            open ? "hover:bg-[#cce0ff] dark:hover:bg-[#000000]" : "bg-[#9AC2FEFF] dark:bg-[#000000]"
           } 
         `}
             onClick={toolbarToggle}
@@ -160,14 +158,8 @@ function ToolControls({
                   key={color.color}
                   style={{ backgroundColor: color.color }}
                   className={`w-8 h-8 rounded cursor-pointer hover:scale-110 transition-transform ${
-                    color.color === "#ffffff"
-                      ? "border border-gray-300 dark:border-gray-600"
-                      : ""
-                  } ${
-                    activeColor === color.color
-                      ? "ring-2 ring-offset-2 ring-blue-500"
-                      : ""
-                  }`}
+                    color.color === "#ffffff" ? "border border-gray-300 dark:border-gray-600" : ""
+                  } ${activeColor === color.color ? "ring-2 ring-offset-2 ring-blue-500" : ""}`}
                   title={color.color}
                   onClick={() => handleColorSelect(color.color)}
                 ></div>

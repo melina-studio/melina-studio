@@ -12,10 +12,7 @@ export const useSelectionStore = create<SelectionStoreState>((set) => ({
   selections: [],
   addSelection: (selection: Omit<ShapeSelection, "id">, id?: string) =>
     set((state) => ({
-      selections: [
-        ...state.selections,
-        { ...selection, id: id || crypto.randomUUID() },
-      ],
+      selections: [...state.selections, { ...selection, id: id || crypto.randomUUID() }],
     })),
   clearSelectionById: (id: string) =>
     set((state) => ({
@@ -25,15 +22,11 @@ export const useSelectionStore = create<SelectionStoreState>((set) => ({
 }));
 
 // Helper functions for calling actions without subscribing to state
-export const addSelectionAction = (
-  selection: Omit<ShapeSelection, "id">,
-  id?: string
-) => useSelectionStore.getState().addSelection(selection, id);
+export const addSelectionAction = (selection: Omit<ShapeSelection, "id">, id?: string) =>
+  useSelectionStore.getState().addSelection(selection, id);
 export const clearSelectionByIdAction = (id: string) =>
   useSelectionStore.getState().clearSelectionById(id);
-export const clearSelectionsAction = () =>
-  useSelectionStore.getState().clearSelections();
+export const clearSelectionsAction = () => useSelectionStore.getState().clearSelections();
 
 // Selector functions - use these with the hook for reactive subscriptions
-export const selectSelections = (state: SelectionStoreState) =>
-  state.selections;
+export const selectSelections = (state: SelectionStoreState) => state.selections;

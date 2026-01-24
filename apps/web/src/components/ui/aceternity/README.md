@@ -21,21 +21,23 @@ To add Aceternity components to your project:
 6. Import and use in your pages/components
 
 Example:
+
 ```tsx
-import { BackgroundGradient } from "@/components/ui/aceternity/background-gradient"
+import { BackgroundGradient } from "@/components/ui/aceternity/background-gradient";
 
 export default function MyPage() {
   return (
     <BackgroundGradient>
       <div>Your content here</div>
     </BackgroundGradient>
-  )
+  );
 }
 ```
 
 ## Path Aliases
 
 The following aliases are configured:
+
 - `@/components` → `src/components`
 - `@/lib` → `src/lib`
 - `@/utils` → `src/lib/utils`

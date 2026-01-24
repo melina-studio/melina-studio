@@ -19,12 +19,7 @@ interface BoardCardProps {
   onDelete: () => void;
 }
 
-export function BoardCard({
-  board,
-  onOpen,
-  onDuplicate,
-  onDelete,
-}: BoardCardProps) {
+export function BoardCard({ board, onOpen, onDuplicate, onDelete }: BoardCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -80,9 +75,7 @@ export function BoardCard({
       <div className="absolute inset-0">
         {hasThumbnail ? (
           <>
-            {imageLoading && (
-              <div className="absolute inset-0 bg-muted animate-pulse" />
-            )}
+            {imageLoading && <div className="absolute inset-0 bg-muted animate-pulse" />}
             <img
               key={versionedThumbnailUrl}
               src={versionedThumbnailUrl}
@@ -111,12 +104,8 @@ export function BoardCard({
 
       {/* Title overlay - refined hierarchy: thumbnail dominates, title smaller/lighter, timestamp muted */}
       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/85 via-black/70 to-transparent rounded-b-lg z-10">
-        <div className="text-sm font-medium text-white/95 truncate mb-0.5">
-          {title}
-        </div>
-        <div className="text-xs text-white/70">
-          {formatRelativeTime(updatedAt)}
-        </div>
+        <div className="text-sm font-medium text-white/95 truncate mb-0.5">{title}</div>
+        <div className="text-xs text-white/70">{formatRelativeTime(updatedAt)}</div>
       </div>
 
       {/* Quick actions - show on hover or when menu is open */}

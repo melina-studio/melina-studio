@@ -94,20 +94,14 @@ export default function Features() {
             What Melina understands
           </h2>
           <p className="text-white/60 text-md max-w-2xl mx-auto">
-            Melina doesn’t just respond — she understands what’s on your canvas
-            and acts on it.
+            Melina doesn’t just respond — she understands what’s on your canvas and acts on it.
           </p>
         </div>
 
         {/* Clean 3-column grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((feature, index) => (
-            <CometCard
-              key={index}
-              className="feature-card"
-              rotateDepth={10}
-              translateDepth={12}
-            >
+            <CometCard key={index} className="feature-card" rotateDepth={10} translateDepth={12}>
               <div
                 className="relative p-6 rounded-2xl border border-white/10 backdrop-blur-sm h-full min-h-[200px] flex flex-col"
                 style={{
@@ -126,12 +120,8 @@ export default function Features() {
                   >
                     <feature.icon className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">
-                    {feature.title}
-                  </h3>
-                  <p className="text-white/60 text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
+                  <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
+                  <p className="text-white/60 text-sm leading-relaxed">{feature.description}</p>
                 </div>
 
                 {/* Subtle corner accent */}

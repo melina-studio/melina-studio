@@ -8,11 +8,7 @@ import MentionCommandPopup from "./MentionCommandPopup";
 import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 import { useWebsocket } from "@/hooks/useWebsocket";
-import {
-  clearSelectionsAction,
-  selectSelections,
-  useSelectionStore,
-} from "@/store/useSelection";
+import { clearSelectionsAction, selectSelections, useSelectionStore } from "@/store/useSelection";
 import SelectionPill from "./SelectionPill";
 import ImageAttachmentPill from "./ImageAttachmentPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
@@ -54,9 +50,7 @@ interface AIControllerProps {
   onMessagesChange?: (messages: Message[]) => void;
   initialMessage?: string;
   onInitialMessageSent?: () => void;
-  onBatchShapeImageUrlUpdate?: (
-    updates: { shapeId: string; imageUrl: string }[]
-  ) => void;
+  onBatchShapeImageUrlUpdate?: (updates: { shapeId: string; imageUrl: string }[]) => void;
   onExportCanvas?: () => void;
 }
 
@@ -133,9 +127,7 @@ function AIController({
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const selections = useSelectionStore(selectSelections);
-  const clearSelectionById = useSelectionStore(
-    (state) => state.clearSelectionById
-  );
+  const clearSelectionById = useSelectionStore((state) => state.clearSelectionById);
   const selectionsContainerRef = useRef<HTMLDivElement>(null);
 
   // Image attachments hook
@@ -151,8 +143,7 @@ function AIController({
   // Auto-scroll to latest selection
   useEffect(() => {
     if (selectionsContainerRef.current && selections.length > 0) {
-      selectionsContainerRef.current.scrollLeft =
-        selectionsContainerRef.current.scrollWidth;
+      selectionsContainerRef.current.scrollLeft = selectionsContainerRef.current.scrollWidth;
     }
   }, [selections]);
 
@@ -277,15 +268,11 @@ Type \`/\` to see available commands.`,
 
         const results = await Promise.allSettled(uploadPromises);
         uploadedImageUrls = results
-          .filter(
-            (r): r is PromiseFulfilledResult<string> => r.status === "fulfilled"
-          )
+          .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
           .map((r) => r.value);
 
         // Check if any uploads failed
-        const failedCount = results.filter(
-          (r) => r.status === "rejected"
-        ).length;
+        const failedCount = results.filter((r) => r.status === "rejected").length;
         if (failedCount > 0) {
           toast.error(`${failedCount} image(s) failed to upload`);
         }
@@ -297,11 +284,7 @@ Type \`/\` to see available commands.`,
         }
       } catch (error) {
         console.error("Error uploading attached images:", error);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to upload attached images"
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to upload attached images");
         setLoading(false);
         return;
       }
@@ -312,47 +295,43 @@ Type \`/\` to see available commands.`,
       try {
         // Flatten all shapes from all selections and upload for each
         const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(
-            async (shape): Promise<ShapeImageData | null> => {
-              let url = shape.imageUrl;
-              const wasNewlyUploaded = !url;
+          selection.shapes.map(async (shape): Promise<ShapeImageData | null> => {
+            let url = shape.imageUrl;
+            const wasNewlyUploaded = !url;
 
-              // Upload if shape doesn't already have an imageUrl
-              if (!url) {
-                const response = await uploadSelectionImageToBackend(
-                  boardId,
-                  shape.id,
-                  selection.image.dataURL
-                );
-                url = response.url;
-              }
-
-              if (!url) return null; // Skip if still no URL
-
-              // Include selection bounds for image annotation on backend
-              return {
-                shapeId: shape.id,
-                url,
-                bounds: {
-                  minX: selection.bounds.minX,
-                  minY: selection.bounds.minY,
-                  width: selection.bounds.width,
-                  height: selection.bounds.height,
-                  padding: selection.bounds.padding,
-                },
-                wasNewlyUploaded,
-              };
+            // Upload if shape doesn't already have an imageUrl
+            if (!url) {
+              const response = await uploadSelectionImageToBackend(
+                boardId,
+                shape.id,
+                selection.image.dataURL
+              );
+              url = response.url;
             }
-          )
+
+            if (!url) return null; // Skip if still no URL
+
+            // Include selection bounds for image annotation on backend
+            return {
+              shapeId: shape.id,
+              url,
+              bounds: {
+                minX: selection.bounds.minX,
+                minY: selection.bounds.minY,
+                width: selection.bounds.width,
+                height: selection.bounds.height,
+                padding: selection.bounds.padding,
+              },
+              wasNewlyUploaded,
+            };
+          })
         );
 
         const results = await Promise.all(uploadPromises);
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
 
         // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
-        const newlyUploadedShapes = shapeImageUrls.filter(
-          (r) => r.wasNewlyUploaded
-        );
+        const newlyUploadedShapes = shapeImageUrls.filter((r) => r.wasNewlyUploaded);
         if (newlyUploadedShapes.length > 0) {
           const updates = newlyUploadedShapes.map((r) => ({
             shapeId: r.shapeId,
@@ -362,19 +341,14 @@ Type \`/\` to see available commands.`,
         }
       } catch (error) {
         console.error("Error uploading selection images:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to upload images"
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to upload images");
       }
     }
 
     // Step 3: All uploads complete - NOW add user message to UI
     const humanMessageId = uuidv4();
     humanMessageIdRef.current = humanMessageId;
-    setMessages((msgs) => [
-      ...msgs,
-      { uuid: humanMessageId, role: "user", content: text },
-    ]);
+    setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
     // Step 4: Send message via websocket
     try {
@@ -402,9 +376,7 @@ Type \`/\` to see available commands.`,
       clearAttachments();
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to send message"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
       humanMessageIdRef.current = null;
       return;
     } finally {
@@ -419,10 +391,7 @@ Type \`/\` to see available commands.`,
     // Add user message with temporary UUID
     const humanMessageId = uuidv4();
     humanMessageIdRef.current = humanMessageId;
-    setMessages((msgs) => [
-      ...msgs,
-      { uuid: humanMessageId, role: "user", content: text },
-    ]);
+    setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
     const settings = localStorage.getItem("settings");
     if (!settings) return;
@@ -449,47 +418,43 @@ Type \`/\` to see available commands.`,
     if (selections.length > 0) {
       try {
         const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(
-            async (shape): Promise<ShapeImageData | null> => {
-              let url = shape.imageUrl;
-              const wasNewlyUploaded = !url;
+          selection.shapes.map(async (shape): Promise<ShapeImageData | null> => {
+            let url = shape.imageUrl;
+            const wasNewlyUploaded = !url;
 
-              // Upload if shape doesn't already have an imageUrl
-              if (!url) {
-                const response = await uploadSelectionImageToBackend(
-                  boardId,
-                  shape.id,
-                  selection.image.dataURL
-                );
-                url = response.url;
-              }
-
-              if (!url) return null; // Skip if still no URL
-
-              // Include selection bounds for image annotation on backend
-              return {
-                shapeId: shape.id,
-                url,
-                bounds: {
-                  minX: selection.bounds.minX,
-                  minY: selection.bounds.minY,
-                  width: selection.bounds.width,
-                  height: selection.bounds.height,
-                  padding: selection.bounds.padding,
-                },
-                wasNewlyUploaded,
-              };
+            // Upload if shape doesn't already have an imageUrl
+            if (!url) {
+              const response = await uploadSelectionImageToBackend(
+                boardId,
+                shape.id,
+                selection.image.dataURL
+              );
+              url = response.url;
             }
-          )
+
+            if (!url) return null; // Skip if still no URL
+
+            // Include selection bounds for image annotation on backend
+            return {
+              shapeId: shape.id,
+              url,
+              bounds: {
+                minX: selection.bounds.minX,
+                minY: selection.bounds.minY,
+                width: selection.bounds.width,
+                height: selection.bounds.height,
+                padding: selection.bounds.padding,
+              },
+              wasNewlyUploaded,
+            };
+          })
         );
 
         const results = await Promise.all(uploadPromises);
         shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
 
         // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
-        const newlyUploadedShapes = shapeImageUrls.filter(
-          (r) => r.wasNewlyUploaded
-        );
+        const newlyUploadedShapes = shapeImageUrls.filter((r) => r.wasNewlyUploaded);
         if (newlyUploadedShapes.length > 0) {
           const updates = newlyUploadedShapes.map((r) => ({
             shapeId: r.shapeId,
@@ -499,9 +464,7 @@ Type \`/\` to see available commands.`,
         }
       } catch (error) {
         console.error("Error uploading selection images:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to upload images"
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to upload images");
       }
     }
 
@@ -527,9 +490,7 @@ Type \`/\` to see available commands.`,
       clearAttachments();
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to send message"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
       humanMessageIdRef.current = null;
     } finally {
       setLoading(false);
@@ -560,80 +521,68 @@ Type \`/\` to see available commands.`,
       aiMessageIdRef.current = aiId;
     });
 
-    const unsubscribeChatCompleted = subscribe(
-      "chat_completed",
-      (data: ChatResponse) => {
-        setIsMessageLoading(false);
-        setLoading(false);
+    const unsubscribeChatCompleted = subscribe("chat_completed", (data: ChatResponse) => {
+      setIsMessageLoading(false);
+      setLoading(false);
 
-        const { ai_message_id, human_message_id } = data.data;
+      const { ai_message_id, human_message_id } = data.data;
 
-        if (ai_message_id && human_message_id) {
-          // Update both message UUIDs with the actual IDs from backend
-          setMessages((msgs) =>
-            msgs.map((msg) => {
-              // Update human message UUID
-              if (
-                msg.uuid === humanMessageIdRef.current &&
-                msg.role === "user"
-              ) {
-                humanMessageIdRef.current = null;
-                return { ...msg, uuid: human_message_id };
-              }
-              // Update AI message UUID
-              if (
-                msg.uuid === aiMessageIdRef.current &&
-                msg.role === "assistant"
-              ) {
-                aiMessageIdRef.current = null;
-                return { ...msg, uuid: ai_message_id };
-              }
-              return msg;
-            })
-          );
+      if (ai_message_id && human_message_id) {
+        // Update both message UUIDs with the actual IDs from backend
+        setMessages((msgs) =>
+          msgs.map((msg) => {
+            // Update human message UUID
+            if (msg.uuid === humanMessageIdRef.current && msg.role === "user") {
+              humanMessageIdRef.current = null;
+              return { ...msg, uuid: human_message_id };
+            }
+            // Update AI message UUID
+            if (msg.uuid === aiMessageIdRef.current && msg.role === "assistant") {
+              aiMessageIdRef.current = null;
+              return { ...msg, uuid: ai_message_id };
+            }
+            return msg;
+          })
+        );
+      }
+
+      aiMessageIdRef.current = null;
+      humanMessageIdRef.current = null;
+    });
+
+    const unsubscribeChatResponse = subscribe("chat_response", (data: ChatResponse) => {
+      const { message } = data.data;
+
+      const currentAiId = aiMessageIdRef.current;
+      if (!currentAiId) return;
+
+      setMessages((msgs) => {
+        // Check if the AI message already exists
+        const existingMessage = msgs.find(
+          (msg) => msg.uuid === currentAiId && msg.role === "assistant"
+        );
+
+        if (existingMessage) {
+          // Message exists, append new chunk to existing content
+          return msgs.map((msg) => {
+            if (msg.uuid === currentAiId && msg.role === "assistant") {
+              return { ...msg, content: msg.content + message };
+            }
+            return msg;
+          });
+        } else {
+          // First chunk - create the message with this chunk
+          return [
+            ...msgs,
+            {
+              uuid: currentAiId,
+              role: "assistant",
+              content: message, // First chunk becomes the initial content
+            },
+          ];
         }
-
-        aiMessageIdRef.current = null;
-        humanMessageIdRef.current = null;
-      }
-    );
-
-    const unsubscribeChatResponse = subscribe(
-      "chat_response",
-      (data: ChatResponse) => {
-        const { message } = data.data;
-
-        const currentAiId = aiMessageIdRef.current;
-        if (!currentAiId) return;
-
-        setMessages((msgs) => {
-          // Check if the AI message already exists
-          const existingMessage = msgs.find(
-            (msg) => msg.uuid === currentAiId && msg.role === "assistant"
-          );
-
-          if (existingMessage) {
-            // Message exists, append new chunk to existing content
-            return msgs.map((msg) => {
-              if (msg.uuid === currentAiId && msg.role === "assistant") {
-                return { ...msg, content: msg.content + message };
-              }
-              return msg;
-            });
-          } else {
-            // First chunk - create the message with this chunk
-            return [
-              ...msgs,
-              {
-                uuid: currentAiId,
-                role: "assistant",
-                content: message, // First chunk becomes the initial content
-              },
-            ];
-          }
-        });
-      }
-    );
+      });
+    });
 
     const unsubscribeChatError = subscribe("error", () => {
       setIsMessageLoading(false);
@@ -641,9 +590,7 @@ Type \`/\` to see available commands.`,
 
       // Remove the empty AI message if it exists
       if (aiMessageIdRef.current) {
-        setMessages((msgs) =>
-          msgs.filter((msg) => msg.uuid !== aiMessageIdRef.current)
-        );
+        setMessages((msgs) => msgs.filter((msg) => msg.uuid !== aiMessageIdRef.current));
       }
 
       aiMessageIdRef.current = null;
@@ -695,18 +642,14 @@ Type \`/\` to see available commands.`,
         background: isDark ? "rgba(50, 51, 50, 0.5)" : "rgba(220, 220, 220, 0)",
         backdropFilter: "saturate(180%) blur(12px)",
         WebkitBackdropFilter: "saturate(180%) blur(12px)",
-        borderColor: isDark
-          ? "rgba(107, 114, 128, 0.3)"
-          : "rgba(209, 213, 219, 0.3)",
+        borderColor: isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)",
       }}
     >
       <h4
         className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
         style={{
           fontFamily: '"DM Serif Text", serif',
-          background: isDark
-            ? "rgba(50, 51, 50, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
+          background: isDark ? "rgba(50, 51, 50, 0.8)" : "rgba(255, 255, 255, 0.8)",
           backdropFilter: "saturate(180%) blur(12px)",
           WebkitBackdropFilter: "saturate(180%) blur(12px)",
         }}
@@ -726,9 +669,9 @@ Type \`/\` to see available commands.`,
               const isLatestAI =
                 msg.role === "assistant" &&
                 index ===
-                messages.length -
-                1 -
-                [...messages].reverse().findIndex((m) => m.role === "assistant");
+                  messages.length -
+                    1 -
+                    [...messages].reverse().findIndex((m) => m.role === "assistant");
               return (
                 <div key={msg.uuid}>
                   <ChatMessage
@@ -771,12 +714,8 @@ Type \`/\` to see available commands.`,
         <div
           className="flex flex-col rounded-md border"
           style={{
-            background: isDark
-              ? "rgba(40, 40, 40, 0.9)"
-              : "rgba(255, 255, 255, 0.9)",
-            borderColor: isDark
-              ? "rgba(107, 114, 128, 0.4)"
-              : "rgba(209, 213, 219, 0.6)",
+            background: isDark ? "rgba(40, 40, 40, 0.9)" : "rgba(255, 255, 255, 0.9)",
+            borderColor: isDark ? "rgba(107, 114, 128, 0.4)" : "rgba(209, 213, 219, 0.6)",
           }}
         >
           {/* Selection pills and image attachment pills */}
@@ -838,9 +777,7 @@ Type \`/\` to see available commands.`,
                   }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleSubmit(
-                      e as unknown as React.FormEvent<HTMLFormElement>
-                    );
+                    handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                   }
                 }}
                 onPaste={(e) => {
@@ -890,10 +827,11 @@ Type \`/\` to see available commands.`,
                   if (tokenStatus?.type === "blocked") return;
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
-                  }`}
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
+                  loading || tokenStatus?.type === "blocked"
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
               >
                 {loading ? (
                   <Spinner

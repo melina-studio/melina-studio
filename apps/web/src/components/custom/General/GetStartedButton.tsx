@@ -10,10 +10,7 @@ interface GetStartedButtonProps {
   className?: string;
 }
 
-export function GetStartedButton({
-  children,
-  className,
-}: GetStartedButtonProps) {
+export function GetStartedButton({ children, className }: GetStartedButtonProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
@@ -40,11 +37,7 @@ export function GetStartedButton({
   };
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isChecking}
-      className={className}
-    >
+    <button onClick={handleClick} disabled={isChecking} className={className}>
       {children}
     </button>
   );

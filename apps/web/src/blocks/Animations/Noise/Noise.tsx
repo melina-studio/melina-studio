@@ -73,13 +73,7 @@ const Noise: React.FC<NoiseProps> = ({
       window.removeEventListener("resize", resize);
       window.cancelAnimationFrame(animationId);
     };
-  }, [
-    patternSize,
-    patternScaleX,
-    patternScaleY,
-    patternRefreshInterval,
-    patternAlpha,
-  ]);
+  }, [patternSize, patternScaleX, patternScaleY, patternRefreshInterval, patternAlpha]);
 
   return (
     <canvas
