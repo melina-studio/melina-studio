@@ -26,7 +26,7 @@ const PLANS: Plan[] = [
   {
     id: "pro",
     name: "Pro",
-    price: "$19",
+    price: "$10",
     period: "per month",
     tokenLimit: "1M tokens/month",
     features: [
@@ -39,7 +39,7 @@ const PLANS: Plan[] = [
   {
     id: "premium",
     name: "Premium",
-    price: "$49",
+    price: "$30",
     period: "per month",
     tokenLimit: "10M tokens/month",
     features: [
