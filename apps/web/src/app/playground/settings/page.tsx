@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,9 +16,20 @@ import {
 } from "@/components/custom/Settings";
 import type { SettingsSection } from "@/components/custom/Settings";
 
+const VALID_SECTIONS: SettingsSection[] = ["general", "melina", "usage", "analytics", "melina-mcp", "billing", "about"];
+
 export default function Settings() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+
+    // Handle tab query parameter on mount
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab && VALID_SECTIONS.includes(tab as SettingsSection)) {
+            setActiveSection(tab as SettingsSection);
+        }
+    }, [searchParams]);
 
     const renderContent = () => {
         switch (activeSection) {

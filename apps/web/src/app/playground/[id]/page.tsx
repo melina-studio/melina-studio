@@ -392,8 +392,8 @@ export default function BoardPage() {
         stateToPush !== undefined
           ? cloneShapes(stateToPush)
           : cur.past.length === 0 && cur.present.length === 0
-          ? []
-          : cloneShapes(cur.present);
+            ? []
+            : cloneShapes(cur.present);
 
       const nextPast = [...cur.past, stateToPushToHistory].slice(
         -HISTORY_LIMIT
@@ -828,9 +828,8 @@ export default function BoardPage() {
       <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97%]">
         {/* ai controller toggle icon */}
         <div
-          className={`${
-            showAiController ? "bg-gray-200" : "bg-white"
-          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
+          className={`${showAiController ? "bg-gray-200" : "bg-white"
+            } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
           onClick={() => setShowAiController((v) => !v)}
         >
           <Image
@@ -842,11 +841,10 @@ export default function BoardPage() {
         </div>
         {/* ai controller */}
         <div
-          className={`h-full transition-all duration-300 ease-out ${
-            showAiController
-              ? "opacity-100 translate-x-0 scale-100"
-              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
-          }`}
+          className={`h-full transition-all duration-300 ease-out ${showAiController
+            ? "opacity-100 translate-x-0 scale-100"
+            : "opacity-0 translate-x-4 scale-95 pointer-events-none"
+            }`}
         >
           {showAiController && (
             <AIController

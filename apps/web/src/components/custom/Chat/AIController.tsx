@@ -21,6 +21,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useMentionCommand } from "@/hooks/useMentionCommand";
 import { useImageAttachments } from "@/hooks/useImageAttachments";
+import { TokenBlockedPayload, TokenWarningPayload } from "@/lib/types";
+import { useAuth } from "@/providers/AuthProvider";
+import WarningBlock from "./WarningBlock";
 
 type Message = {
   uuid: string;
@@ -67,6 +70,39 @@ function AIController({
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState<{
+    type: "warning" | "blocked" | null;
+    consumed: number;
+    limit: number;
+    remaining: number;
+  } | null>(null);
+  const { user } = useAuth();
+
+  // Check token status on mount based on user data
+  useEffect(() => {
+    if (user && user.token_limit > 0) {
+      const consumed = user.tokens_consumed || 0;
+      const limit = user.token_limit;
+      const percentage = (consumed / limit) * 100;
+      const remaining = Math.max(0, limit - consumed);
+
+      if (percentage >= 100) {
+        setTokenStatus({
+          type: "blocked",
+          consumed,
+          limit,
+          remaining: 0,
+        });
+      } else if (percentage >= 80) {
+        setTokenStatus({
+          type: "warning",
+          consumed,
+          limit,
+          remaining,
+        });
+      }
+    }
+  }, [user]);
 
   // Sync chatHistory from parent to local state when it changes
   // This handles the case where API fetches messages after component mounts
@@ -189,6 +225,7 @@ Type \`/\` to see available commands.`,
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (tokenStatus?.type === "blocked") return;
     const text = textareaRef.current?.value.trim();
     if (!text) return;
 
@@ -377,7 +414,7 @@ Type \`/\` to see available commands.`,
 
   // Function to send a message programmatically (for initial message)
   const sendMessageProgrammatically = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || tokenStatus?.type === "blocked") return;
 
     // Add user message with temporary UUID
     const humanMessageId = uuidv4();
@@ -613,11 +650,37 @@ Type \`/\` to see available commands.`,
       humanMessageIdRef.current = null;
     });
 
+    const unsubscribeTokenWarning = subscribe(
+      "token_warning",
+      (data: { data: TokenWarningPayload }) => {
+        setTokenStatus({
+          type: "warning",
+          consumed: data.data.consumed_tokens,
+          limit: data.data.total_limit,
+          remaining: data.data.total_limit - data.data.consumed_tokens,
+        });
+      }
+    );
+
+    const unsubscribeTokenBlocked = subscribe(
+      "token_blocked",
+      (data: { data: TokenBlockedPayload }) => {
+        setTokenStatus({
+          type: "blocked",
+          consumed: data.data.consumed_tokens,
+          limit: data.data.total_limit,
+          remaining: 0,
+        });
+      }
+    );
+
     return () => {
       unsubscribeChatStart();
       unsubscribeChatCompleted();
       unsubscribeChatResponse();
       unsubscribeChatError();
+      unsubscribeTokenWarning();
+      unsubscribeTokenBlocked();
     };
   }, [subscribe]);
 
@@ -663,9 +726,9 @@ Type \`/\` to see available commands.`,
               const isLatestAI =
                 msg.role === "assistant" &&
                 index ===
-                  messages.length -
-                    1 -
-                    [...messages].reverse().findIndex((m) => m.role === "assistant");
+                messages.length -
+                1 -
+                [...messages].reverse().findIndex((m) => m.role === "assistant");
               return (
                 <div key={msg.uuid}>
                   <ChatMessage
@@ -701,6 +764,10 @@ Type \`/\` to see available commands.`,
 
       {/* text input */}
       <div className="sticky bottom-0 p-3 z-10">
+        {/* Token status banner */}
+        {tokenStatus && (
+          <WarningBlock isDark={isDark} tokenStatus={tokenStatus} setTokenStatus={setTokenStatus} />
+        )}
         <div
           className="flex flex-col rounded-md border"
           style={{
@@ -750,10 +817,14 @@ Type \`/\` to see available commands.`,
               <textarea
                 ref={textareaRef}
                 name="message"
-                placeholder="Plan, type / for commands"
+                placeholder={
+                  tokenStatus?.type === "blocked"
+                    ? "Token limit reached. Add credits to continue."
+                    : "Plan, type / for commands"
+                }
                 className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px] placeholder:text-gray-500"
                 rows={1}
-                disabled={loading}
+                disabled={loading || tokenStatus?.type === "blocked"}
                 onInput={(e) => {
                   const el = e.target as HTMLTextAreaElement;
                   el.style.height = "auto";
@@ -807,23 +878,22 @@ Type \`/\` to see available commands.`,
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-0.5 cursor-pointer rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="p-0.5 cursor-pointer rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Attach images"
-                  disabled={loading}
+                  disabled={loading || tokenStatus?.type === "blocked"}
                 >
                   <Paperclip className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
               <div
-                onClick={(e: React.MouseEvent<HTMLDivElement>) =>
-                  handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
-                }
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
-                  loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                }`}
-                style={{
-                  opacity: loading ? 0.5 : 1,
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                  if (tokenStatus?.type === "blocked") return;
+                  handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
+                  }`}
               >
                 {loading ? (
                   <Spinner

@@ -12,6 +12,8 @@ export type WebSocketMessage = {
     | "shape_start"
     | "shape_updated"
     | "shape_update_start"
-    | "shape_deleted";
+    | "shape_deleted"
+    | "token_warning"
+    | "token_blocked"
   data: any;
 };

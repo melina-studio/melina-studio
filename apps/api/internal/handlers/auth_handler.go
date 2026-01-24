@@ -76,14 +76,16 @@ func clearAuthCookies(c *fiber.Ctx) {
 }
 
 type AuthHandler struct {
-	authRepo    repo.AuthRepoInterface
-	authService *service.AuthService
+	authRepo             repo.AuthRepoInterface
+	authService          *service.AuthService
+	subscriptionPlanRepo repo.SubscriptionPlanRepoInterface
 }
 
-func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService) *AuthHandler {
+func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService, subscriptionPlanRepo repo.SubscriptionPlanRepoInterface) *AuthHandler {
 	return &AuthHandler{
-		authRepo:    authRepo,
-		authService: authService,
+		authRepo:             authRepo,
+		authService:          authService,
+		subscriptionPlanRepo: subscriptionPlanRepo,
 	}
 }
 
@@ -388,8 +390,18 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	// Don't return the password
 	user.Password = nil
 
+	// Get token limit from subscription plan
+	var tokenLimit int
+	if h.subscriptionPlanRepo != nil {
+		plan, err := h.subscriptionPlanRepo.GetByPlanName(user.Subscription)
+		if err == nil {
+			tokenLimit = plan.MonthlyTokenLimit
+		}
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"user": user,
+		"user":        user,
+		"token_limit": tokenLimit,
 	})
 }
 

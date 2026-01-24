@@ -11,6 +11,19 @@ Free: 100,000 tokens/month
 Pro: 1,000,000 tokens/month
 Premium: 10,000,000 tokens/month
 On Demand: 100,000,000 tokens/month
+
+┌───────────┬─────────────┬────────┐
+  │   Plan    │ Token Limit │ Price  │
+  ├───────────┼─────────────┼────────┤
+  │ free      │ 100K/month  │ $0     │
+  ├───────────┼─────────────┼────────┤
+  │ pro       │ 1M/month    │ $19    │
+  ├───────────┼─────────────┼────────┤
+  │ premium   │ 10M/month   │ $49    │
+  ├───────────┼─────────────┼────────┤
+  │ on_demand │ 100M/month  │ Custom │
+  └───────────┴─────────────┴────────┘
+
 */
 
 type SubscriptionTier struct {
