@@ -29,7 +29,7 @@ type BadgeConfig struct {
 func DefaultBadgeConfig() BadgeConfig {
 	return BadgeConfig{
 		Radius:          16,
-		BackgroundColor: color.RGBA{255, 87, 34, 255},  // Orange-red (#FF5722)
+		BackgroundColor: color.RGBA{255, 87, 34, 255},   // Orange-red (#FF5722)
 		TextColor:       color.RGBA{255, 255, 255, 255}, // White
 		BorderColor:     color.RGBA{255, 255, 255, 255}, // White border
 		BorderWidth:     2,

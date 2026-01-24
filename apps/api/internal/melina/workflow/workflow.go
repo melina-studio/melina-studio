@@ -74,9 +74,8 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 		})
 	}
 
-
 	// Call the agent to process the message with boardId (for image context)
-	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message , chatHistory, boardId)
+	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, chatHistory, boardId)
 	if err != nil {
 		log.Printf("Error processing request: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -85,7 +84,7 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	}
 
 	// after get successful response, create a chat in the database
-	human_message_id , ai_message_id , err := w.chatRepo.CreateHumanAndAiMessages(boardUUID, dto.Message, aiResponse)
+	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardUUID, dto.Message, aiResponse)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to create human and ai messages: %v", err),
@@ -93,9 +92,9 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message": aiResponse,
+		"message":          aiResponse,
 		"human_message_id": human_message_id.String(),
-		"ai_message_id": ai_message_id.String(),
+		"ai_message_id":    ai_message_id.String(),
 	})
 }
 
@@ -185,15 +184,15 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	// Store token consumption in database
 	if tokenUsage != nil {
 		tokenRepo := repo.NewTokenConsumptionRepository(config.DB)
-		go tokenRepo.CreateFromUsage(userIdUUID, &boardIdUUID, &ai_message_id, LLM, cfg.Model, tokenUsage);
+		go tokenRepo.CreateFromUsage(userIdUUID, &boardIdUUID, &ai_message_id, LLM, cfg.Model, tokenUsage)
 	}
 
 	// send an event that the chat is completed
-	libraries.SendChatMessageResponse(hub , client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
-		BoardId: cfg.BoardId,
-		Message: aiResponse,
+	libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
+		BoardId:        cfg.BoardId,
+		Message:        aiResponse,
 		HumanMessageId: human_message_id.String(),
-		AiMessageId: ai_message_id.String(),
+		AiMessageId:    ai_message_id.String(),
 	})
 
 }

@@ -410,7 +410,7 @@ func (h *AuthHandler) UpdateMe(c *fiber.Ctx) error {
 			"error": "Invalid form data",
 		})
 	}
-	
+
 	payload := &models.User{}
 
 	if v, ok := form.Value["first_name"]; ok && len(v) > 0 {
@@ -462,7 +462,7 @@ func (h *AuthHandler) UpdateMe(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "User updated successfully",
-		"user": user,
+		"user":    user,
 	})
 }
 

@@ -34,12 +34,12 @@ type StreamingContext struct {
 }
 
 type LangChainConfig struct {
-	Model       string                 // e.g. "gpt-4.1", "llama-3.1-70b-versatile"
-	BaseURL     string                 // optional: for Groq or other OpenAI-compatible APIs
-	APIKey      string                 // if not set, it'll fall back to env
+	Model       string                   // e.g. "gpt-4.1", "llama-3.1-70b-versatile"
+	BaseURL     string                   // optional: for Groq or other OpenAI-compatible APIs
+	APIKey      string                   // if not set, it'll fall back to env
 	Tools       []map[string]interface{} // Tool definitions in OpenAI format
-	Temperature *float32               // Optional: nil means use default
-	MaxTokens   *int                   // Optional: nil means use default
+	Temperature *float32                 // Optional: nil means use default
+	MaxTokens   *int                     // Optional: nil means use default
 }
 
 // LangChainResponse contains the parsed response from LangChain
@@ -54,7 +54,6 @@ type LangChainFunctionCall struct {
 	Name      string
 	Arguments map[string]interface{}
 }
-
 
 func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 	opts := []openai.Option{
@@ -79,7 +78,6 @@ func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 		MaxTokens:   cfg.MaxTokens,
 	}, nil
 }
-
 
 // convertToolsToLangChainTools converts tool definitions to langchaingo format
 func convertToolsToLangChainTools(tools []map[string]interface{}) []llms.FunctionDefinition {
@@ -208,7 +206,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 		// Only handle streaming if client is provided
 		if streamCtx != nil && streamCtx.Client != nil {
 			chunkStr := string(chunk)
-			
+
 			if streamCtx.ShouldStream {
 				// Stream immediately (final iteration, no tool calls)
 				payload := &libraries.ChatMessageResponsePayload{
@@ -229,29 +227,29 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 
 	// Build call options
 	opts := []llms.CallOption{}
-	
+
 	// Add temperature if configured
 	// Note: For Groq models, slightly higher temperature (0.3-0.5) helps with tool calling
 	if c.Temperature != nil {
 		opts = append(opts, llms.WithTemperature(float64(*c.Temperature)))
 	}
-	
+
 	// Add max tokens if configured
 	if c.MaxTokens != nil {
 		opts = append(opts, llms.WithMaxTokens(*c.MaxTokens))
 	}
-	
+
 	// IMPORTANT: Always add tools if available, even if we're in a tool execution loop
 	// This ensures Groq models know tools are available on every call
 	if len(langChainTools) > 0 {
 		// WithFunctions expects a single slice, not variadic
 		opts = append(opts, llms.WithFunctions(langChainTools))
-		
+
 		// For Groq models, we can try to force tool usage by setting tool_choice
 		// This helps when the model is being "lazy" and not calling tools
 		// Note: This is OpenAI-compatible, so it should work with Groq
 		opts = append(opts, llms.WithToolChoice("auto"))
-		
+
 		fmt.Printf("[langchain] Added %d tools to call options with tool_choice=auto\n", len(langChainTools))
 
 		// Enable streaming if streaming context is provided
@@ -278,7 +276,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	}
 
 	choice := resp.Choices[0]
-	
+
 	// Extract text content
 	if choice.Content != "" {
 		lr.TextContent = append(lr.TextContent, choice.Content)
@@ -288,14 +286,14 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	// langchaingo uses OpenAI-compatible format where function calls can be:
 	// 1. Indicated by StopReason (e.g., "function_call", "tool_calls")
 	// 2. Stored in the response structure
-	
+
 	// Check StopReason for function call indicators
 	stopReason := choice.StopReason
-	isFunctionCall := stopReason == "function_call" || stopReason == "tool_calls" || 
+	isFunctionCall := stopReason == "function_call" || stopReason == "tool_calls" ||
 		stopReason == "function_calls" || strings.Contains(strings.ToLower(stopReason), "function")
-	
+
 	fmt.Printf("[langchain] StopReason: %s, isFunctionCall: %v, ToolCalls count: %d\n", stopReason, isFunctionCall, len(choice.ToolCalls))
-	
+
 	// Extract function calls from ToolCalls field
 	// langchaingo stores tool calls in choice.ToolCalls
 	if len(choice.ToolCalls) > 0 {
@@ -303,7 +301,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 			// toolCall has FunctionCall field which is a pointer to llms.FunctionCall
 			if toolCall.FunctionCall != nil {
 				var args map[string]interface{}
-				
+
 				// FunctionCall.Arguments is a JSON string, parse it
 				if toolCall.FunctionCall.Arguments != "" {
 					if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
@@ -313,7 +311,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 				} else {
 					args = make(map[string]interface{})
 				}
-				
+
 				lr.FunctionCalls = append(lr.FunctionCalls, LangChainFunctionCall{
 					Name:      toolCall.FunctionCall.Name,
 					Arguments: args,
@@ -325,23 +323,23 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 		// This handles edge cases or different langchaingo versions
 		choiceValue := reflect.ValueOf(choice).Elem()
 		choiceType := choiceValue.Type()
-		
+
 		for i := 0; i < choiceValue.NumField(); i++ {
 			field := choiceValue.Field(i)
 			fieldType := choiceType.Field(i)
-			
+
 			fieldName := strings.ToLower(fieldType.Name)
-			if strings.Contains(fieldName, "tool") || strings.Contains(fieldName, "function") || 
-			   strings.Contains(fieldName, "call") {
-				
+			if strings.Contains(fieldName, "tool") || strings.Contains(fieldName, "function") ||
+				strings.Contains(fieldName, "call") {
+
 				if field.Kind() == reflect.Slice {
 					for j := 0; j < field.Len(); j++ {
 						elem := field.Index(j)
-						
+
 						if elem.Kind() == reflect.Interface || elem.Kind() == reflect.Ptr {
 							elem = elem.Elem()
 						}
-						
+
 						if elem.Kind() == reflect.Struct {
 							// Check for FunctionCall field within the tool call
 							funcCallField := elem.FieldByName("FunctionCall")
@@ -349,11 +347,11 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 								funcCall := funcCallField.Elem()
 								nameField := funcCall.FieldByName("Name")
 								argsField := funcCall.FieldByName("Arguments")
-								
+
 								if nameField.IsValid() && nameField.Kind() == reflect.String {
 									name := nameField.String()
 									var args map[string]interface{}
-									
+
 									// Arguments is a string (JSON), not []byte
 									if argsField.IsValid() && argsField.Kind() == reflect.String {
 										argsStr := argsField.String()
@@ -361,11 +359,11 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 											json.Unmarshal([]byte(argsStr), &args)
 										}
 									}
-									
+
 									if args == nil {
 										args = make(map[string]interface{})
 									}
-									
+
 									lr.FunctionCalls = append(lr.FunctionCalls, LangChainFunctionCall{
 										Name:      name,
 										Arguments: args,
@@ -377,13 +375,13 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 				}
 			}
 		}
-		
+
 		// If we still didn't find function calls, log for debugging
 		if len(lr.FunctionCalls) == 0 {
 			fmt.Printf("[langchain] StopReason indicates function call (%s) but couldn't extract function calls. Response structure: %+v\n", stopReason, choice)
 		}
 	}
-	
+
 	// Log final function call count
 	if len(lr.FunctionCalls) > 0 {
 		fmt.Printf("[langchain] Extracted %d function calls: %v\n", len(lr.FunctionCalls), lr.FunctionCalls)
@@ -403,10 +401,10 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *LangChainResponse
-	
+
 	// Accumulate token usage across all iterations
 	var totalPromptTokens, totalCompletionTokens int
-	
+
 	for iter := 0; iter < maxIterations; iter++ {
 		// Prepare streaming context for this iteration
 		var currentStreamCtx *StreamingContext
@@ -421,14 +419,14 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 				ShouldStream:   false, // Start with buffering - we'll decide after the call
 			}
 		}
-		
+
 		// Make the call with streaming enabled (but buffered)
 		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx)
 		if err != nil {
 			return nil, fmt.Errorf("callLangChainWithMessages: %w", err)
 		}
 		lastResp = lr
-		
+
 		// Accumulate token usage from this iteration
 		if lr.RawResponse != nil && len(lr.RawResponse.Choices) > 0 {
 			choice := lr.RawResponse.Choices[0]
@@ -439,7 +437,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 				if completionTokens, ok := choice.GenerationInfo["CompletionTokens"].(int); ok {
 					totalCompletionTokens += completionTokens
 				}
-				fmt.Printf("[langchain] Iteration %d token usage: prompt=%d, completion=%d (cumulative: prompt=%d, completion=%d)\n", 
+				fmt.Printf("[langchain] Iteration %d token usage: prompt=%d, completion=%d (cumulative: prompt=%d, completion=%d)\n",
 					iter+1, totalPromptTokens, totalCompletionTokens, totalPromptTokens, totalCompletionTokens)
 			}
 		}
@@ -455,10 +453,10 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 				choice.GenerationInfo["PromptTokens"] = totalPromptTokens
 				choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
 				choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
-				fmt.Printf("[langchain] Final cumulative usage: prompt=%d, completion=%d, total=%d\n", 
+				fmt.Printf("[langchain] Final cumulative usage: prompt=%d, completion=%d, total=%d\n",
 					totalPromptTokens, totalCompletionTokens, totalPromptTokens+totalCompletionTokens)
 			}
-			
+
 			// Final iteration - send all buffered chunks to the client
 			if currentStreamCtx != nil && len(currentStreamCtx.BufferedChunks) > 0 {
 				for _, chunk := range currentStreamCtx.BufferedChunks {
@@ -473,7 +471,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			}
 			return lr, nil
 		}
-		
+
 		// There are tool calls - discard buffered chunks (they were tool-related)
 		// The buffered chunks will be ignored since we're in an intermediate iteration
 
@@ -500,12 +498,12 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			functionResults = append(functionResults, funcResp)
 			imageContentBlocks = append(imageContentBlocks, imgBlocks...)
 		}
-		
+
 		fmt.Printf("[langchain] Tool results formatted: %+v\n", functionResults)
 
 		// Don't add assistant message with function calls to history
 		// The model already knows it made the call, we just need to provide the result
-		
+
 		// Append user message with function results as simple text
 		// Combine all tool results into a single clear message
 		var toolResultTexts []string
@@ -514,7 +512,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 				toolResultTexts = append(toolResultTexts, textContent)
 			}
 		}
-		
+
 		if len(toolResultTexts) > 0 {
 			combinedResult := strings.Join(toolResultTexts, "\n")
 			workingMessages = append(workingMessages, Message{
@@ -580,7 +578,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		}
 		return lastResp, nil
 	}
-	
+
 	// Accumulate tokens from the final call
 	if finalResp.RawResponse != nil && len(finalResp.RawResponse.Choices) > 0 {
 		choice := finalResp.RawResponse.Choices[0]
@@ -593,7 +591,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			}
 		}
 	}
-	
+
 	// Store cumulative usage in the final response
 	if finalResp.RawResponse != nil && len(finalResp.RawResponse.Choices) > 0 {
 		choice := finalResp.RawResponse.Choices[0]
@@ -603,7 +601,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		choice.GenerationInfo["PromptTokens"] = totalPromptTokens
 		choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
 		choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
-		fmt.Printf("[langchain] Final cumulative usage (with summary): prompt=%d, completion=%d, total=%d\n", 
+		fmt.Printf("[langchain] Final cumulative usage (with summary): prompt=%d, completion=%d, total=%d\n",
 			totalPromptTokens, totalCompletionTokens, totalPromptTokens+totalCompletionTokens)
 	}
 
@@ -720,7 +718,7 @@ func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *librarie
 			UserID:  client.UserID,
 		}
 	}
-	
+
 	// Capture the last user message as input for token counting
 	for _, m := range messages {
 		if m.Role == models.RoleUser {
@@ -729,7 +727,7 @@ func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *librarie
 			}
 		}
 	}
-	
+
 	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
 	if err != nil {
 		return nil, err
@@ -738,7 +736,7 @@ func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *librarie
 	if len(resp.TextContent) == 0 {
 		return nil, fmt.Errorf("langchain returned no text content")
 	}
-	
+
 	// Extract token usage from response
 	tokenUsage := ExtractLangChainUsage(resp, inputText)
 

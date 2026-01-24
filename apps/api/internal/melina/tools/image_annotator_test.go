@@ -1,11 +1,11 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
-	"bytes"
 	"testing"
 )
 

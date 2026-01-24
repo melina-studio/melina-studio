@@ -8,20 +8,20 @@ import (
 )
 
 type TokenHandler struct {
-    tokenRepo repo.TokenConsumptionRepoInterface
+	tokenRepo repo.TokenConsumptionRepoInterface
 }
 
 func NewTokenHandler(tokenRepo repo.TokenConsumptionRepoInterface) *TokenHandler {
-    return &TokenHandler{tokenRepo: tokenRepo}
+	return &TokenHandler{tokenRepo: tokenRepo}
 }
 
 func (h *TokenHandler) GetTokenConsumption(c *fiber.Ctx) error {
-    userID, err := uuid.Parse(c.Locals("userID").(string))
-    if err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "Invalid user ID",
-        })
-    }
+	userID, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
 
 	totalTokens, err := h.tokenRepo.GetUserTotal(userID)
 	if err != nil {

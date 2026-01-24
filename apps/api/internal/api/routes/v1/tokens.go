@@ -9,8 +9,8 @@ import (
 )
 
 func registerTokens(app fiber.Router) {
-    tokenRepo := repo.NewTokenConsumptionRepository(config.DB)
-    tokenHandler := handlers.NewTokenHandler(tokenRepo)
-    
-    app.Get("/tokens/usage", tokenHandler.GetTokenConsumption)
+	tokenRepo := repo.NewTokenConsumptionRepository(config.DB)
+	tokenHandler := handlers.NewTokenHandler(tokenRepo)
+
+	app.Get("/tokens/usage", tokenHandler.GetTokenConsumption)
 }

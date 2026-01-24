@@ -15,22 +15,22 @@ import (
 
 // WebSocketMessage represents the standard structure for all websocket messages
 type WebSocketMessageType string
-const (
-	WebSocketMessageTypePing WebSocketMessageType = "ping"
-	WebSocketMessageTypePong WebSocketMessageType = "pong"
-	WebSocketMessageTypeError WebSocketMessageType = "error"
-	WebSocketMessageTypeMessage WebSocketMessageType = "chat_message"
-	WebSocketMessageTypeChatResponse WebSocketMessageType = "chat_response"
-	WebSocketMessageTypeChatStarting WebSocketMessageType = "chat_starting"
-	WebSocketMessageTypeChatCompleted WebSocketMessageType = "chat_completed"
-	WebSocketMessageTypeShapeStart WebSocketMessageType = "shape_start"
-	WebSocketMessageTypeShapeCreated WebSocketMessageType = "shape_created"
-	WebSocketMessageTypeShapeUpdateStart WebSocketMessageType = "shape_update_start"
-	WebSocketMessageTypeShapeUpdated WebSocketMessageType = "shape_updated"
-	WebSocketMessageTypeShapeDeleted WebSocketMessageType = "shape_deleted"
-	WebSocketMessageTypeBoardRenamed WebSocketMessageType = "board_renamed"
-)
 
+const (
+	WebSocketMessageTypePing             WebSocketMessageType = "ping"
+	WebSocketMessageTypePong             WebSocketMessageType = "pong"
+	WebSocketMessageTypeError            WebSocketMessageType = "error"
+	WebSocketMessageTypeMessage          WebSocketMessageType = "chat_message"
+	WebSocketMessageTypeChatResponse     WebSocketMessageType = "chat_response"
+	WebSocketMessageTypeChatStarting     WebSocketMessageType = "chat_starting"
+	WebSocketMessageTypeChatCompleted    WebSocketMessageType = "chat_completed"
+	WebSocketMessageTypeShapeStart       WebSocketMessageType = "shape_start"
+	WebSocketMessageTypeShapeCreated     WebSocketMessageType = "shape_created"
+	WebSocketMessageTypeShapeUpdateStart WebSocketMessageType = "shape_update_start"
+	WebSocketMessageTypeShapeUpdated     WebSocketMessageType = "shape_updated"
+	WebSocketMessageTypeShapeDeleted     WebSocketMessageType = "shape_deleted"
+	WebSocketMessageTypeBoardRenamed     WebSocketMessageType = "board_renamed"
+)
 
 type Client struct {
 	ID     string
@@ -186,7 +186,7 @@ func sendPongMessage(hub *Hub, client *Client) {
 	hub.SendMessage(client, pongBytes)
 }
 
-// Send event type 
+// Send event type
 func SendEventType(hub *Hub, client *Client, eventType WebSocketMessageType) {
 	eventTypeResp := WebSocketMessage{
 		Type: eventType,
@@ -232,7 +232,6 @@ func SendShapeCreatedMessage(hub *Hub, client *Client, boardId string, shape map
 	}
 	hub.SendMessage(client, shapeCreatedBytes)
 }
-
 
 // SendShapeUpdatedMessage sends a shape updated message to a client
 func SendShapeUpdatedMessage(hub *Hub, client *Client, boardId string, shape map[string]interface{}) {
@@ -284,7 +283,6 @@ func SendBoardRenamedMessage(hub *Hub, client *Client, boardId string, newName s
 	}
 	hub.SendMessage(client, boardRenamedBytes)
 }
-
 
 // parseWebSocketMessage parses incoming websocket message and returns the message structure
 func parseWebSocketMessage(msg []byte) (*WebSocketMessage, error) {
@@ -387,7 +385,6 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 			}
 			log.Println("received:", string(msg))
 
-			
 			// Parse message using standard interface
 			message, err := parseWebSocketMessage(msg)
 			if err != nil {
@@ -395,7 +392,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 				SendErrorMessage(hub, client, "Invalid JSON format")
 				continue
 			}
-			
+
 			// Handle ping messages
 			if message.Type == WebSocketMessageTypePing {
 				sendPongMessage(hub, client)
@@ -416,7 +413,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 					SendErrorMessage(hub, client, "Board ID is required")
 					continue
 				}
-				
+
 				fmt.Println("chatPayload", chatPayload)
 				fmt.Println("chatPayload.ActiveModel", chatPayload.ActiveModel)
 				fmt.Println("chatPayload.Temperature", chatPayload.Temperature)
@@ -445,4 +442,3 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 		conn.Close()
 	})
 }
-

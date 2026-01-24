@@ -11,8 +11,8 @@ import (
 type VertexAnthropicClient struct {
 	// optional config fields (project, modelID) if needed
 	Tools       []map[string]interface{} // optional metadata you send to Claude
-	Temperature *float32                   // Optional: nil means use default
-	MaxTokens   *int                       // Optional: nil means use default
+	Temperature *float32                 // Optional: nil means use default
+	MaxTokens   *int                     // Optional: nil means use default
 }
 
 func NewVertexAnthropicClient(tools []map[string]interface{}, temperature *float32, maxTokens *int) *VertexAnthropicClient {
@@ -95,15 +95,15 @@ func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *li
 			UserID:  client.UserID,
 		}
 	}
-	
+
 	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Extract token usage from response
 	tokenUsage := ExtractAnthropicUsage(resp, inputText)
-	
+
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
 		TokenUsage: tokenUsage,
