@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import { SettingsSection, SettingsRow } from "./SettingsSection";
 import {
   Select,
@@ -12,6 +13,9 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useModelAccess } from "@/hooks/useModelAccess";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
+import { getModelById } from "@/lib/modelUtils";
 
 interface Settings {
   activeModel: string;
@@ -27,17 +31,12 @@ const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
 };
 
-const MODEL_OPTIONS = [
-  { value: "openai", label: "OpenAI", model: "gpt-5.1" },
-  { value: "anthropic", label: "Anthropic", model: "claude-4.5-sonnet" },
-  { value: "groq", label: "Groq", model: "llama-3.3-70b" },
-  { value: "gemini", label: "Gemini", model: "gemini-2.5-flash" },
-];
-
 export function AIModelSettings() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [customRules, setCustomRules] = useState("");
   const [mounted, setMounted] = useState(false);
+
+  const { activeModel, modelsWithStatus, handleModelChange, canAccessModel } = useModelAccess();
 
   useEffect(() => {
     setMounted(true);
@@ -56,6 +55,13 @@ export function AIModelSettings() {
     // fetchCustomRules().then(rules => setCustomRules(rules));
   }, []);
 
+  // Sync activeModel from hook with local state
+  useEffect(() => {
+    if (mounted) {
+      setSettings((prev) => ({ ...prev, activeModel }));
+    }
+  }, [activeModel, mounted]);
+
   const updateSettings = (updates: Partial<Settings>) => {
     setSettings((prev) => {
       const newSettings = { ...prev, ...updates };
@@ -67,6 +73,14 @@ export function AIModelSettings() {
       }
       return newSettings;
     });
+  };
+
+  const handleModelSelect = (modelId: string) => {
+    if (!canAccessModel(modelId as ModelId)) {
+      return;
+    }
+    handleModelChange(modelId as ModelId);
+    updateSettings({ activeModel: modelId });
   };
 
   const updateCustomRules = (rules: string) => {
@@ -94,24 +108,34 @@ export function AIModelSettings() {
     );
   }
 
-  const selectedModel = MODEL_OPTIONS.find((m) => m.value === settings.activeModel);
+  const selectedModel = getModelById(settings.activeModel);
 
   return (
     <SettingsSection title="Melina" description="Configure generation parameters for Melina.">
       <SettingsRow label="Model Provider" description="Select the model provider to use.">
-        <Select
-          value={settings.activeModel}
-          onValueChange={(v) => updateSettings({ activeModel: v })}
-        >
-          <SelectTrigger className="w-full max-w-[280px]">
+        <Select value={settings.activeModel} onValueChange={handleModelSelect}>
+          <SelectTrigger className="w-full max-w-[280px] cursor-pointer">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
           <SelectContent>
-            {MODEL_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value} className="cursor-pointer">
+            {modelsWithStatus.map((model) => (
+              <SelectItem
+                key={model.id}
+                value={model.id}
+                disabled={!model.isAvailable}
+                className={`cursor-pointer ${!model.isAvailable ? "opacity-50" : ""}`}
+              >
                 <div className="flex gap-2 items-center">
-                  <span className="font-medium">{option.label}</span>
-                  <span className="text-xs text-muted-foreground">{option.model}</span>
+                  <span className={`font-medium ${!model.isAvailable ? "text-muted-foreground" : ""}`}>
+                    {model.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{model.name}</span>
+                  {!model.isAvailable && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Lock className="w-3 h-3" />
+                      {SUBSCRIPTION_TIER_DISPLAY_NAMES[model.minimumTier]}
+                    </span>
+                  )}
                 </div>
               </SelectItem>
             ))}
@@ -119,7 +143,7 @@ export function AIModelSettings() {
         </Select>
         {selectedModel && (
           <p className="text-xs text-muted-foreground mt-2">
-            Currently using: <span className="font-medium">{selectedModel.model}</span>
+            Currently using: <span className="font-medium">{selectedModel.name}</span>
           </p>
         )}
       </SettingsRow>

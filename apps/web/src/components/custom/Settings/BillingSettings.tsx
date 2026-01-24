@@ -21,16 +21,22 @@ const PLANS: Plan[] = [
     price: "$0",
     period: "forever",
     tokenLimit: "50K tokens/month",
-    features: ["50,000 tokens per month", "Basic AI assistance", "Community support"],
+    features: [
+      "50,000 tokens per month",
+      "Llama & Anthropic models",
+      "Basic AI assistance",
+      "Community support",
+    ],
   },
   {
     id: "pro",
     name: "Pro",
-    price: "$19",
+    price: "$10",
     period: "per month",
     tokenLimit: "1M tokens/month",
     features: [
       "1,000,000 tokens per month",
+      "Llama, Anthropic & Gemini models",
       "Advanced AI features",
       "Priority support",
       "Custom exports",
@@ -39,11 +45,12 @@ const PLANS: Plan[] = [
   {
     id: "premium",
     name: "Premium",
-    price: "$49",
+    price: "$30",
     period: "per month",
     tokenLimit: "10M tokens/month",
     features: [
       "10,000,000 tokens per month",
+      "All AI models (incl. OpenAI)",
       "Everything in Pro",
       "Team collaboration",
       "SSO integration",
@@ -57,6 +64,7 @@ const PLANS: Plan[] = [
     tokenLimit: "100M tokens/month",
     features: [
       "100,000,000 tokens per month",
+      "All AI models (incl. OpenAI)",
       "Everything in Premium",
       "Dedicated support",
       "Custom integrations",
@@ -107,13 +115,12 @@ export function BillingSettings() {
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${
-                usagePercentage >= 100
+              className={`h-full rounded-full transition-all ${usagePercentage >= 100
                   ? "bg-red-500"
                   : usagePercentage >= 80
                     ? "bg-yellow-500"
                     : "bg-green-500"
-              }`}
+                }`}
               style={{ width: `${Math.min(100, usagePercentage)}%` }}
             />
           </div>
@@ -130,11 +137,10 @@ export function BillingSettings() {
             return (
               <div
                 key={plan.id}
-                className={`relative rounded-lg border p-4 ${
-                  isCurrent
+                className={`relative rounded-lg border p-4 ${isCurrent
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
-                }`}
+                  }`}
               >
                 {isCurrent && (
                   <span className="absolute -top-2 right-4 text-xs px-2 py-0.5 rounded-full bg-primary text-primary-foreground">

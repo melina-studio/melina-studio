@@ -1,34 +1,7 @@
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Lock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-
-type Model = {
-  id: string;
-  name: string;
-  displayName: string;
-  dropdownName: string;
-};
-
-const MODELS: Model[] = [
-  { id: "openai", name: "gpt-5.1", displayName: "GPT 5.1", dropdownName: "openai (gpt-5.1)" },
-  {
-    id: "anthropic",
-    name: "claude-4.5-sonnet",
-    displayName: "Claude 4.5 Sonnet",
-    dropdownName: "anthropic (claude-4.5-sonnet)",
-  },
-  {
-    id: "groq",
-    name: "llama-3.3-70b-versatile",
-    displayName: "Llama 3.3 70B",
-    dropdownName: "groq (llama-3.3-70b-versatile)",
-  },
-  {
-    id: "gemini",
-    name: "gemini-2.5-flash",
-    displayName: "Gemini 2.5 Flash",
-    dropdownName: "gemini (gemini-2.5-flash)",
-  },
-];
+import { useModelAccess } from "@/hooks/useModelAccess";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
 
 type ModelSelectorProps = {
   isDark: boolean;
@@ -36,19 +9,9 @@ type ModelSelectorProps = {
 
 function ModelSelector({ isDark }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>("anthropic");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load selected model from localStorage on mount
-  useEffect(() => {
-    const settings = localStorage.getItem("settings");
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      if (parsed.activeModel) {
-        setSelectedModel(parsed.activeModel);
-      }
-    }
-  }, []);
+  const { activeModel, modelsWithStatus, handleModelChange } = useModelAccess();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -62,18 +25,14 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelectModel = (modelId: string) => {
-    setSelectedModel(modelId);
-    setIsOpen(false);
+  const handleSelectModel = (modelId: ModelId, isAvailable: boolean) => {
+    if (!isAvailable) return;
 
-    // Update localStorage
-    const settings = localStorage.getItem("settings");
-    const parsed = settings ? JSON.parse(settings) : {};
-    parsed.activeModel = modelId;
-    localStorage.setItem("settings", JSON.stringify(parsed));
+    handleModelChange(modelId);
+    setIsOpen(false);
   };
 
-  const currentModel = MODELS.find((m) => m.id === selectedModel);
+  const currentModel = modelsWithStatus.find((m) => m.id === activeModel);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -97,15 +56,28 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
         >
           {/* Model list */}
           <div className="py-0.5">
-            {MODELS.map((model) => (
+            {modelsWithStatus.map((model) => (
               <button
                 key={model.id}
-                onClick={() => handleSelectModel(model.id)}
-                className="w-full flex items-center justify-between gap-4 px-2.5 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
+                onClick={() => handleSelectModel(model.id, model.isAvailable)}
+                disabled={!model.isAvailable}
+                className={`w-full flex items-center justify-between gap-4 px-2.5 py-1.5 text-xs transition-colors ${
+                  model.isAvailable
+                    ? "hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
+                    : "opacity-50 cursor-not-allowed"
+                }`}
                 style={{ color: isDark ? "#d1d5db" : "#374151" }}
+                title={
+                  !model.isAvailable
+                    ? `Requires ${SUBSCRIPTION_TIER_DISPLAY_NAMES[model.minimumTier]} plan`
+                    : undefined
+                }
               >
-                <span className="whitespace-nowrap">{model.dropdownName}</span>
-                {selectedModel === model.id && (
+                <span className="whitespace-nowrap flex items-center gap-1.5">
+                  {model.dropdownName}
+                  {!model.isAvailable && <Lock className="w-3 h-3 text-gray-400" />}
+                </span>
+                {activeModel === model.id && model.isAvailable && (
                   <Check className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 )}
               </button>
