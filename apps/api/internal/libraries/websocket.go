@@ -30,6 +30,8 @@ const (
 	WebSocketMessageTypeShapeUpdated     WebSocketMessageType = "shape_updated"
 	WebSocketMessageTypeShapeDeleted     WebSocketMessageType = "shape_deleted"
 	WebSocketMessageTypeBoardRenamed     WebSocketMessageType = "board_renamed"
+	WebSocketMessageTypeTokenWarning     WebSocketMessageType = "token_warning"
+	WebSocketMessageTypeTokenBlocked     WebSocketMessageType = "token_blocked"
 )
 
 type Client struct {
@@ -118,6 +120,13 @@ type WorkflowConfig struct {
 type BoardRenamedPayload struct {
 	BoardId string `json:"board_id"`
 	NewName string `json:"new_name"`
+}
+
+type TokenUsagePayload struct {
+	ConsumedTokens int     `json:"consumed_tokens"`
+	TotalLimit     int     `json:"total_limit"`
+	Percentage     float64 `json:"percentage"`
+	ResetDate      string  `json:"reset_date"` // ISO 8601 format
 }
 
 func NewHub() *Hub {
@@ -282,6 +291,34 @@ func SendBoardRenamedMessage(hub *Hub, client *Client, boardId string, newName s
 		return
 	}
 	hub.SendMessage(client, boardRenamedBytes)
+}
+
+// SendTokenWarning sends a token warning message to a client (80% threshold reached)
+func SendTokenWarning(hub *Hub, client *Client, usage *TokenUsagePayload) {
+	tokenWarningResp := WebSocketMessage{
+		Type: WebSocketMessageTypeTokenWarning,
+		Data: usage,
+	}
+	tokenWarningBytes, err := json.Marshal(tokenWarningResp)
+	if err != nil {
+		log.Println("failed to marshal token warning response:", err)
+		return
+	}
+	hub.SendMessage(client, tokenWarningBytes)
+}
+
+// SendTokenBlocked sends a token blocked message to a client (100% threshold reached)
+func SendTokenBlocked(hub *Hub, client *Client, usage *TokenUsagePayload) {
+	tokenBlockedResp := WebSocketMessage{
+		Type: WebSocketMessageTypeTokenBlocked,
+		Data: usage,
+	}
+	tokenBlockedBytes, err := json.Marshal(tokenBlockedResp)
+	if err != nil {
+		log.Println("failed to marshal token blocked response:", err)
+		return
+	}
+	hub.SendMessage(client, tokenBlockedBytes)
 }
 
 // parseWebSocketMessage parses incoming websocket message and returns the message structure
