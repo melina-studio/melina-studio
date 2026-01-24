@@ -28,6 +28,7 @@ func RegisterRoutes(r fiber.Router) {
 	protected := r.Group("", auth.AuthMiddleware())
 	registerBoard(protected)
 	registerChat(protected)
+	registerTokens(protected)
 	registerAuthProtected(protected.Group("/auth"))
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	"melina-studio-backend/internal/config"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/melina/agents"
 	"melina-studio-backend/internal/repo"
@@ -147,7 +148,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	libraries.SendEventType(hub, client, libraries.WebSocketMessageTypeChatStarting)
 
 	// process the chat message - pass client and boardId for streaming
-	aiResponse, err := agent.ProcessRequestStream(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
+	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
 	if err != nil {
 		// Log the error for debugging
 		log.Printf("Error processing chat message: %v", err)
@@ -160,10 +161,13 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		// Send completion event even on error
 		libraries.SendChatMessageResponse(hub, client, libraries.WebSocketMessageTypeChatCompleted, &libraries.ChatMessageResponsePayload{
 			BoardId: cfg.BoardId,
-			Message: aiResponse,
+			Message: "",
 		})
 		return
 	}
+
+	aiResponse := responseWithUsage.Text
+	tokenUsage := responseWithUsage.TokenUsage
 
 	// Safety net: if aiResponse is empty, provide a default message to prevent database issues
 	if strings.TrimSpace(aiResponse) == "" {
@@ -176,6 +180,12 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
 		return
+	}
+
+	// Store token consumption in database
+	if tokenUsage != nil {
+		tokenRepo := repo.NewTokenConsumptionRepository(config.DB)
+		go tokenRepo.CreateFromUsage(userIdUUID, &boardIdUUID, &ai_message_id, LLM, cfg.Model, tokenUsage);
 	}
 
 	// send an event that the chat is completed

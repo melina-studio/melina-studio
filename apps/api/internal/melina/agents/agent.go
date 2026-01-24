@@ -192,6 +192,54 @@ func (a *Agent) ProcessRequestStream(
 	return response, nil
 }
 
+// ProcessRequestStreamWithUsage processes a user message and returns both the response and token usage
+func (a *Agent) ProcessRequestStreamWithUsage(
+	ctx context.Context,
+	hub *libraries.Hub,
+	client *libraries.Client,
+	message string,
+	chatHistory []llmHandlers.Message,
+	boardId string,
+	activeTheme string,
+	selections interface{},
+	uploadedImages []UploadedImage) (*llmHandlers.ResponseWithUsage, error) {
+
+	// Build messages for the LLM
+	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
+
+	// Build user message content - may include annotated images if selections provided
+	var userContent interface{}
+
+	// Check if we have annotated selections to include
+	if annotatedSelections, ok := selections.([]AnnotatedSelection); ok && len(annotatedSelections) > 0 {
+		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections, uploadedImages)
+		log.Printf("Built multimodal content with %d annotated selections and %d uploaded images", len(annotatedSelections), len(uploadedImages))
+	} else if images, ok := selections.([]ShapeImage); ok && len(images) > 0 {
+		userContent = buildMultimodalContent(message, images)
+		log.Printf("Built multimodal content with %d shape images (no annotation)", len(images))
+	} else if len(uploadedImages) > 0 {
+		userContent = buildMultimodalContentWithUploadedImages(message, uploadedImages)
+		log.Printf("Built multimodal content with %d uploaded images only (first image mimeType: %s, data length: %d)",
+			len(uploadedImages), uploadedImages[0].MimeType, len(uploadedImages[0].Base64Data))
+	} else {
+		userContent = message
+	}
+
+	messages := []llmHandlers.Message{}
+
+	if len(chatHistory) > 0 {
+		messages = append(messages, chatHistory...)
+	}
+
+	messages = append(messages, llmHandlers.Message{
+		Role:    models.RoleUser,
+		Content: userContent,
+	})
+
+	// Call the LLM with usage tracking
+	return a.llmClient.ChatStreamWithUsage(ctx, hub, client, boardId, systemMessage, messages)
+}
+
 // buildMultimodalContentWithAnnotations creates content with annotated images, TOON-formatted shape data, and uploaded images
 func buildMultimodalContentWithAnnotations(message string, selections []AnnotatedSelection, uploadedImages []UploadedImage) []map[string]interface{} {
 	content := []map[string]interface{}{}

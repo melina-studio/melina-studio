@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"melina-studio-backend/internal/libraries"
+	"melina-studio-backend/internal/models"
 	"reflect"
 	"strings"
 	"time"
@@ -402,6 +403,10 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *LangChainResponse
+	
+	// Accumulate token usage across all iterations
+	var totalPromptTokens, totalCompletionTokens int
+	
 	for iter := 0; iter < maxIterations; iter++ {
 		// Prepare streaming context for this iteration
 		var currentStreamCtx *StreamingContext
@@ -423,9 +428,37 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 			return nil, fmt.Errorf("callLangChainWithMessages: %w", err)
 		}
 		lastResp = lr
+		
+		// Accumulate token usage from this iteration
+		if lr.RawResponse != nil && len(lr.RawResponse.Choices) > 0 {
+			choice := lr.RawResponse.Choices[0]
+			if choice.GenerationInfo != nil {
+				if promptTokens, ok := choice.GenerationInfo["PromptTokens"].(int); ok {
+					totalPromptTokens += promptTokens
+				}
+				if completionTokens, ok := choice.GenerationInfo["CompletionTokens"].(int); ok {
+					totalCompletionTokens += completionTokens
+				}
+				fmt.Printf("[langchain] Iteration %d token usage: prompt=%d, completion=%d (cumulative: prompt=%d, completion=%d)\n", 
+					iter+1, totalPromptTokens, totalCompletionTokens, totalPromptTokens, totalCompletionTokens)
+			}
+		}
 
 		// If no function calls, this is the final iteration - send buffered chunks
 		if len(lr.FunctionCalls) == 0 {
+			// Store cumulative usage in the final response
+			if lr.RawResponse != nil && len(lr.RawResponse.Choices) > 0 {
+				choice := lr.RawResponse.Choices[0]
+				if choice.GenerationInfo == nil {
+					choice.GenerationInfo = make(map[string]any)
+				}
+				choice.GenerationInfo["PromptTokens"] = totalPromptTokens
+				choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
+				choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
+				fmt.Printf("[langchain] Final cumulative usage: prompt=%d, completion=%d, total=%d\n", 
+					totalPromptTokens, totalCompletionTokens, totalPromptTokens+totalCompletionTokens)
+			}
+			
 			// Final iteration - send all buffered chunks to the client
 			if currentStreamCtx != nil && len(currentStreamCtx.BufferedChunks) > 0 {
 				for _, chunk := range currentStreamCtx.BufferedChunks {
@@ -535,7 +568,43 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 
 	if err != nil {
 		fmt.Printf("[langchain] Warning: final summary call failed: %v. Returning last response.\n", err)
+		// Update lastResp with cumulative usage before returning
+		if lastResp != nil && lastResp.RawResponse != nil && len(lastResp.RawResponse.Choices) > 0 {
+			choice := lastResp.RawResponse.Choices[0]
+			if choice.GenerationInfo == nil {
+				choice.GenerationInfo = make(map[string]any)
+			}
+			choice.GenerationInfo["PromptTokens"] = totalPromptTokens
+			choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
+			choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
+		}
 		return lastResp, nil
+	}
+	
+	// Accumulate tokens from the final call
+	if finalResp.RawResponse != nil && len(finalResp.RawResponse.Choices) > 0 {
+		choice := finalResp.RawResponse.Choices[0]
+		if choice.GenerationInfo != nil {
+			if promptTokens, ok := choice.GenerationInfo["PromptTokens"].(int); ok {
+				totalPromptTokens += promptTokens
+			}
+			if completionTokens, ok := choice.GenerationInfo["CompletionTokens"].(int); ok {
+				totalCompletionTokens += completionTokens
+			}
+		}
+	}
+	
+	// Store cumulative usage in the final response
+	if finalResp.RawResponse != nil && len(finalResp.RawResponse.Choices) > 0 {
+		choice := finalResp.RawResponse.Choices[0]
+		if choice.GenerationInfo == nil {
+			choice.GenerationInfo = make(map[string]any)
+		}
+		choice.GenerationInfo["PromptTokens"] = totalPromptTokens
+		choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
+		choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
+		fmt.Printf("[langchain] Final cumulative usage (with summary): prompt=%d, completion=%d, total=%d\n", 
+			totalPromptTokens, totalCompletionTokens, totalPromptTokens+totalCompletionTokens)
 	}
 
 	// Send any buffered chunks from final response
@@ -555,6 +624,16 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 	if len(finalResp.TextContent) == 0 || (len(finalResp.TextContent) == 1 && strings.TrimSpace(finalResp.TextContent[0]) == "") {
 		fmt.Printf("[langchain] Final response has no text content. Returning last response.\n")
 		if lastResp != nil && len(lastResp.TextContent) > 0 {
+			// Update lastResp with cumulative usage before returning
+			if lastResp.RawResponse != nil && len(lastResp.RawResponse.Choices) > 0 {
+				choice := lastResp.RawResponse.Choices[0]
+				if choice.GenerationInfo == nil {
+					choice.GenerationInfo = make(map[string]any)
+				}
+				choice.GenerationInfo["PromptTokens"] = totalPromptTokens
+				choice.GenerationInfo["CompletionTokens"] = totalCompletionTokens
+				choice.GenerationInfo["TotalTokens"] = totalPromptTokens + totalCompletionTokens
+			}
 			return lastResp, nil
 		}
 		// If lastResp also has no text, add a default message
@@ -625,6 +704,48 @@ func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, cl
 	}
 
 	return "", fmt.Errorf("langchain returned no text content and no function calls")
+}
+
+func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	var streamCtx *StreamingContext
+	var inputText string
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId,
+			UserID:  client.UserID,
+		}
+	}
+	
+	// Capture the last user message as input for token counting
+	for _, m := range messages {
+		if m.Role == models.RoleUser {
+			if text, ok := m.Content.(string); ok {
+				inputText = text
+			}
+		}
+	}
+	
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.TextContent) == 0 {
+		return nil, fmt.Errorf("langchain returned no text content")
+	}
+	
+	// Extract token usage from response
+	tokenUsage := ExtractLangChainUsage(resp, inputText)
+
+	return &ResponseWithUsage{
+		Text:       resp.TextContent[0],
+		TokenUsage: tokenUsage,
+	}, nil
 }
 
 /*

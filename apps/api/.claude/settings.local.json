@@ -3,7 +3,11 @@
     "allow": [
       "Bash(go build:*)",
       "Bash(go vet:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(go mod tidy:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(go clean:*)",
+      "Bash(echo:*)"
     ]
   }
 }

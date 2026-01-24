@@ -69,6 +69,47 @@ func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.H
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
+func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+	// Convert llmMessage -> libraries.Message
+	msgs := make([]Message, 0, len(messages))
+	var inputText string
+	for _, m := range messages {
+		msgs = append(msgs, Message{
+			Role:    models.Role(m.Role),
+			Content: m.Content,
+		})
+		// Capture the last user message as input for token counting
+		if m.Role == models.RoleUser {
+			if text, ok := m.Content.(string); ok {
+				inputText = text
+			}
+		}
+	}
+
+	var streamCtx *StreamingContext
+	if client != nil {
+		streamCtx = &StreamingContext{
+			Hub:     hub,
+			Client:  client,
+			BoardId: boardId,
+			UserID:  client.UserID,
+		}
+	}
+	
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Extract token usage from response
+	tokenUsage := ExtractAnthropicUsage(resp, inputText)
+	
+	return &ResponseWithUsage{
+		Text:       strings.Join(resp.TextContent, "\n\n"),
+		TokenUsage: tokenUsage,
+	}, nil
+}
+
 /*
 
 func initVertexAnthropic() llm.Client {

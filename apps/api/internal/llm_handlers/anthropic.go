@@ -55,6 +55,24 @@ type streamEvent struct {
 	StopReason   string                 `json:"stop_reason,omitempty"`  // for message_stop
 	ContentBlock *streamContentBlockRef `json:"content_block,omitempty"` // for content_block_start
 	Index        int                    `json:"index,omitempty"`         // block index for content_block_delta
+	Message      *streamMessage         `json:"message,omitempty"`       // for message_start
+	Usage        *streamUsage           `json:"usage,omitempty"`         // for message_delta with usage
+}
+
+type streamMessage struct {
+	ID           string       `json:"id"`
+	Type         string       `json:"type"`
+	Role         string       `json:"role"`
+	Content      []interface{} `json:"content"`
+	Model        string       `json:"model"`
+	StopReason   string       `json:"stop_reason,omitempty"`
+	StopSequence string       `json:"stop_sequence,omitempty"`
+	Usage        *streamUsage `json:"usage,omitempty"`
+}
+
+type streamUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
 }
 
 type streamContentBlock struct {
@@ -301,6 +319,7 @@ func StreamClaudeWithMessages(
 	cr := &ClaudeResponse{
 		TextContent: []string{},
 		ToolUses:     []ToolUse{},
+		RawResponse: make(map[string]interface{}), // Initialize to store usage data
 	}
 
 	// Track current text block being built
@@ -311,6 +330,9 @@ func StreamClaudeWithMessages(
 	// Map of block index -> ToolUse being built
 	currentToolUseBuilders := make(map[int]*ToolUse)
 	currentToolUseInputBuilders := make(map[int]*strings.Builder) // for accumulating JSON input
+	
+	// Track usage data
+	var usageData *streamUsage
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -504,10 +526,40 @@ func StreamClaudeWithMessages(
 			currentToolUseBuilders = make(map[int]*ToolUse)
 			currentToolUseInputBuilders = make(map[int]*strings.Builder)
 
+		case "message_start":
+			// Capture initial usage data from message_start event
+			if ev.Message != nil && ev.Message.Usage != nil {
+				if usageData == nil {
+					usageData = &streamUsage{}
+				}
+				// message_start typically has input tokens
+				if ev.Message.Usage.InputTokens > 0 {
+					usageData.InputTokens = ev.Message.Usage.InputTokens
+				}
+				if ev.Message.Usage.OutputTokens > 0 {
+					usageData.OutputTokens = ev.Message.Usage.OutputTokens
+				}
+				fmt.Printf("[anthropic] message_start usage: input=%d, output=%d\n", usageData.InputTokens, usageData.OutputTokens)
+			}
+
 		case "message_delta":
-			// Message-level delta (usually contains stop_reason)
+			// Message-level delta (usually contains stop_reason and updated usage)
 			if ev.StopReason != "" {
 				cr.StopReason = ev.StopReason
+			}
+			// Merge usage data if provided (message_delta typically has output tokens)
+			if ev.Usage != nil {
+				if usageData == nil {
+					usageData = &streamUsage{}
+				}
+				// Keep input tokens from message_start, update output tokens from delta
+				if ev.Usage.InputTokens > 0 {
+					usageData.InputTokens = ev.Usage.InputTokens
+				}
+				if ev.Usage.OutputTokens > 0 {
+					usageData.OutputTokens = ev.Usage.OutputTokens
+				}
+				fmt.Printf("[anthropic] message_delta usage: input=%d, output=%d (merged)\n", usageData.InputTokens, usageData.OutputTokens)
 			}
 
 		case "content_block":
@@ -607,6 +659,17 @@ func StreamClaudeWithMessages(
 		cr.TextContent = append(cr.TextContent, accumulatedText.String())
 	}
 
+	// Store usage data in RawResponse for token extraction
+	if usageData != nil {
+		if rawMap, ok := cr.RawResponse.(map[string]interface{}); ok {
+			rawMap["usage"] = map[string]interface{}{
+				"input_tokens":  usageData.InputTokens,
+				"output_tokens": usageData.OutputTokens,
+			}
+			fmt.Printf("[anthropic] Stored usage in RawResponse: input=%d, output=%d\n", usageData.InputTokens, usageData.OutputTokens)
+		}
+	}
+
 	return cr, nil
 }
 
@@ -618,6 +681,10 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 	workingMessages = append(workingMessages, messages...)
 
 	var lastResp *ClaudeResponse
+	
+	// Accumulate token usage across all iterations
+	var totalInputTokens, totalOutputTokens int
+	
 	for iter := 0; iter < maxIterations; iter++ {
 
 		var cr *ClaudeResponse
@@ -639,9 +706,32 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		}
 
 		lastResp = cr
+		
+		// Accumulate token usage from this iteration
+		if raw, ok := cr.RawResponse.(map[string]interface{}); ok {
+			if usage, ok := raw["usage"].(map[string]interface{}); ok {
+				if inputTokens, ok := usage["input_tokens"].(int); ok {
+					totalInputTokens += inputTokens
+				}
+				if outputTokens, ok := usage["output_tokens"].(int); ok {
+					totalOutputTokens += outputTokens
+				}
+			}
+		}
+		fmt.Printf("[anthropic] Iteration %d token usage: input=%d, output=%d (cumulative: input=%d, output=%d)\n", 
+			iter+1, totalInputTokens, totalOutputTokens, totalInputTokens, totalOutputTokens)
 
 		// If no tool uses, we're done
 		if len(cr.ToolUses) == 0 {
+			// Store cumulative usage in the final response
+			if rawMap, ok := cr.RawResponse.(map[string]interface{}); ok {
+				rawMap["usage"] = map[string]interface{}{
+					"input_tokens":  totalInputTokens,
+					"output_tokens": totalOutputTokens,
+				}
+				fmt.Printf("[anthropic] Final cumulative usage: input=%d, output=%d, total=%d\n", 
+					totalInputTokens, totalOutputTokens, totalInputTokens+totalOutputTokens)
+			}
 			return cr, nil
 		}
 
@@ -738,10 +828,39 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		return lastResp, nil
 	}
 
+	// Accumulate tokens from the final call
+	if raw, ok := finalResp.RawResponse.(map[string]interface{}); ok {
+		if usage, ok := raw["usage"].(map[string]interface{}); ok {
+			if inputTokens, ok := usage["input_tokens"].(int); ok {
+				totalInputTokens += inputTokens
+			}
+			if outputTokens, ok := usage["output_tokens"].(int); ok {
+				totalOutputTokens += outputTokens
+			}
+		}
+	}
+	
+	// Store cumulative usage in the final response
+	if rawMap, ok := finalResp.RawResponse.(map[string]interface{}); ok {
+		rawMap["usage"] = map[string]interface{}{
+			"input_tokens":  totalInputTokens,
+			"output_tokens": totalOutputTokens,
+		}
+		fmt.Printf("[anthropic] Final cumulative usage (with summary): input=%d, output=%d, total=%d\n", 
+			totalInputTokens, totalOutputTokens, totalInputTokens+totalOutputTokens)
+	}
+
 	// Fallback: if final response has no text content, return lastResp or default message
 	if len(finalResp.TextContent) == 0 || (len(finalResp.TextContent) == 1 && strings.TrimSpace(finalResp.TextContent[0]) == "") {
 		fmt.Printf("[anthropic] Final response has no text content. Returning last response.\n")
 		if lastResp != nil && len(lastResp.TextContent) > 0 {
+			// Update lastResp with cumulative usage before returning
+			if rawMap, ok := lastResp.RawResponse.(map[string]interface{}); ok {
+				rawMap["usage"] = map[string]interface{}{
+					"input_tokens":  totalInputTokens,
+					"output_tokens": totalOutputTokens,
+				}
+			}
 			return lastResp, nil
 		}
 		// If lastResp also has no text, add a default message
