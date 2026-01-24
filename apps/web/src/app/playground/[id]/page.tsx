@@ -105,6 +105,8 @@ export default function BoardPage() {
   const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [chatWidth, setChatWidth] = useState(500);
+  const [hasChatResized, setHasChatResized] = useState(false);
 
   // Canvas transform state for background parallax effect
   const [canvasTransform, setCanvasTransform] = useState({
@@ -699,6 +701,8 @@ export default function BoardPage() {
         handleClearBoard={handleClearBoard}
         handleGetBoardState={handleGetBoardState}
         melinaStatus={melinaStatus}
+        chatWidth={showAiController ? chatWidth : 0}
+        hasChatResized={hasChatResized}
       />
       <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50">
         <Toaster position="top-center" gap={8} />
@@ -721,17 +725,25 @@ export default function BoardPage() {
       />
 
       {/* konva canvas */}
-      <KonvaCanvas
-        canvasRef={stageRef}
-        activeTool={activeTool}
-        setShapesWithHistory={setShapesWithHistory}
-        strokeColor={activeColor}
-        activeColor={activeColor}
-        shapes={presentShapes}
-        handleSave={handleSave}
-        onCanvasTransform={setCanvasTransform}
-        isDarkMode={resolvedTheme === "dark"}
-      />
+      <div
+        className="fixed inset-0 transition-all duration-200 ease-out"
+        style={{
+          right: showAiController ? `${chatWidth + 16}px` : "0px",
+          width: showAiController ? `calc(100% - ${chatWidth + 16}px)` : "100%",
+        }}
+      >
+        <KonvaCanvas
+          canvasRef={stageRef}
+          activeTool={activeTool}
+          setShapesWithHistory={setShapesWithHistory}
+          strokeColor={activeColor}
+          activeColor={activeColor}
+          shapes={presentShapes}
+          handleSave={handleSave}
+          onCanvasTransform={setCanvasTransform}
+          isDarkMode={resolvedTheme === "dark"}
+        />
+      </div>
 
       {/* Empty canvas state - grid and hint text */}
       {presentShapes.length === 0 && (
@@ -759,7 +771,7 @@ export default function BoardPage() {
       {/* <ElephantDrawing /> */}
 
       {/* ai controller */}
-      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97%]">
+      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97vh]">
         {/* ai controller toggle icon */}
         <div
           className={`${
@@ -784,6 +796,11 @@ export default function BoardPage() {
               initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
               onInitialMessageSent={handleInitialMessageSent}
               onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
+              width={chatWidth}
+              onWidthChange={(width) => {
+                setChatWidth(width);
+                setHasChatResized(true);
+              }}
             />
           )}
         </div>

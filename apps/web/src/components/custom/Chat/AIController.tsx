@@ -52,6 +52,8 @@ interface AIControllerProps {
   onInitialMessageSent?: () => void;
   onBatchShapeImageUrlUpdate?: (updates: { shapeId: string; imageUrl: string }[]) => void;
   onExportCanvas?: () => void;
+  width?: number;
+  onWidthChange?: (width: number) => void;
 }
 
 function AIController({
@@ -61,6 +63,8 @@ function AIController({
   onInitialMessageSent,
   onBatchShapeImageUrlUpdate,
   onExportCanvas,
+  width: controlledWidth = 500,
+  onWidthChange,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -118,6 +122,11 @@ function AIController({
   const params = useParams();
   const boardId = params?.id as string;
   const initialMessageSentRef = useRef(false);
+  
+  // Resize functionality
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const aiMessageIdRef = useRef<string | null>(null);
   const humanMessageIdRef = useRef<string | null>(null);
@@ -635,18 +644,97 @@ Type \`/\` to see available commands.`,
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Resize handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current || !onWidthChange) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      // Since resize handle is on left edge and chat is on right side, calculate width from right edge
+      const newWidth = containerRect.right - e.clientX;
+      
+      // Constrain width between initial width (500px) and 60% of viewport width
+      const minWidth = 500; // Same as first render width
+      const maxWidth = window.innerWidth * 0.6; // Maximum is 60% of screen width
+      const constrainedWidth = Math.min(Math.max(minWidth, newWidth), maxWidth);
+      onWidthChange(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      // Re-enable transitions after resize
+      if (containerRef.current) {
+        containerRef.current.style.transition = "";
+      }
+    };
+
+    if (isResizing) {
+      // Disable transitions during resize for smooth performance
+      if (containerRef.current) {
+        containerRef.current.style.transition = "none";
+      }
+      
+      document.addEventListener("mousemove", handleMouseMove, { passive: true });
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      
+      // Re-enable transitions on cleanup
+      if (containerRef.current) {
+        containerRef.current.style.transition = "";
+      }
+    };
+  }, [isResizing, onWidthChange]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
   return (
     <div
-      className="w-[500px] h-full rounded-md shadow-2xl border flex flex-col backdrop-blur-xl ease-in-out duration-300"
+      ref={containerRef}
+      className="rounded-md shadow-2xl border flex flex-col backdrop-blur-xl relative"
       style={{
+        width: `${controlledWidth}px`,
+        height: "100%",
+        maxHeight: "100%",
+        transition: "width 0.2s ease-out",
         background: isDark ? "rgba(50, 51, 50, 0.5)" : "rgba(220, 220, 220, 0)",
         backdropFilter: "saturate(180%) blur(12px)",
         WebkitBackdropFilter: "saturate(180%) blur(12px)",
         borderColor: isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)",
       }}
     >
+      {/* Resize handle on left edge (since chat opens from right) */}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleResizeStart}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:w-1.5 transition-all group z-20"
+        style={{
+          background: isDark ? "rgba(107, 114, 128, 0.2)" : "rgba(209, 213, 219, 0.2)",
+        }}
+      >
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            background: isDark ? "rgba(107, 114, 128, 0.6)" : "rgba(209, 213, 219, 0.6)",
+            borderRadius: "2px",
+            width: "3px",
+            height: "40px",
+          }}
+        />
+      </div>
       <h4
-        className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
+        className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md relative"
         style={{
           fontFamily: '"DM Serif Text", serif',
           background: isDark ? "rgba(50, 51, 50, 0.8)" : "rgba(255, 255, 255, 0.8)",
@@ -656,57 +744,57 @@ Type \`/\` to see available commands.`,
       >
         Ask Melina
       </h4>
-      <div className="flex-1 overflow-y-auto relative p-4">
-        {/* Messages container */}
-        <div className="flex flex-col">
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
-              Start a conversation with Melina
-            </div>
-          ) : (
-            messages.map((msg, index) => {
-              // Check if this is the latest AI message
-              const isLatestAI =
-                msg.role === "assistant" &&
-                index ===
-                  messages.length -
-                    1 -
-                    [...messages].reverse().findIndex((m) => m.role === "assistant");
-              return (
-                <div key={msg.uuid}>
-                  <ChatMessage
-                    role={msg.role}
-                    content={msg.content}
-                    isLatest={isLatestAI}
-                    isStreaming={isLatestAI && isMessageLoading}
-                  />
+      <div className="flex-1 overflow-y-auto relative p-4" style={{ minHeight: 0 }}>
+            {/* Messages container */}
+            <div className="flex flex-col">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
+                  Start a conversation with Melina
                 </div>
-              );
-            })
-          )}
-          {/* bottom chat bubble loader */}
-          {isMessageLoading && (
-            <div className="flex justify-start gap-3 items-start mb-4">
-              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
-                <span className="text-white font-medium text-xs">M</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
-                  Melina
-                </span>
-                <div className="inline-flex items-center">
-                  <TypingLoader />
+              ) : (
+                messages.map((msg, index) => {
+                  // Check if this is the latest AI message
+                  const isLatestAI =
+                    msg.role === "assistant" &&
+                    index ===
+                      messages.length -
+                        1 -
+                        [...messages].reverse().findIndex((m) => m.role === "assistant");
+                  return (
+                    <div key={msg.uuid}>
+                      <ChatMessage
+                        role={msg.role}
+                        content={msg.content}
+                        isLatest={isLatestAI}
+                        isStreaming={isLatestAI && isMessageLoading}
+                      />
+                    </div>
+                  );
+                })
+              )}
+              {/* bottom chat bubble loader */}
+              {isMessageLoading && (
+                <div className="flex justify-start gap-3 items-start mb-4">
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
+                    <span className="text-white font-medium text-xs">M</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
+                      Melina
+                    </span>
+                    <div className="inline-flex items-center">
+                      <TypingLoader />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+              {/* 👇 Auto-scroll anchor */}
+              <div ref={bottomRef} />
             </div>
-          )}
-          {/* 👇 Auto-scroll anchor */}
-          <div ref={bottomRef} />
-        </div>
-      </div>
+          </div>
 
-      {/* text input */}
-      <div className="sticky bottom-0 p-3 z-10">
+          {/* text input */}
+          <div className="sticky bottom-0 p-3 z-10">
         {/* Token status banner */}
         {tokenStatus && (
           <WarningBlock isDark={isDark} tokenStatus={tokenStatus} setTokenStatus={setTokenStatus} />
