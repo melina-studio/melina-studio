@@ -24,7 +24,7 @@ const WarningBlock = (
                     }`,
             }}
         >
-            <span className="text-sm text-gray-300">
+            <span className="text-sm dark:text-gray-300 text-black">
                 {tokenStatus.type === "blocked"
                     ? "You have consumed all your tokens"
                     : `${tokenStatus.remaining.toLocaleString()} tokens remaining`}
