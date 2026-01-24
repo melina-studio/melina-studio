@@ -1,4 +1,4 @@
-import { SendHorizontal, Paperclip } from "lucide-react";
+import { SendHorizontal, Paperclip, Minimize2, Maximize2 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -118,6 +118,23 @@ function AIController({
   const params = useParams();
   const boardId = params?.id as string;
   const initialMessageSentRef = useRef(false);
+  
+  // Resize functionality
+  const [width, setWidth] = useState(500);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Drag functionality
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  const currentPosition = useRef({ x: 0, y: 0 });
+  const headerRef = useRef<HTMLHeadingElement>(null);
+  const rafId = useRef<number | null>(null);
+  
+  // Minimize/Maximize functionality
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const aiMessageIdRef = useRef<string | null>(null);
   const humanMessageIdRef = useRef<string | null>(null);
@@ -635,18 +652,184 @@ Type \`/\` to see available commands.`,
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Resize handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = containerRect.right - e.clientX;
+      
+      // Constrain width between 300px and 800px
+      const constrainedWidth = Math.min(Math.max(300, newWidth), 800);
+      setWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
+  // Drag handlers - optimized for smooth performance
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return;
+      
+      const deltaX = e.clientX - dragStartPos.current.x;
+      const deltaY = e.clientY - dragStartPos.current.y;
+      
+      // Update position directly without state to avoid re-renders
+      currentPosition.current = {
+        x: dragStartPos.current.offsetX + deltaX,
+        y: dragStartPos.current.offsetY + deltaY,
+      };
+      
+      // Use requestAnimationFrame for smooth updates
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+      }
+      
+      rafId.current = requestAnimationFrame(() => {
+        if (containerRef.current) {
+          // Directly update transform for smooth performance
+          containerRef.current.style.transform = `translate(${currentPosition.current.x}px, ${currentPosition.current.y}px)`;
+          // Disable transitions during drag for smoothness
+          containerRef.current.style.transition = "none";
+        }
+      });
+    };
+
+    const handleMouseUp = () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      
+      // Update state with final position
+      setPosition(currentPosition.current);
+      
+      // Re-enable transitions after drag
+      if (containerRef.current) {
+        containerRef.current.style.transition = "";
+      }
+      
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      // Initialize current position
+      currentPosition.current = { x: position.x, y: position.y };
+      
+      document.addEventListener("mousemove", handleMouseMove, { passive: true });
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
+      
+      // Disable transitions immediately when drag starts
+      if (containerRef.current) {
+        containerRef.current.style.transition = "none";
+      }
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+    };
+  }, [isDragging, position]);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // Don't start dragging if clicking on resize handle
+    if (isResizing) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Initialize drag position
+    dragStartPos.current = {
+      x: e.clientX,
+      y: e.clientY,
+      offsetX: position.x,
+      offsetY: position.y,
+    };
+    
+    currentPosition.current = { x: position.x, y: position.y };
+    
+    setIsDragging(true);
+  };
+
+  const toggleMinimize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMinimized((prev) => !prev);
+  };
+
   return (
     <div
-      className="w-[500px] h-full rounded-md shadow-2xl border flex flex-col backdrop-blur-xl ease-in-out duration-300"
+      ref={containerRef}
+      className="rounded-md shadow-2xl border flex flex-col backdrop-blur-xl relative"
       style={{
+        width: `${width}px`,
+        height: isMinimized ? "auto" : "97vh",
+        maxHeight: isMinimized ? "none" : "97vh",
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging ? "none" : "transform 0.2s ease-out, width 0.3s ease-in-out, height 0.3s ease-in-out",
         background: isDark ? "rgba(50, 51, 50, 0.5)" : "rgba(220, 220, 220, 0)",
         backdropFilter: "saturate(180%) blur(12px)",
         WebkitBackdropFilter: "saturate(180%) blur(12px)",
         borderColor: isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)",
+        willChange: isDragging ? "transform" : "auto",
       }}
     >
+      {/* Resize handle on left edge */}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleResizeStart}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:w-1.5 transition-all group z-20"
+        style={{
+          background: isDark ? "rgba(107, 114, 128, 0.2)" : "rgba(209, 213, 219, 0.2)",
+        }}
+      >
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            background: isDark ? "rgba(107, 114, 128, 0.6)" : "rgba(209, 213, 219, 0.6)",
+            borderRadius: "2px",
+            width: "3px",
+            height: "40px",
+          }}
+        />
+      </div>
       <h4
-        className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md"
+        ref={headerRef}
+        onMouseDown={handleDragStart}
+        className="text-md p-3 pr-10 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md cursor-grab active:cursor-grabbing select-none relative"
         style={{
           fontFamily: '"DM Serif Text", serif',
           background: isDark ? "rgba(50, 51, 50, 0.8)" : "rgba(255, 255, 255, 0.8)",
@@ -655,58 +838,73 @@ Type \`/\` to see available commands.`,
         }}
       >
         Ask Melina
-      </h4>
-      <div className="flex-1 overflow-y-auto relative p-4">
-        {/* Messages container */}
-        <div className="flex flex-col">
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
-              Start a conversation with Melina
-            </div>
+        {/* Minimize/Maximize button */}
+        <button
+          onClick={toggleMinimize}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer z-20"
+          title={isMinimized ? "Maximize" : "Minimize"}
+        >
+          {isMinimized ? (
+            <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           ) : (
-            messages.map((msg, index) => {
-              // Check if this is the latest AI message
-              const isLatestAI =
-                msg.role === "assistant" &&
-                index ===
-                  messages.length -
-                    1 -
-                    [...messages].reverse().findIndex((m) => m.role === "assistant");
-              return (
-                <div key={msg.uuid}>
-                  <ChatMessage
-                    role={msg.role}
-                    content={msg.content}
-                    isLatest={isLatestAI}
-                    isStreaming={isLatestAI && isMessageLoading}
-                  />
-                </div>
-              );
-            })
+            <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           )}
-          {/* bottom chat bubble loader */}
-          {isMessageLoading && (
-            <div className="flex justify-start gap-3 items-start mb-4">
-              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
-                <span className="text-white font-medium text-xs">M</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
-                  Melina
-                </span>
-                <div className="inline-flex items-center">
-                  <TypingLoader />
+        </button>
+      </h4>
+      {!isMinimized && (
+        <>
+          <div className="flex-1 overflow-y-auto relative p-4" style={{ minHeight: 0 }}>
+            {/* Messages container */}
+            <div className="flex flex-col">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
+                  Start a conversation with Melina
                 </div>
-              </div>
+              ) : (
+                messages.map((msg, index) => {
+                  // Check if this is the latest AI message
+                  const isLatestAI =
+                    msg.role === "assistant" &&
+                    index ===
+                      messages.length -
+                        1 -
+                        [...messages].reverse().findIndex((m) => m.role === "assistant");
+                  return (
+                    <div key={msg.uuid}>
+                      <ChatMessage
+                        role={msg.role}
+                        content={msg.content}
+                        isLatest={isLatestAI}
+                        isStreaming={isLatestAI && isMessageLoading}
+                      />
+                    </div>
+                  );
+                })
+              )}
+              {/* bottom chat bubble loader */}
+              {isMessageLoading && (
+                <div className="flex justify-start gap-3 items-start mb-4">
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
+                    <span className="text-white font-medium text-xs">M</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
+                      Melina
+                    </span>
+                    <div className="inline-flex items-center">
+                      <TypingLoader />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* 👇 Auto-scroll anchor */}
+              <div ref={bottomRef} />
             </div>
-          )}
-          {/* 👇 Auto-scroll anchor */}
-          <div ref={bottomRef} />
-        </div>
-      </div>
+          </div>
 
-      {/* text input */}
-      <div className="sticky bottom-0 p-3 z-10">
+          {/* text input */}
+          <div className="sticky bottom-0 p-3 z-10">
         {/* Token status banner */}
         {tokenStatus && (
           <WarningBlock isDark={isDark} tokenStatus={tokenStatus} setTokenStatus={setTokenStatus} />
@@ -849,6 +1047,8 @@ Type \`/\` to see available commands.`,
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -758,35 +758,34 @@ export default function BoardPage() {
       )}
       {/* <ElephantDrawing /> */}
 
+      {/* ai controller toggle icon - Always visible and accessible */}
+      <div
+        className={`fixed top-4 right-4 z-[70] ${
+          showAiController ? "bg-gray-200" : "bg-white"
+        } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
+        onClick={() => setShowAiController((v) => !v)}
+      >
+        <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
+      </div>
+
       {/* ai controller */}
-      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97%]">
-        {/* ai controller toggle icon */}
-        <div
-          className={`${
-            showAiController ? "bg-gray-200" : "bg-white"
-          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
-          onClick={() => setShowAiController((v) => !v)}
-        >
-          <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
-        </div>
-        {/* ai controller */}
-        <div
-          className={`h-full transition-all duration-300 ease-out ${
-            showAiController
-              ? "opacity-100 translate-x-0 scale-100"
-              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
-          }`}
-        >
-          {showAiController && (
-            <AIController
-              chatHistory={chatHistory}
-              onMessagesChange={setChatHistory}
-              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
-              onInitialMessageSent={handleInitialMessageSent}
-              onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
-            />
-          )}
-        </div>
+      <div
+        className={`fixed top-4 right-4 z-[60] transition-opacity duration-300 ease-out ${
+          showAiController
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+        style={{ height: "97vh" }}
+      >
+        {showAiController && (
+          <AIController
+            chatHistory={chatHistory}
+            onMessagesChange={setChatHistory}
+            initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+            onInitialMessageSent={handleInitialMessageSent}
+            onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
+          />
+        )}
       </div>
     </div>
   );
