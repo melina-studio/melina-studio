@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -58,14 +59,28 @@ func (g *GeolocationService) GetCountryFromIP(ip string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	// Read the full response for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("[Geolocation] Failed to read response body for IP %s: %v, defaulting to IN\n", ip, err)
+		return "IN", nil
+	}
+	fmt.Printf("[Geolocation] API Response for IP %s: %s\n", ip, string(bodyBytes))
+
 	var result IPAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		fmt.Printf("[Geolocation] Failed to decode response for IP %s: %v, defaulting to IN\n", ip, err)
 		return "IN", nil
 	}
 
 	if result.Status != "success" {
 		fmt.Printf("[Geolocation] API returned non-success status for IP %s: %s, defaulting to IN\n", ip, result.Status)
+		return "IN", nil
+	}
+
+	// Check if country code is empty
+	if result.CountryCode == "" {
+		fmt.Printf("[Geolocation] Empty country code for IP %s, defaulting to IN\n", ip)
 		return "IN", nil
 	}
 
