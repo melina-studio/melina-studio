@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { GetStartedButton } from "@/components/custom/General/GetStartedButton";
+import { ExternalLink } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -40,9 +41,23 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-8 pt-8 border-t border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-zinc-500">
-            &copy; {new Date().getFullYear()} Melina Studio. All rights reserved.
-          </p>
+          <div className="flex flex-col items-left justify-center gap-2">
+            <p className="text-sm text-zinc-500">
+              &copy; {new Date().getFullYear()} Melina Studio. All rights reserved.
+            </p>
+            <a
+              href="https://aryan-shaw.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 max-w-fit"
+            >
+              <p className="text-zinc-500 text-xs">
+                Cooked By {" "}
+                <span className="font-medium underline hover:text-white transition-colors">Aryan Shaw</span>
+              </p>
+              <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
+            </a>
+          </div>
           <div className="flex items-center gap-6">
             <Link
               href="/privacy"
@@ -57,6 +72,7 @@ export default function Footer() {
               Terms of Service
             </Link>
           </div>
+
         </div>
 
         {/* Easter egg */}

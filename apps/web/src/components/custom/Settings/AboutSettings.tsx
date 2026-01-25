@@ -2,7 +2,7 @@
 
 import { SettingsSection, SettingsRow } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Heart } from "lucide-react";
+import { ExternalLink, Heart, Link } from "lucide-react";
 
 // Custom GitHub icon to avoid deprecation warning from lucide-react
 function GitHubIcon({ className }: { className?: string }) {
@@ -61,25 +61,22 @@ export function AboutSettings() {
               <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
             </a>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-fit justify-start gap-2 cursor-pointer"
-            asChild
-          >
-            <a href="#" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" />
-              Documentation
-              <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
-            </a>
-          </Button>
         </div>
       </SettingsRow>
 
       <div className="pt-4 border-t border-border/50">
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" />
-          by<span className="font-medium underline"> Aryan Shaw</span>
+          by
+          <a
+            href="https://aryan-shaw.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1"
+          >
+            <span className="font-medium underline"> Aryan Shaw</span>
+            <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
+          </a>
         </p>
       </div>
     </SettingsSection>

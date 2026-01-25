@@ -8,3 +8,4 @@ export { AnalyticsSettings } from "./AnalyticsSettings";
 export { MelinaMCPSettings } from "./MelinaMCPSettings";
 export { BillingSettings } from "./BillingSettings";
 export { AboutSettings } from "./AboutSettings";
+export { ContactSettings } from "./ContactSettings";

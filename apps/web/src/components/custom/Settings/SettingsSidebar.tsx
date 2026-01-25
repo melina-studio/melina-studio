@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Settings, Sparkles, Info, BarChart3, LineChart, Cpu, CreditCard } from "lucide-react";
+import { Settings, Sparkles, Info, BarChart3, LineChart, Cpu, CreditCard, Mail } from "lucide-react";
 
 export type SettingsSection =
   | "general"
@@ -10,7 +10,8 @@ export type SettingsSection =
   | "analytics"
   | "melina-mcp"
   | "billing"
-  | "about";
+  | "about"
+  | "contact";
 
 interface NavItem {
   id: SettingsSection;
@@ -74,6 +75,11 @@ const navGroups: NavGroup[] = [
         id: "about",
         label: "About",
         icon: <Info className="h-4 w-4" />,
+      },
+      {
+        id: "contact",
+        label: "Contact",
+        icon: <Mail className="h-4 w-4" />,
       },
     ],
   },

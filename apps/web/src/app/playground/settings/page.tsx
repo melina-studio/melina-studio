@@ -13,6 +13,7 @@ import {
   MelinaMCPSettings,
   BillingSettings,
   AboutSettings,
+  ContactSettings,
 } from "@/components/custom/Settings";
 import type { SettingsSection } from "@/components/custom/Settings";
 
@@ -24,6 +25,7 @@ const VALID_SECTIONS: SettingsSection[] = [
   "melina-mcp",
   "billing",
   "about",
+  "contact",
 ];
 
 export default function Settings() {
@@ -55,6 +57,8 @@ export default function Settings() {
         return <BillingSettings />;
       case "about":
         return <AboutSettings />;
+      case "contact":
+        return <ContactSettings />;
       default:
         return <GeneralSettings />;
     }
@@ -137,6 +141,12 @@ export default function Settings() {
                 onClick={() => setActiveSection("about")}
               >
                 About
+              </MobileTabButton>
+              <MobileTabButton
+                active={activeSection === "contact"}
+                onClick={() => setActiveSection("contact")}
+              >
+                Contact
               </MobileTabButton>
             </div>
 
