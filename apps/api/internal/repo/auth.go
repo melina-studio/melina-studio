@@ -19,6 +19,7 @@ type AuthRepoInterface interface {
 	UpdateUser(user *models.User) error
 	UpdateUserByID(id uuid.UUID, payload *models.User) error
 	DeleteUser(id uuid.UUID) error
+	UpdateUserSubscription(userID uuid.UUID, subscription models.Subscription, startDate time.Time) error
 }
 
 func NewAuthRepository(db *gorm.DB) AuthRepoInterface {
@@ -62,4 +63,15 @@ func (r *AuthRepo) UpdateUserByID(id uuid.UUID, payload *models.User) error {
 
 func (r *AuthRepo) DeleteUser(id uuid.UUID) error {
 	return r.db.Delete(&models.User{UUID: id}).Error
+}
+
+// UpdateUserSubscription updates the user's subscription plan and start date
+func (r *AuthRepo) UpdateUserSubscription(userID uuid.UUID, subscription models.Subscription, startDate time.Time) error {
+	updates := map[string]interface{}{
+		"subscription":            subscription,
+		"subscription_start_date": startDate,
+		"tokens_consumed":         0, // Reset token consumption on new subscription
+		"last_token_reset_date":   startDate,
+	}
+	return r.db.Model(&models.User{}).Where("uuid = ?", userID).Updates(updates).Error
 }

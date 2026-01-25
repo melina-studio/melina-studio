@@ -23,6 +23,7 @@ func RegisterRoutes(r fiber.Router) {
 	// Public routes (no auth required)
 	registerAuthPublic(r.Group("/auth"))
 	registerWebSocket(r)
+	registerPaymentPublic(r)
 
 	// Protected routes (requires auth)
 	protected := r.Group("", auth.AuthMiddleware())
@@ -30,6 +31,7 @@ func RegisterRoutes(r fiber.Router) {
 	registerChat(protected)
 	registerTokens(protected)
 	registerAuthProtected(protected.Group("/auth"))
+	registerPayment(protected)
 }
 
 func registerWebSocket(r fiber.Router) {
