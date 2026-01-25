@@ -35,6 +35,7 @@ type User struct {
 	SubscriptionStartDate *time.Time   `gorm:"column:subscription_start_date" json:"subscription_start_date,omitempty"`
 	TokensConsumed        int          `gorm:"column:tokens_consumed;not null;default:0" json:"tokens_consumed"`
 	LastTokenResetDate    *time.Time   `gorm:"column:last_token_reset_date" json:"last_token_reset_date,omitempty"`
+	Country               *string      `gorm:"type:varchar(2)" json:"country,omitempty"` // ISO country code (IN, US, etc.)
 	CreatedAt             time.Time    `json:"created_at"`
 	UpdatedAt             time.Time    `json:"updated_at"`
 }

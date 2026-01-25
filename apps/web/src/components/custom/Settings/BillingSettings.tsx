@@ -4,6 +4,9 @@ import { SettingsSection, SettingsRow } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useAuth, Subscription } from "@/providers/AuthProvider";
+import { useState } from "react";
+import { toast } from "sonner";
+import { createOrder, verifyPayment } from "@/service/orders";
 
 type Plan = {
   id: Subscription;
@@ -82,8 +85,17 @@ function formatTokens(tokens: number): string {
   return tokens.toLocaleString();
 }
 
+// Declare Razorpay types
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export function BillingSettings() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const currentPlanId = user?.subscription || "free";
   const tokensConsumed = user?.tokens_consumed || 0;
@@ -92,6 +104,91 @@ export function BillingSettings() {
   const usagePercentage = tokenLimit > 0 ? (tokensConsumed / tokenLimit) * 100 : 0;
 
   const currentPlan = PLANS.find((p) => p.id === currentPlanId) || PLANS[0];
+
+  // Load Razorpay script
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleUpgrade = async (plan: Subscription) => {
+    if (plan === "free" || plan === "on_demand") {
+      toast.error("This plan is not available for purchase.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setLoadingPlan(plan);
+
+    try {
+      // Load Razorpay script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Failed to load Razorpay SDK");
+      }
+
+      // Create order using service
+      const orderData = await createOrder(plan);
+
+      // Open Razorpay checkout
+      const options = {
+        key: orderData.razorpay_key,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Melina Studio",
+        description: `${PLANS.find((p) => p.id === plan)?.name} Plan Subscription`,
+        order_id: orderData.razorpay_order_id,
+        handler: async function (response: any) {
+          try {
+            // Verify payment using service
+            const verifyData = await verifyPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature
+            );
+
+            toast.success(verifyData.message || "Your subscription has been upgraded.");
+
+            // Refresh user data
+            if (refreshUser) {
+              await refreshUser();
+            }
+          } catch (error: any) {
+            toast.error(error.message || "Failed to verify payment. Please contact support.");
+          }
+        },
+        prefill: {
+          name: `${user?.first_name} ${user?.last_name}`,
+          email: user?.email,
+        },
+        theme: {
+          color: "#3b82f6",
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+            setLoadingPlan(null);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to initiate payment. Please try again.");
+      setIsProcessing(false);
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <SettingsSection
@@ -116,10 +213,10 @@ export function BillingSettings() {
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${usagePercentage >= 100
-                  ? "bg-red-500"
-                  : usagePercentage >= 80
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
+                ? "bg-red-500"
+                : usagePercentage >= 80
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
                 }`}
               style={{ width: `${Math.min(100, usagePercentage)}%` }}
             />
@@ -138,8 +235,8 @@ export function BillingSettings() {
               <div
                 key={plan.id}
                 className={`relative rounded-lg border p-4 ${isCurrent
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50"
                   }`}
               >
                 {isCurrent && (
@@ -157,9 +254,19 @@ export function BillingSettings() {
                       </span>
                     </p>
                   </div>
-                  {!isCurrent && (
-                    <Button size="sm" className="cursor-pointer">
-                      Upgrade
+                  {!isCurrent && plan.id !== "on_demand" && (
+                    <Button
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => handleUpgrade(plan.id)}
+                      disabled={isProcessing || loadingPlan === plan.id}
+                    >
+                      {loadingPlan === plan.id ? "Processing..." : "Upgrade"}
+                    </Button>
+                  )}
+                  {plan.id === "on_demand" && !isCurrent && (
+                    <Button size="sm" variant="outline" disabled>
+                      Contact Sales
                     </Button>
                   )}
                 </div>
