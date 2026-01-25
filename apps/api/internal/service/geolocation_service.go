@@ -30,13 +30,17 @@ func (g *GeolocationService) GetCountryFromIP(ip string) (string, error) {
 	// Check if localhost or private IP
 	if g.isLocalOrPrivateIP(ip) {
 		// Default to IN for local development (since you're in India)
+		fmt.Printf("[Geolocation] Localhost/Private IP detected: %s, defaulting to IN\n", ip)
 		return "IN", nil
 	}
 
 	// Check cache first
 	if country, exists := g.cache[ip]; exists {
+		fmt.Printf("[Geolocation] Cache hit for IP %s: %s\n", ip, country)
 		return country, nil
 	}
+
+	fmt.Printf("[Geolocation] Detecting country for IP: %s\n", ip)
 
 	// Call free IP geolocation API (ip-api.com)
 	// Note: This API has a rate limit of 45 requests per minute
@@ -49,21 +53,25 @@ func (g *GeolocationService) GetCountryFromIP(ip string) (string, error) {
 	resp, err := client.Get(url)
 	if err != nil {
 		// Fallback to IN if API call fails (since you're in India)
+		fmt.Printf("[Geolocation] API call failed for IP %s: %v, defaulting to IN\n", ip, err)
 		return "IN", nil
 	}
 	defer resp.Body.Close()
 
 	var result IPAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("[Geolocation] Failed to decode response for IP %s: %v, defaulting to IN\n", ip, err)
 		return "IN", nil
 	}
 
 	if result.Status != "success" {
+		fmt.Printf("[Geolocation] API returned non-success status for IP %s: %s, defaulting to IN\n", ip, result.Status)
 		return "IN", nil
 	}
 
 	// Cache the result
 	g.cache[ip] = result.CountryCode
+	fmt.Printf("[Geolocation] Detected country for IP %s: %s\n", ip, result.CountryCode)
 
 	return result.CountryCode, nil
 }
