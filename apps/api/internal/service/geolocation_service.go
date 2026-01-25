@@ -14,7 +14,7 @@ type GeolocationService struct {
 }
 
 type IPAPIResponse struct {
-	CountryCode string `json:"country_code"`
+	CountryCode string `json:"countryCode"`
 	Country     string `json:"country"`
 	Status      string `json:"status"`
 }
