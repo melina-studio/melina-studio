@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { ProcessingRequest } from "@/components/custom/Loader/ProcessingRequest";
+import { BoardNavigationLoader } from "@/components/custom/Loader/BoardNavigationLoader";
 import { BoardsHeader } from "@/components/custom/Boards/BoardsHeader";
 import { BoardGrid } from "@/components/custom/Boards/BoardGrid";
 import { CreationInput } from "@/components/custom/Boards/CreationInput";
@@ -32,24 +33,49 @@ export default function PlaygroundContent() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingBoardTitle, setNavigatingBoardTitle] = useState<string | undefined>();
+
+  // Minimum time to show the loader before navigating (in ms)
+  const NAVIGATION_DELAY = 1500;
+
+  // Helper to delay navigation for smooth loader experience
+  const navigateWithDelay = (url: string, startTime: number) => {
+    const elapsed = Date.now() - startTime;
+    const remainingDelay = Math.max(0, NAVIGATION_DELAY - elapsed);
+
+    setTimeout(() => {
+      router.push(url);
+    }, remainingDelay);
+  };
 
   // Handle creating a new board
   async function handleCreateNewBoard() {
+    const startTime = Date.now();
+    setNavigatingBoardTitle("Creating new board...");
+    setIsNavigating(true);
     const uuid = await createNewBoard();
     if (uuid) {
-      router.push(`/playground/${uuid}`);
+      navigateWithDelay(`/playground/${uuid}`, startTime);
+    } else {
+      setIsNavigating(false);
     }
   }
 
   // Handle creation from the centered input
   async function handleCreationSubmit(message: string) {
+    const startTime = Date.now();
     setIsCreating(true);
+    setNavigatingBoardTitle("Creating new board...");
+    setIsNavigating(true);
     try {
       const uuid = await createNewBoard();
       if (uuid) {
         // Navigate to the new board with the initial message as a query param
         const encodedMessage = encodeURIComponent(message);
-        router.push(`/playground/${uuid}?initialMessage=${encodedMessage}`);
+        navigateWithDelay(`/playground/${uuid}?initialMessage=${encodedMessage}`, startTime);
+      } else {
+        setIsNavigating(false);
       }
     } finally {
       setIsCreating(false);
@@ -57,7 +83,10 @@ export default function PlaygroundContent() {
   }
 
   function handleOpenBoard(board: Board) {
-    router.push(`/playground/${board.uuid}`);
+    const startTime = Date.now();
+    setNavigatingBoardTitle(board.title || "Initializing...");
+    setIsNavigating(true);
+    navigateWithDelay(`/playground/${board.uuid}`, startTime);
   }
 
   function handleDuplicateBoard(board: Board) {
@@ -107,6 +136,9 @@ export default function PlaygroundContent() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/* Navigation Loader */}
+      <BoardNavigationLoader isVisible={isNavigating} boardTitle={navigatingBoardTitle} />
+
       {/* Background Ripple Effect */}
       <Ripple className="z-0" />
 
@@ -120,9 +152,8 @@ export default function PlaygroundContent() {
 
         {/* Creation Input - centered launcher with spotlight effect */}
         <div
-          className={`relative py-8 mb-8 border-b border-border/50 transition-all duration-300 ${
-            isInputFocused ? "before:opacity-100" : "before:opacity-0"
-          } before:absolute before:inset-0 before:-inset-x-12 before:-inset-y-8 before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,transparent_70%)] dark:before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)] before:pointer-events-none before:transition-opacity before:duration-300`}
+          className={`relative py-8 mb-8 border-b border-border/50 transition-all duration-300 ${isInputFocused ? "before:opacity-100" : "before:opacity-0"
+            } before:absolute before:inset-0 before:-inset-x-12 before:-inset-y-8 before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,transparent_70%)] dark:before:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)] before:pointer-events-none before:transition-opacity before:duration-300`}
         >
           <CreationInput
             onSubmit={handleCreationSubmit}
@@ -133,9 +164,8 @@ export default function PlaygroundContent() {
 
         {/* Content below - dims when input is focused */}
         <div
-          className={`transition-all duration-300 ${
-            isInputFocused ? "opacity-50 scale-[0.995]" : "opacity-100 scale-100"
-          }`}
+          className={`transition-all duration-300 ${isInputFocused ? "opacity-50 scale-[0.995]" : "opacity-100 scale-100"
+            }`}
         >
           {error && (
             <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">

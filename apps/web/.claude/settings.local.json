@@ -12,7 +12,10 @@
       "Bash(npm run lint:fix:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run lint:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:ui.aceternity.com)",
+      "WebSearch",
+      "Bash(npx shadcn@latest add:*)"
     ]
   }
 }
