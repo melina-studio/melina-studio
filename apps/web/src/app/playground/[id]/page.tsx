@@ -105,6 +105,9 @@ export default function BoardPage() {
   const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [hasMoreChats, setHasMoreChats] = useState(false);
+  const [isAiResponding, setIsAiResponding] = useState(false);
+  const aiMessageIdRef = useRef<string | null>(null);
+  const humanMessageIdRef = useRef<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [chatWidth, setChatWidth] = useState(500);
   const [hasChatResized, setHasChatResized] = useState(false);
@@ -264,16 +267,76 @@ export default function BoardPage() {
     fetchData();
   }, [id]);
 
-  // Track Melina status via websocket
+  // Track Melina status and chat streaming via websocket
   useEffect(() => {
     const unsubscribeChatStart = subscribe("chat_starting", () => {
       setMelinaStatus("thinking");
+      setIsAiResponding(true);
+      // Create temporary AI message ID
+      const aiId = crypto.randomUUID();
+      aiMessageIdRef.current = aiId;
     });
 
-    const unsubscribeChatCompleted = subscribe("chat_completed", () => {
-      setMelinaStatus("editing");
-      // Reset to idle after a delay
-      setTimeout(() => setMelinaStatus("idle"), 2000);
+    const unsubscribeChatResponse = subscribe(
+      "chat_response",
+      (data: { data: { board_id: string; message: string } }) => {
+        const { message } = data.data;
+        const currentAiId = aiMessageIdRef.current;
+        if (!currentAiId) return;
+
+        setChatHistory((msgs) => {
+          const existingMessage = msgs.find(
+            (msg) => msg.uuid === currentAiId && msg.role === "assistant"
+          );
+
+          if (existingMessage) {
+            return msgs.map((msg) =>
+              msg.uuid === currentAiId && msg.role === "assistant"
+                ? { ...msg, content: msg.content + message }
+                : msg
+            );
+          } else {
+            return [...msgs, { uuid: currentAiId, role: "assistant", content: message }];
+          }
+        });
+      }
+    );
+
+    const unsubscribeChatCompleted = subscribe(
+      "chat_completed",
+      (data: { data: { ai_message_id?: string; human_message_id?: string } }) => {
+        setMelinaStatus("editing");
+        setTimeout(() => setMelinaStatus("idle"), 2000);
+        setIsAiResponding(false);
+
+        const { ai_message_id, human_message_id } = data.data;
+        if (ai_message_id && human_message_id) {
+          setChatHistory((msgs) =>
+            msgs.map((msg) => {
+              if (msg.uuid === humanMessageIdRef.current && msg.role === "user") {
+                return { ...msg, uuid: human_message_id };
+              }
+              if (msg.uuid === aiMessageIdRef.current && msg.role === "assistant") {
+                return { ...msg, uuid: ai_message_id };
+              }
+              return msg;
+            })
+          );
+        }
+        aiMessageIdRef.current = null;
+        humanMessageIdRef.current = null;
+      }
+    );
+
+    const unsubscribeChatError = subscribe("error", (data: { data: { message: string } }) => {
+      toast.error(data.data.message);
+      setIsAiResponding(false);
+      // Remove empty AI message on error
+      if (aiMessageIdRef.current) {
+        setChatHistory((msgs) => msgs.filter((msg) => msg.uuid !== aiMessageIdRef.current));
+      }
+      aiMessageIdRef.current = null;
+      humanMessageIdRef.current = null;
     });
 
     const unsubscribeBoardRename = subscribe(
@@ -285,15 +348,12 @@ export default function BoardPage() {
       }
     );
 
-    const unsubscribeError = subscribe("error", (data: { data: { message: string } }) => {
-      toast.error(data.data.message);
-    });
-
     return () => {
       unsubscribeChatStart();
+      unsubscribeChatResponse();
       unsubscribeChatCompleted();
+      unsubscribeChatError();
       unsubscribeBoardRename();
-      unsubscribeError();
     };
   }, [subscribe]);
 
@@ -804,6 +864,10 @@ export default function BoardPage() {
                 setHasChatResized(true);
               }}
               initialHasMore={hasMoreChats}
+              isAiResponding={isAiResponding}
+              onHumanMessageIdChange={(id) => {
+                humanMessageIdRef.current = id;
+              }}
             />
           )}
         </div>

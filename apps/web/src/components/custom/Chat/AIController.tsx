@@ -27,18 +27,6 @@ type Message = {
   content: string;
 };
 
-type ChatResponse = {
-  type: string;
-  data: {
-    board_id: string;
-    message: string;
-    human_message_id?: string;
-    ai_message_id?: string;
-    created_at?: string;
-    updated_at?: string;
-  };
-};
-
 interface AIControllerProps {
   chatHistory: Message[];
   onMessagesChange?: (messages: Message[]) => void;
@@ -50,6 +38,8 @@ interface AIControllerProps {
   onWidthChange?: (width: number) => void;
   initialHasMore?: boolean;
   initialPage?: number;
+  isAiResponding?: boolean;
+  onHumanMessageIdChange?: (id: string | null) => void;
 }
 
 function AIController({
@@ -63,6 +53,8 @@ function AIController({
   onWidthChange,
   initialHasMore = false,
   initialPage = 1,
+  isAiResponding = false,
+  onHumanMessageIdChange,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -204,7 +196,6 @@ function AIController({
   }, [messages, onMessagesChange]);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [isMessageLoading, setIsMessageLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialMessageSentRef = useRef(false);
@@ -213,9 +204,6 @@ function AIController({
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const aiMessageIdRef = useRef<string | null>(null);
-  const humanMessageIdRef = useRef<string | null>(null);
 
   const { sendMessage, subscribe } = useWebsocket();
 
@@ -442,7 +430,7 @@ Type \`/\` to see available commands.`,
 
     // Step 3: All uploads complete - NOW add user message to UI
     const humanMessageId = uuidv4();
-    humanMessageIdRef.current = humanMessageId;
+    onHumanMessageIdChange?.(humanMessageId);
     shouldScrollToBottom.current = true; // Ensure we scroll to bottom for new messages
     setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
@@ -473,7 +461,7 @@ Type \`/\` to see available commands.`,
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error(error instanceof Error ? error.message : "Failed to send message");
-      humanMessageIdRef.current = null;
+      onHumanMessageIdChange?.(null);
       return;
     } finally {
       setLoading(false);
@@ -486,7 +474,7 @@ Type \`/\` to see available commands.`,
 
     // Add user message with temporary UUID
     const humanMessageId = uuidv4();
-    humanMessageIdRef.current = humanMessageId;
+    onHumanMessageIdChange?.(humanMessageId);
     shouldScrollToBottom.current = true; // Ensure we scroll to bottom for new messages
     setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
@@ -588,7 +576,7 @@ Type \`/\` to see available commands.`,
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error(error instanceof Error ? error.message : "Failed to send message");
-      humanMessageIdRef.current = null;
+      onHumanMessageIdChange?.(null);
     } finally {
       setLoading(false);
     }
@@ -608,93 +596,8 @@ Type \`/\` to see available commands.`,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, boardId]);
 
+  // Token status subscriptions (chat streaming is handled by parent)
   useEffect(() => {
-    const unsubscribeChatStart = subscribe("chat_starting", () => {
-      setIsMessageLoading(true);
-      setLoading(true);
-
-      // Create temporary AI message ID, but don't create the message yet
-      // Wait for first chunk to arrive before creating the message bubble
-      const aiId = crypto.randomUUID();
-      aiMessageIdRef.current = aiId;
-    });
-
-    const unsubscribeChatCompleted = subscribe("chat_completed", (data: ChatResponse) => {
-      setIsMessageLoading(false);
-      setLoading(false);
-
-      const { ai_message_id, human_message_id } = data.data;
-
-      if (ai_message_id && human_message_id) {
-        // Update both message UUIDs with the actual IDs from backend
-        setMessages((msgs) =>
-          msgs.map((msg) => {
-            // Update human message UUID
-            if (msg.uuid === humanMessageIdRef.current && msg.role === "user") {
-              humanMessageIdRef.current = null;
-              return { ...msg, uuid: human_message_id };
-            }
-            // Update AI message UUID
-            if (msg.uuid === aiMessageIdRef.current && msg.role === "assistant") {
-              aiMessageIdRef.current = null;
-              return { ...msg, uuid: ai_message_id };
-            }
-            return msg;
-          })
-        );
-      }
-
-      aiMessageIdRef.current = null;
-      humanMessageIdRef.current = null;
-    });
-
-    const unsubscribeChatResponse = subscribe("chat_response", (data: ChatResponse) => {
-      const { message } = data.data;
-
-      const currentAiId = aiMessageIdRef.current;
-      if (!currentAiId) return;
-
-      setMessages((msgs) => {
-        // Check if the AI message already exists
-        const existingMessage = msgs.find(
-          (msg) => msg.uuid === currentAiId && msg.role === "assistant"
-        );
-
-        if (existingMessage) {
-          // Message exists, append new chunk to existing content
-          return msgs.map((msg) => {
-            if (msg.uuid === currentAiId && msg.role === "assistant") {
-              return { ...msg, content: msg.content + message };
-            }
-            return msg;
-          });
-        } else {
-          // First chunk - create the message with this chunk
-          return [
-            ...msgs,
-            {
-              uuid: currentAiId,
-              role: "assistant",
-              content: message, // First chunk becomes the initial content
-            },
-          ];
-        }
-      });
-    });
-
-    const unsubscribeChatError = subscribe("error", () => {
-      setIsMessageLoading(false);
-      setLoading(false);
-
-      // Remove the empty AI message if it exists
-      if (aiMessageIdRef.current) {
-        setMessages((msgs) => msgs.filter((msg) => msg.uuid !== aiMessageIdRef.current));
-      }
-
-      aiMessageIdRef.current = null;
-      humanMessageIdRef.current = null;
-    });
-
     const unsubscribeTokenWarning = subscribe(
       "token_warning",
       (data: { data: TokenWarningPayload }) => {
@@ -720,10 +623,6 @@ Type \`/\` to see available commands.`,
     );
 
     return () => {
-      unsubscribeChatStart();
-      unsubscribeChatCompleted();
-      unsubscribeChatResponse();
-      unsubscribeChatError();
       unsubscribeTokenWarning();
       unsubscribeTokenBlocked();
     };
@@ -888,14 +787,14 @@ Type \`/\` to see available commands.`,
                         role={msg.role}
                         content={msg.content}
                         isLatest={isLatestAI}
-                        isStreaming={isLatestAI && isMessageLoading}
+                        isStreaming={isLatestAI && isAiResponding}
                       />
                     </div>
                   );
                 })
               )}
               {/* bottom chat bubble loader */}
-              {isMessageLoading && (
+              {isAiResponding && (
                 <div className="flex justify-start gap-3 items-start mb-4">
                   <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
                     <span className="text-white font-medium text-xs">M</span>
