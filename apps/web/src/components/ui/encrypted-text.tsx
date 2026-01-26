@@ -58,12 +58,13 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
   const isInView = useInView(ref, { once: true });
 
   const [revealCount, setRevealCount] = useState<number>(0);
+  // Use state instead of ref for scramble chars to avoid accessing ref during render
+  const [scrambleChars, setScrambleChars] = useState<string[]>(
+    text ? generateGibberishPreservingSpaces(text, charset).split("") : [],
+  );
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const lastFlipTimeRef = useRef<number>(0);
-  const scrambleCharsRef = useRef<string[]>(
-    text ? generateGibberishPreservingSpaces(text, charset).split("") : [],
-  );
 
   useEffect(() => {
     if (!isInView) return;
@@ -72,12 +73,13 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
     const initial = text
       ? generateGibberishPreservingSpaces(text, charset)
       : "";
-    scrambleCharsRef.current = initial.split("");
+    setScrambleChars(initial.split(""));
     startTimeRef.current = performance.now();
     lastFlipTimeRef.current = startTimeRef.current;
     setRevealCount(0);
 
     let isCancelled = false;
+    let currentScramble = initial.split("");
 
     const update = (now: number) => {
       if (isCancelled) return;
@@ -101,13 +103,13 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
         for (let index = 0; index < totalLength; index += 1) {
           if (index >= currentRevealCount) {
             if (text[index] !== " ") {
-              scrambleCharsRef.current[index] =
-                generateRandomCharacter(charset);
+              currentScramble[index] = generateRandomCharacter(charset);
             } else {
-              scrambleCharsRef.current[index] = " ";
+              currentScramble[index] = " ";
             }
           }
         }
+        setScrambleChars([...currentScramble]);
         lastFlipTimeRef.current = now;
       }
 
@@ -139,8 +141,7 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
           ? char
           : char === " "
             ? " "
-            : (scrambleCharsRef.current[index] ??
-              generateRandomCharacter(charset));
+            : (scrambleChars[index] ?? generateRandomCharacter(charset));
 
         return (
           <span

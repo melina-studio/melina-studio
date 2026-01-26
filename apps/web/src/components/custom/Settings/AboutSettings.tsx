@@ -2,7 +2,7 @@
 
 import { SettingsSection, SettingsRow } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Heart, Link } from "lucide-react";
+import { ExternalLink, Heart } from "lucide-react";
 
 // Custom GitHub icon to avoid deprecation warning from lucide-react
 function GitHubIcon({ className }: { className?: string }) {
