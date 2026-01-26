@@ -539,7 +539,7 @@ function KonvaCanvas({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ touchAction: "none" }}>
       {/* canvas */}
       <Stage
         ref={canvasRef}
@@ -549,6 +549,7 @@ function KonvaCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
