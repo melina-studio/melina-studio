@@ -1,0 +1,20 @@
+{
+  "name": "melina-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered design canvas for creating flowcharts, diagrams, and visual designs",
+  "scripts": {
+    "prepare": "husky",
+    "lint:web": "cd apps/web && npm run lint",
+    "lint:web:fix": "cd apps/web && npm run lint:fix",
+    "format:web": "cd apps/web && npm run format",
+    "format:web:check": "cd apps/web && npm run format:check",
+    "lint:api": "cd apps/api && golangci-lint run ./...",
+    "format:api": "cd apps/api && gofmt -w .",
+    "format:api:check": "cd apps/api && test -z \"$(gofmt -l .)\""
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3"
+  }
+}
