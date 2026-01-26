@@ -152,7 +152,11 @@ func (h *Hub) Run() {
 			}
 		case message := <-h.Broadcast:
 			for _, client := range h.Clients {
-				client.Send <- message
+				select {
+				case client.Send <- message:
+				default:
+					// Channel full or closed, skip
+				}
 			}
 		}
 	}
@@ -163,7 +167,21 @@ func (h *Hub) BroadcastMessage(message []byte) {
 }
 
 func (h *Hub) SendMessage(client *Client, message []byte) {
-	client.Send <- message
+	// Use defer/recover to safely handle closed channel panic
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[websocket] SendMessage recovered from panic (client likely disconnected): %v", r)
+		}
+	}()
+
+	// Non-blocking send with select to avoid blocking on closed channel
+	select {
+	case client.Send <- message:
+		// Message sent successfully
+	default:
+		// Channel is full or closed, skip this message
+		log.Printf("[websocket] SendMessage: channel full or closed, dropping message for client %s", client.ID)
+	}
 }
 
 // sendErrorMessage sends a standardized error message to a client
