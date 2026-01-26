@@ -228,7 +228,7 @@ const CanvasHeader = ({
       }}
     >
       {/* Floating control bar with blur */}
-      <div className="flex items-center gap-3 px-4 py-2 rounded-full backdrop-blur-sm bg-transparent dark:bg-[#323332]/50 border border-gray-200/50 dark:border-[#565656FF] shadow-lg">
+      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 rounded-full backdrop-blur-sm bg-transparent dark:bg-[#323332]/50 border border-gray-200/50 dark:border-[#565656FF] shadow-lg">
         {/* Back button */}
         <button
           onClick={handleBack}
@@ -255,7 +255,7 @@ const CanvasHeader = ({
               onChange={(e) => setBoardName(e.target.value)}
               onBlur={handleNameBlur}
               onKeyDown={handleKeyDown}
-              className="bg-transparent border-none outline-none text-sm font-semibold px-1 min-w-[100px] max-w-[200px] text-gray-900 dark:text-gray-100"
+              className="bg-transparent border-none outline-none text-sm font-semibold px-1 min-w-[60px] md:min-w-[100px] max-w-[100px] md:max-w-[200px] text-gray-900 dark:text-gray-100"
               onClick={(e) => e.stopPropagation()}
             />
           </form>
@@ -267,10 +267,10 @@ const CanvasHeader = ({
           >
             <button
               onDoubleClick={handleDoubleClick}
-              className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 px-1 transition-colors cursor-text max-w-[150px] truncate"
+              className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 px-1 transition-colors cursor-text max-w-[80px] md:max-w-[150px] truncate"
               title="Double-click to rename"
             >
-              <span className="block truncate max-w-[150px]">{boardName.trim() || "Untitled"}</span>
+              <span className="block truncate max-w-[80px] md:max-w-[150px]">{boardName.trim() || "Untitled"}</span>
             </button>
             {/* Pencil icon that fades in on hover */}
             <Pencil
@@ -285,7 +285,7 @@ const CanvasHeader = ({
         {saving && (
           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <Loader className="animate-spin w-3 h-3" />
-            <span>Saving...</span>
+            <span className="hidden md:inline">Saving...</span>
           </div>
         )}
 

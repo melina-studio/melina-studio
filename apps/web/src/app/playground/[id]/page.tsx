@@ -102,7 +102,9 @@ export default function BoardPage() {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showAiController, setShowAiController] = useState(true);
+  // Will be set based on screen size after mount
+  const [showAiController, setShowAiController] = useState(false);
+  const hasSetInitialChat = useRef(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [hasMoreChats, setHasMoreChats] = useState(false);
   const [isAiResponding, setIsAiResponding] = useState(false);
@@ -111,6 +113,7 @@ export default function BoardPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [chatWidth, setChatWidth] = useState(500);
   const [hasChatResized, setHasChatResized] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Canvas transform state for background parallax effect
   const [canvasTransform, setCanvasTransform] = useState({
@@ -160,13 +163,15 @@ export default function BoardPage() {
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
-  // handle board sizings
+  // handle board sizings and responsive detection
   useEffect(() => {
     const handleResize = () => {
       setDimensions({
         width: window.innerWidth,
         height: window.innerHeight,
       });
+      // Detect mobile (< 768px)
+      setIsMobile(window.innerWidth < 768);
     };
 
     handleResize();
@@ -189,6 +194,17 @@ export default function BoardPage() {
   useEffect(() => {
     updateBoardByIdRef.current = updateBoardById;
   }, [updateBoardById]);
+
+  // Set initial chat state based on screen size - open on desktop, closed on mobile
+  useEffect(() => {
+    if (!hasSetInitialChat.current && mounted) {
+      hasSetInitialChat.current = true;
+      // Open chat by default on desktop only
+      if (!isMobile) {
+        setShowAiController(true);
+      }
+    }
+  }, [mounted, isMobile]);
 
   // Handle thumbnail save only when navigating away (not on refresh/close)
   useEffect(() => {
@@ -749,49 +765,54 @@ export default function BoardPage() {
           scale={canvasTransform.scale}
         />
       </div>
-      {/* header */}
-
-      <CanvasHeader
-        handleBack={handleBack}
-        id={id}
-        board={boardInfo}
-        saving={saving}
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        settings={settings}
-        setSettings={setSettings}
-        handleClearBoard={handleClearBoard}
-        handleGetBoardState={handleGetBoardState}
-        melinaStatus={melinaStatus}
-        chatWidth={showAiController ? chatWidth : 0}
-        hasChatResized={hasChatResized}
-      />
+      {/* header - hide on mobile when chat is open */}
+      {!(isMobile && showAiController) && (
+        <CanvasHeader
+          handleBack={handleBack}
+          id={id}
+          board={boardInfo}
+          saving={saving}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          settings={settings}
+          setSettings={setSettings}
+          handleClearBoard={handleClearBoard}
+          handleGetBoardState={handleGetBoardState}
+          melinaStatus={melinaStatus}
+          chatWidth={showAiController ? chatWidth : 0}
+          hasChatResized={hasChatResized}
+        />
+      )}
       <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50">
         <Toaster position="top-center" gap={8} />
       </div>
 
-      {/* controls */}
-
-      <ToolControls
-        toolbarToggle={toolbarToggle}
-        activeTool={activeTool}
-        activeColor={activeColor}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        open={open}
-        handleActiveTool={handleActiveTool}
-        handleActiveColor={handleActiveColor}
-        handleUndo={undo}
-        handleRedo={redo}
-        handleImageExport={exportImage}
-      />
+      {/* controls - hide on mobile when chat is open */}
+      {!(isMobile && showAiController) && (
+        <ToolControls
+          toolbarToggle={toolbarToggle}
+          activeTool={activeTool}
+          activeColor={activeColor}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          open={open}
+          handleActiveTool={handleActiveTool}
+          handleActiveColor={handleActiveColor}
+          handleUndo={undo}
+          handleRedo={redo}
+          handleImageExport={exportImage}
+        />
+      )}
 
       {/* konva canvas */}
       <div
-        className="fixed inset-0 transition-all duration-200 ease-out"
+        className={`fixed inset-0 transition-all duration-200 ease-out ${
+          isMobile && showAiController ? "hidden" : ""
+        }`}
         style={{
-          right: showAiController ? `${chatWidth + 16}px` : "0px",
-          width: showAiController ? `calc(100% - ${chatWidth + 16}px)` : "100%",
+          // On desktop, adjust for chat panel
+          right: !isMobile && showAiController ? `${chatWidth + 16}px` : "0px",
+          width: !isMobile && showAiController ? `calc(100% - ${chatWidth + 16}px)` : "100%",
         }}
       >
         <KonvaCanvas
@@ -807,8 +828,8 @@ export default function BoardPage() {
         />
       </div>
 
-      {/* Empty canvas state - grid and hint text */}
-      {presentShapes.length === 0 && (
+      {/* Empty canvas state - grid and hint text - hide on mobile when chat is open */}
+      {presentShapes.length === 0 && !(isMobile && showAiController) && (
         <div className="fixed inset-0 pointer-events-none z-[1]">
           {/* Faint grid pattern */}
           <div
@@ -832,46 +853,90 @@ export default function BoardPage() {
       )}
       {/* <ElephantDrawing /> */}
 
-      {/* ai controller */}
-      <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97vh]">
-        {/* ai controller toggle icon */}
-        <div
-          className={`${
-            showAiController ? "bg-gray-200" : "bg-white"
-          } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
-          onClick={() => setShowAiController((v) => !v)}
-        >
-          <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
-        </div>
-        {/* ai controller */}
-        <div
-          className={`h-full transition-all duration-300 ease-out ${
-            showAiController
-              ? "opacity-100 translate-x-0 scale-100"
-              : "opacity-0 translate-x-4 scale-95 pointer-events-none"
-          }`}
-        >
-          {showAiController && (
-            <AIController
-              chatHistory={chatHistory}
-              onMessagesChange={setChatHistory}
-              initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
-              onInitialMessageSent={handleInitialMessageSent}
-              onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
-              width={chatWidth}
-              onWidthChange={(width) => {
-                setChatWidth(width);
-                setHasChatResized(true);
-              }}
-              initialHasMore={hasMoreChats}
-              isAiResponding={isAiResponding}
-              onHumanMessageIdChange={(id) => {
-                humanMessageIdRef.current = id;
-              }}
-            />
+      {/* ai controller - Desktop: side panel, Mobile: full screen overlay */}
+      {isMobile ? (
+        <>
+          {/* Mobile: Toggle button - only show when chat is closed */}
+          {!showAiController && (
+            <div
+              className="fixed bottom-20 right-4 z-10 bg-white shadow-md border border-gray-200 text-black rounded-full p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => setShowAiController(true)}
+            >
+              <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
+            </div>
           )}
-        </div>
-      </div>
+          {/* Mobile: Full screen overlay */}
+          <div
+            className={`fixed inset-0 z-50 transition-all duration-300 ease-out ${
+              showAiController
+                ? "translate-y-0 opacity-100"
+                : "translate-y-full opacity-0 pointer-events-none"
+            }`}
+          >
+            {showAiController && (
+              <AIController
+                chatHistory={chatHistory}
+                onMessagesChange={setChatHistory}
+                initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+                onInitialMessageSent={handleInitialMessageSent}
+                onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
+                width={dimensions.width}
+                onWidthChange={() => {}}
+                initialHasMore={hasMoreChats}
+                isAiResponding={isAiResponding}
+                onHumanMessageIdChange={(id) => {
+                  humanMessageIdRef.current = id;
+                }}
+                isMobile={true}
+                onClose={() => setShowAiController(false)}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Desktop: Side panel */}
+          <div className="fixed top-4 right-4 z-5 flex items-start gap-2 h-[97vh]">
+            {/* ai controller toggle icon */}
+            <div
+              className={`${
+                showAiController ? "bg-gray-200" : "bg-white"
+              } shadow-md border border-gray-200 text-black rounded-md p-3 cursor-pointer hover:bg-gray-300 transition-colors`}
+              onClick={() => setShowAiController((v) => !v)}
+            >
+              <Image src="/icons/ai_controller.png" alt="AIController" width={20} height={20} />
+            </div>
+            {/* ai controller */}
+            <div
+              className={`h-full transition-all duration-300 ease-out ${
+                showAiController
+                  ? "opacity-100 translate-x-0 scale-100"
+                  : "opacity-0 translate-x-4 scale-95 pointer-events-none"
+              }`}
+            >
+              {showAiController && (
+                <AIController
+                  chatHistory={chatHistory}
+                  onMessagesChange={setChatHistory}
+                  initialMessage={initialMessageConsumed ? undefined : initialMessage || undefined}
+                  onInitialMessageSent={handleInitialMessageSent}
+                  onBatchShapeImageUrlUpdate={handleBatchShapeImageUrlUpdate}
+                  width={chatWidth}
+                  onWidthChange={(width) => {
+                    setChatWidth(width);
+                    setHasChatResized(true);
+                  }}
+                  initialHasMore={hasMoreChats}
+                  isAiResponding={isAiResponding}
+                  onHumanMessageIdChange={(id) => {
+                    humanMessageIdRef.current = id;
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { SendHorizontal, Paperclip, Loader2 } from "lucide-react";
+import { SendHorizontal, Paperclip, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -40,6 +40,8 @@ interface AIControllerProps {
   initialPage?: number;
   isAiResponding?: boolean;
   onHumanMessageIdChange?: (id: string | null) => void;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
 function AIController({
@@ -55,6 +57,8 @@ function AIController({
   initialPage = 1,
   isAiResponding = false,
   onHumanMessageIdChange,
+  isMobile = false,
+  onClose,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -199,7 +203,7 @@ function AIController({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialMessageSentRef = useRef(false);
-  
+
   // Resize functionality
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -703,119 +707,144 @@ Type \`/\` to see available commands.`,
   return (
     <div
       ref={containerRef}
-      className="rounded-md shadow-2xl border flex flex-col backdrop-blur-xl relative"
+      className={`flex flex-col relative ${isMobile ? "rounded-none" : "rounded-md shadow-2xl border backdrop-blur-xl"
+        }`}
       style={{
-        width: `${controlledWidth}px`,
+        width: isMobile ? "100%" : `${controlledWidth}px`,
         height: "100%",
         maxHeight: "100%",
-        transition: "width 0.2s ease-out",
-        background: isDark ? "rgba(50, 51, 50, 0.5)" : "rgba(220, 220, 220, 0)",
-        backdropFilter: "saturate(180%) blur(12px)",
-        WebkitBackdropFilter: "saturate(180%) blur(12px)",
-        borderColor: isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)",
+        transition: isMobile ? "none" : "width 0.2s ease-out",
+        background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.5)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.95)"),
+        backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
+        WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
+        borderColor: isMobile ? "transparent" : (isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)"),
       }}
     >
-      {/* Resize handle on left edge (since chat opens from right) */}
-      <div
-        ref={resizeRef}
-        onMouseDown={handleResizeStart}
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:w-1.5 transition-all group z-20"
-        style={{
-          background: isDark ? "rgba(107, 114, 128, 0.2)" : "rgba(209, 213, 219, 0.2)",
-        }}
-      >
+      {/* Resize handle on left edge - only show on desktop */}
+      {!isMobile && (
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+          ref={resizeRef}
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:w-1.5 transition-all group z-20"
           style={{
-            background: isDark ? "rgba(107, 114, 128, 0.6)" : "rgba(209, 213, 219, 0.6)",
-            borderRadius: "2px",
-            width: "3px",
-            height: "40px",
+            background: isDark ? "rgba(107, 114, 128, 0.2)" : "rgba(209, 213, 219, 0.2)",
           }}
-        />
-      </div>
-      <h4
-        className="text-md p-3 text-center font-bold pb-2 border-b sticky top-0 z-10 rounded-t-md relative"
+        >
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{
+              background: isDark ? "rgba(107, 114, 128, 0.6)" : "rgba(209, 213, 219, 0.6)",
+              borderRadius: "2px",
+              width: "3px",
+              height: "40px",
+            }}
+          />
+        </div>
+      )}
+      {/* Header with close button on mobile */}
+      <div
+        className={`flex items-center justify-between border-b sticky top-0 z-10 ${isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
+          }`}
         style={{
-          fontFamily: '"DM Serif Text", serif',
-          background: isDark ? "rgba(50, 51, 50, 0.8)" : "rgba(255, 255, 255, 0.8)",
-          backdropFilter: "saturate(180%) blur(12px)",
-          WebkitBackdropFilter: "saturate(180%) blur(12px)",
+          background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.8)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.8)"),
+          backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
+          WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
+          paddingTop: isMobile ? "env(safe-area-inset-top, 12px)" : undefined,
         }}
       >
-        Ask Melina
-      </h4>
+        {isMobile && <div className="w-8" />}
+        <h4
+          className="text-md font-bold flex-1 text-center"
+          style={{ fontFamily: '"DM Serif Text", serif' }}
+        >
+          Ask Melina
+        </h4>
+        {isMobile && onClose && (
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+        {!isMobile && <div className="w-8" />}
+      </div>
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto relative p-4"
         style={{ minHeight: 0 }}
       >
-            {/* Load more indicator at top */}
-            {loadingMore && (
-              <div className="flex justify-center py-2 mb-2">
-                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-              </div>
-            )}
-            {hasMore && !loadingMore && messages.length > 0 && (
-              <div className="flex justify-center py-2 mb-2">
-                <button
-                  onClick={loadMoreMessages}
-                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                >
-                  Load older messages
-                </button>
-              </div>
-            )}
-            {/* Messages container */}
-            <div className="flex flex-col">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
-                  Start a conversation with Melina
-                </div>
-              ) : (
-                messages.map((msg, index) => {
-                  // Check if this is the latest AI message
-                  const isLatestAI =
-                    msg.role === "assistant" &&
-                    index ===
-                      messages.length -
-                        1 -
-                        [...messages].reverse().findIndex((m) => m.role === "assistant");
-                  return (
-                    <div key={`${msg.uuid}-${index}`}>
-                      <ChatMessage
-                        role={msg.role}
-                        content={msg.content}
-                        isLatest={isLatestAI}
-                        isStreaming={isLatestAI && isAiResponding}
-                      />
-                    </div>
-                  );
-                })
-              )}
-              {/* bottom chat bubble loader */}
-              {isAiResponding && (
-                <div className="flex justify-start gap-3 items-start mb-4">
-                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
-                    <span className="text-white font-medium text-xs">M</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
-                      Melina
-                    </span>
-                    <div className="inline-flex items-center">
-                      <TypingLoader />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* 👇 Auto-scroll anchor */}
-              <div ref={bottomRef} />
-            </div>
+        {/* Load more indicator at top */}
+        {loadingMore && (
+          <div className="flex justify-center py-2 mb-2">
+            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
           </div>
+        )}
+        {hasMore && !loadingMore && messages.length > 0 && (
+          <div className="flex justify-center py-2 mb-2">
+            <button
+              onClick={loadMoreMessages}
+              className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+            >
+              Load older messages
+            </button>
+          </div>
+        )}
+        {/* Messages container */}
+        <div className="flex flex-col">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-400 text-sm mt-2 ">
+              Start a conversation with Melina
+            </div>
+          ) : (
+            messages.map((msg, index) => {
+              // Check if this is the latest AI message
+              const isLatestAI =
+                msg.role === "assistant" &&
+                index ===
+                messages.length -
+                1 -
+                [...messages].reverse().findIndex((m) => m.role === "assistant");
+              return (
+                <div key={`${msg.uuid}-${index}`}>
+                  <ChatMessage
+                    role={msg.role}
+                    content={msg.content}
+                    isLatest={isLatestAI}
+                    isStreaming={isLatestAI && isAiResponding}
+                  />
+                </div>
+              );
+            })
+          )}
+          {/* bottom chat bubble loader */}
+          {isAiResponding && (
+            <div className="flex justify-start gap-3 items-start mb-4">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
+                <span className="text-white font-medium text-xs">M</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
+                  Melina
+                </span>
+                <div className="inline-flex items-center">
+                  <TypingLoader />
+                </div>
+              </div>
+            </div>
+          )}
+          {/* 👇 Auto-scroll anchor */}
+          <div ref={bottomRef} />
+        </div>
+      </div>
 
-          {/* text input */}
-          <div className="sticky bottom-0 p-3 z-10">
+      {/* text input */}
+      <div
+        className="sticky bottom-0 p-3 z-10"
+        style={{
+          paddingBottom: isMobile ? "max(12px, env(safe-area-inset-bottom))" : "12px",
+        }}
+      >
         {/* Token status banner */}
         {tokenStatus && (
           <WarningBlock isDark={isDark} tokenStatus={tokenStatus} setTokenStatus={setTokenStatus} />
@@ -936,11 +965,10 @@ Type \`/\` to see available commands.`,
                   if (tokenStatus?.type === "blocked") return;
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
-                  loading || tokenStatus?.type === "blocked"
-                    ? "opacity-50 cursor-not-allowed"
-                    : "cursor-pointer"
-                }`}
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
+                  }`}
               >
                 {loading ? (
                   <Spinner
