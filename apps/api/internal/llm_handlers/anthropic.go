@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -153,7 +152,16 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 	}
 
 	if systemMessage != "" {
-		body["system"] = systemMessage
+		// Use cache_control for system prompt caching (Vertex AI format)
+		body["system"] = []map[string]interface{}{
+			{
+				"type": "text",
+				"text": systemMessage,
+				"cache_control": map[string]string{
+					"type": "ephemeral",
+				},
+			},
+		}
 	}
 
 	if len(tools) > 0 {
@@ -283,7 +291,16 @@ func StreamClaudeWithMessages(
 	}
 
 	if systemMessage != "" {
-		body["system"] = systemMessage
+		// Use cache_control for system prompt caching (Vertex AI format)
+		body["system"] = []map[string]interface{}{
+			{
+				"type": "text",
+				"text": systemMessage,
+				"cache_control": map[string]string{
+					"type": "ephemeral",
+				},
+			},
+		}
 	}
 
 	if len(tools) > 0 {
@@ -798,8 +815,6 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 			Content: toolResultsContent,
 		})
 
-		// small throttle (optional)
-		time.Sleep(50 * time.Millisecond)
 	}
 
 	// Max iterations reached - tools were executed but Claude didn't finish responding.
