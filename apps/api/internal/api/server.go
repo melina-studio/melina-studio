@@ -18,6 +18,8 @@ func NewServer() *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: customErrorHandler,
 		AppName:      "Melina Studio",
+		// Enable proxy header to get real client IP when behind reverse proxy (nginx, cloudflare, etc.)
+		ProxyHeader: fiber.HeaderXForwardedFor,
 	})
 
 	// Global middleware
