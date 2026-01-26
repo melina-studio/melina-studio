@@ -353,6 +353,13 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	}
 
 	if resp == nil || len(resp.Candidates) == 0 {
+		// Check if response was blocked
+		if resp != nil && resp.PromptFeedback != nil {
+			if resp.PromptFeedback.BlockReason != "" {
+				return nil, fmt.Errorf("gemini blocked prompt: %s (reason: %s)",
+					resp.PromptFeedback.BlockReasonMessage, resp.PromptFeedback.BlockReason)
+			}
+		}
 		return nil, fmt.Errorf("gemini returned no candidates")
 	}
 
@@ -362,7 +369,24 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	}
 
 	cand := resp.Candidates[0]
+
+	// Check if response was blocked by safety filters
+	if cand.FinishReason != "" && cand.FinishReason != "STOP" && cand.FinishReason != "MAX_TOKENS" {
+		// Log safety ratings for debugging
+		if len(cand.SafetyRatings) > 0 {
+			for _, rating := range cand.SafetyRatings {
+				if rating.Blocked {
+					fmt.Printf("[gemini] Response blocked by safety filter: category=%s, probability=%s\n",
+						rating.Category, rating.Probability)
+				}
+			}
+		}
+		return nil, fmt.Errorf("gemini response blocked: finish_reason=%s", cand.FinishReason)
+	}
+
 	if cand.Content == nil {
+		// Check why content is nil
+		fmt.Printf("[gemini] Warning: candidate content is nil, finish_reason=%s\n", cand.FinishReason)
 		return gr, nil
 	}
 
@@ -622,7 +646,19 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *librar
 	}
 
 	if len(resp.TextContent) == 0 {
-		return nil, fmt.Errorf("gemini returned no text content")
+		// Try to get more info about why there's no content
+		if resp.RawResponse != nil && len(resp.RawResponse.Candidates) > 0 {
+			cand := resp.RawResponse.Candidates[0]
+			fmt.Printf("[gemini] No text content - finish_reason=%s, content_nil=%v\n",
+				cand.FinishReason, cand.Content == nil)
+			if len(cand.SafetyRatings) > 0 {
+				for _, rating := range cand.SafetyRatings {
+					fmt.Printf("[gemini] Safety rating: category=%s, probability=%s, blocked=%v\n",
+						rating.Category, rating.Probability, rating.Blocked)
+				}
+			}
+		}
+		return nil, fmt.Errorf("gemini returned no text content - the response may have been blocked by safety filters")
 	}
 
 	// Extract token usage from response
