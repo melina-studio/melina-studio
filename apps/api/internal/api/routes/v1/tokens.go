@@ -15,5 +15,6 @@ func registerTokens(app fiber.Router) {
 
 	app.Get("/tokens/usage", tokenHandler.GetTokenConsumption)
 	app.Get("/tokens/subscription-status", tokenHandler.GetSubscriptionStatus)
+	app.Get("/tokens/analytics", tokenHandler.GetTokenAnalytics)
 	app.Get("/subscription-plans", tokenHandler.GetAllSubscriptionPlans)
 }

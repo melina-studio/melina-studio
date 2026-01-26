@@ -11,7 +11,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx eslint:*)",
       "Bash(npm run lint:fix:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npx shadcn@latest add chart:*)"
     ]
   }
 }
