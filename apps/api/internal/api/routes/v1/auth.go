@@ -14,7 +14,8 @@ func registerAuthPublic(r fiber.Router) {
 	refreshTokenRepo := repo.NewRefreshTokenRepository(config.DB)
 	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
-	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo)
+	geoService := service.NewGeolocationService()
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService)
 
 	// Public auth routes (no auth required)
 	r.Post("/login", authHandler.Login)
@@ -35,7 +36,8 @@ func registerAuthProtected(r fiber.Router) {
 	refreshTokenRepo := repo.NewRefreshTokenRepository(config.DB)
 	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
-	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo)
+	geoService := service.NewGeolocationService()
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService)
 
 	// Protected auth routes (requires auth)
 	r.Get("/me", authHandler.GetMe)

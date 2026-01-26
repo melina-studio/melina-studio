@@ -79,13 +79,15 @@ type AuthHandler struct {
 	authRepo             repo.AuthRepoInterface
 	authService          *service.AuthService
 	subscriptionPlanRepo repo.SubscriptionPlanRepoInterface
+	geoService           *service.GeolocationService
 }
 
-func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService, subscriptionPlanRepo repo.SubscriptionPlanRepoInterface) *AuthHandler {
+func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService, subscriptionPlanRepo repo.SubscriptionPlanRepoInterface, geoService *service.GeolocationService) *AuthHandler {
 	return &AuthHandler{
 		authRepo:             authRepo,
 		authService:          authService,
 		subscriptionPlanRepo: subscriptionPlanRepo,
+		geoService:           geoService,
 	}
 }
 
@@ -189,6 +191,14 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get country from IP address
+	var country *string
+	if h.geoService != nil {
+		if countryCode, err := h.geoService.GetCountryFromIP(c.IP()); err == nil && countryCode != "" {
+			country = &countryCode
+		}
+	}
+
 	// create a new user
 	newUserUUID, err := h.authRepo.CreateUser(&models.User{
 		Email:       dto.Email,
@@ -196,6 +206,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		FirstName:   dto.FirstName,
 		LastName:    dto.LastName,
 		LoginMethod: models.LoginMethodEmail,
+		Country:     country,
 	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -542,6 +553,14 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_check_user")
 		}
 
+		// Get country from IP address
+		var country *string
+		if h.geoService != nil {
+			if countryCode, err := h.geoService.GetCountryFromIP(c.IP()); err == nil && countryCode != "" {
+				country = &countryCode
+			}
+		}
+
 		// User doesn't exist - create new OAuth user
 		newUserUUID, err := h.authRepo.CreateUser(&models.User{
 			FirstName:    firstName,
@@ -551,6 +570,7 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 			LoginMethod:  models.LoginMethodGoogle,
 			Subscription: models.SubscriptionFree,
 			Avatar:       userInfo.Picture,
+			Country:      country,
 		})
 		if err != nil {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_create_user")
@@ -704,6 +724,14 @@ func (h *AuthHandler) GithubCallback(c *fiber.Ctx) error {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_check_user")
 		}
 
+		// Get country from IP address
+		var country *string
+		if h.geoService != nil {
+			if countryCode, err := h.geoService.GetCountryFromIP(c.IP()); err == nil && countryCode != "" {
+				country = &countryCode
+			}
+		}
+
 		// User doesn't exist - create new user
 		newUserUUID, err := h.authRepo.CreateUser(&models.User{
 			FirstName:    firstName,
@@ -712,6 +740,7 @@ func (h *AuthHandler) GithubCallback(c *fiber.Ctx) error {
 			Password:     nil, // OAuth users don't have passwords
 			LoginMethod:  models.LoginMethodGithub,
 			Subscription: models.SubscriptionFree,
+			Country:      country,
 		})
 		if err != nil {
 			return c.Redirect(frontendURL + "/auth?error=failed_to_create_user")
