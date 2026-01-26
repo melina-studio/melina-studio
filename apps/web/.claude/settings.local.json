@@ -15,7 +15,13 @@
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:ui.aceternity.com)",
       "WebSearch",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install)",
+      "Bash(npx husky init)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)"
     ]
   }
 }
