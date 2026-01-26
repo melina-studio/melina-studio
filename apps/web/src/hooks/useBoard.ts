@@ -5,6 +5,7 @@ import {
   getStarredBoards,
   deleteBoard,
   updateBoard,
+  duplicateBoard,
 } from "@/service/boardService";
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
@@ -50,17 +51,43 @@ export const useBoard = () => {
     }
   };
 
-  //   Fetch starred boards
+  //   Fetch starred boards (computed from boards list)
   const fetchStarredBoards = useCallback(async () => {
+    // Starred boards are now derived from the boards list
+    // This function exists for backwards compatibility
+  }, []);
+
+  //   Toggle star status for a board
+  const toggleStarBoard = async (boardId: string) => {
     try {
-      const data = await getStarredBoards();
-      setStarredBoards(new Set(data.starredBoards || []));
+      // Find the board and toggle its starred status
+      const boardToUpdate = boards.find((b) => b.uuid === boardId);
+      if (!boardToUpdate) return;
+
+      const newStarredStatus = !boardToUpdate.starred;
+      await updateBoard(boardId, { starred: newStarredStatus });
+
+      // Update local state
+      setBoards((prevBoards) =>
+        prevBoards.map((b) =>
+          b.uuid === boardId ? { ...b, starred: newStarredStatus } : b
+        )
+      );
+
+      // Update starredBoards set
+      setStarredBoards((prev) => {
+        const newSet = new Set(prev);
+        if (newStarredStatus) {
+          newSet.add(boardId);
+        } else {
+          newSet.delete(boardId);
+        }
+        return newSet;
+      });
     } catch (error: any) {
       setError(error.message);
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  };
 
   // Get filter from URL params
   const filter = searchParams.get("filter") || "all";
@@ -71,7 +98,7 @@ export const useBoard = () => {
 
     // Apply sidebar filter
     if (filter === "starred") {
-      filtered = filtered.filter((board) => starredBoards.has(board.uuid));
+      filtered = filtered.filter((board) => board.starred);
     } else if (filter === "recent") {
       // Show boards updated in last 7 days
       const sevenDaysAgo = new Date();
@@ -132,17 +159,30 @@ export const useBoard = () => {
     }
   };
 
+  //   duplicate board
+  const duplicateBoardById = async (boardId: string) => {
+    try {
+      setLoading(true);
+      const response = await duplicateBoard(boardId);
+      await getAllBoards();
+      return response.uuid;
+    } catch (error: any) {
+      setError(error.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Determine active item based on pathname and query params
-  const getActiveHref = () => {
-    if (typeof window !== "undefined" && pathname === "/playground/all") {
-      const params = new URLSearchParams(window.location.search);
-      const filter = params.get("filter");
+  const getActiveHref = useCallback(() => {
+    if (pathname === "/playground/all") {
       if (filter === "starred") return "/playground/all?filter=starred";
       if (filter === "recent") return "/playground/all?filter=recent";
       return "/playground/all";
     }
     return pathname || "/playground/all";
-  };
+  }, [pathname, filter]);
 
   //   update board
   const updateBoardById = async (boardId: string, payload: UpdateBoardPayload) => {
@@ -173,6 +213,8 @@ export const useBoard = () => {
     fetchStarredBoards,
     filteredAndSortedBoards,
     deleteBoardById,
+    duplicateBoardById,
+    toggleStarBoard,
     getActiveHref,
     updateBoardById,
   };

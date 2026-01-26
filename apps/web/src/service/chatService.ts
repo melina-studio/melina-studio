@@ -2,9 +2,15 @@
 import axios from "@/lib/axios";
 import { BaseURL } from "@/lib/constants";
 
-export const getChatHistory = async (id: string) => {
+export const getChatHistory = async (
+  id: string,
+  page: number = 1,
+  pageSize: number = 20
+) => {
   try {
-    const response = await axios.get(`${BaseURL}/api/v1/chat/${id}`);
+    const response = await axios.get(
+      `${BaseURL}/api/v1/chat/${id}?page=${page}&pageSize=${pageSize}`
+    );
     return response.data;
   } catch (error: any) {
     console.log(error, "Error getting chat history");

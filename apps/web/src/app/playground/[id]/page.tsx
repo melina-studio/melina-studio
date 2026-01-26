@@ -104,6 +104,7 @@ export default function BoardPage() {
   const [saving, setSaving] = useState(false);
   const [showAiController, setShowAiController] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [hasMoreChats, setHasMoreChats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [chatWidth, setChatWidth] = useState(500);
   const [hasChatResized, setHasChatResized] = useState(false);
@@ -252,7 +253,8 @@ export default function BoardPage() {
           present: shapes,
           future: [],
         });
-        setChatHistory(chatHistory?.chats);
+        setChatHistory(chatHistory?.chats || []);
+        setHasMoreChats(chatHistory?.hasMore || false);
       } catch (error) {
         console.error("Failed fetching board data:", error);
         toast.error(error instanceof Error ? error.message : "Failed to load board data");
@@ -801,6 +803,7 @@ export default function BoardPage() {
                 setChatWidth(width);
                 setHasChatResized(true);
               }}
+              initialHasMore={hasMoreChats}
             />
           )}
         </div>

@@ -21,7 +21,8 @@
       "Bash(npm install)",
       "Bash(npx husky init)",
       "Bash(npx eslint:*)",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -81,6 +81,17 @@ export const toggleStarredBoard = async (boardId: string) => {
   }
 };
 
+// duplicate a board
+export const duplicateBoard = async (boardId: string) => {
+  try {
+    const response = await axios.post(`${BaseURL}/api/v1/boards/${boardId}/duplicate`);
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error duplicating board");
+    throw new Error(error?.error || "Error duplicating board");
+  }
+};
+
 // delete a board
 export const deleteBoard = async (boardId: string) => {
   try {

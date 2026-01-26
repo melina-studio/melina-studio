@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MoreVertical, Copy, Trash2 } from "lucide-react";
+import { MoreVertical, Copy, Trash2, Star } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,9 +17,10 @@ interface BoardCardProps {
   onOpen: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onToggleStar: () => void;
 }
 
-export function BoardCard({ board, onOpen, onDuplicate, onDelete }: BoardCardProps) {
+export function BoardCard({ board, onOpen, onDuplicate, onDelete, onToggleStar }: BoardCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -104,7 +105,12 @@ export function BoardCard({ board, onOpen, onDuplicate, onDelete }: BoardCardPro
 
       {/* Title overlay - refined hierarchy: thumbnail dominates, title smaller/lighter, timestamp muted */}
       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/85 via-black/70 to-transparent rounded-b-lg z-10">
-        <div className="text-sm font-medium text-white/95 truncate mb-0.5">{title}</div>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {board.starred && (
+            <Star className="size-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+          )}
+          <div className="text-sm font-medium text-white/95 truncate">{title}</div>
+        </div>
         <div className="text-xs text-white/70">{formatRelativeTime(updatedAt)}</div>
       </div>
 
@@ -146,6 +152,18 @@ export function BoardCard({ board, onOpen, onDuplicate, onDelete }: BoardCardPro
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStar();
+                setMenuOpen(false);
+              }}
+            >
+              <Star className={`size-4 mr-2 ${board.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+              {board.starred ? "Unstar" : "Star"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
                 onDuplicate();
@@ -156,6 +174,7 @@ export function BoardCard({ board, onOpen, onDuplicate, onDelete }: BoardCardPro
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem
+              className="cursor-pointer"
               variant="destructive"
               onClick={(e) => {
                 e.stopPropagation();

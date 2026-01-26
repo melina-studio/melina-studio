@@ -235,11 +235,11 @@ export function BoardsSidebar() {
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem onClick={() => handleThemeChange("light")}>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleThemeChange("light")}>
                 <Sun className="size-4 mr-2" />
                 Light
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleThemeChange("dark")}>
                 <Moon className="size-4 mr-2" />
                 Dark
               </DropdownMenuItem>

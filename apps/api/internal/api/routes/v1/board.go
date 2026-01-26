@@ -24,6 +24,7 @@ func registerBoard(r fiber.Router) {
 
 	r.Delete("/boards/:boardId/delete", boardHandler.DeleteBoardByID)
 	r.Put("/boards/:boardId/update", boardHandler.UpdateBoardByID)
+	r.Post("/boards/:boardId/duplicate", boardHandler.DuplicateBoard)
 
 	r.Post("/boards/:boardId/upload-selection-image", boardHandler.UploadSelectionImage)
 }

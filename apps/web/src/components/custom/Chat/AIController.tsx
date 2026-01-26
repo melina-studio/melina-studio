@@ -1,4 +1,4 @@
-import { SendHorizontal, Paperclip } from "lucide-react";
+import { SendHorizontal, Paperclip, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
@@ -12,7 +12,7 @@ import { clearSelectionsAction, selectSelections, useSelectionStore } from "@/st
 import SelectionPill from "./SelectionPill";
 import ImageAttachmentPill from "./ImageAttachmentPill";
 import { uploadSelectionImageToBackend } from "@/service/boardService";
-import { uploadChatImage } from "@/service/chatService";
+import { uploadChatImage, getChatHistory } from "@/service/chatService";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useMentionCommand } from "@/hooks/useMentionCommand";
@@ -48,6 +48,8 @@ interface AIControllerProps {
   onExportCanvas?: () => void;
   width?: number;
   onWidthChange?: (width: number) => void;
+  initialHasMore?: boolean;
+  initialPage?: number;
 }
 
 function AIController({
@@ -59,6 +61,8 @@ function AIController({
   onExportCanvas,
   width: controlledWidth = 500,
   onWidthChange,
+  initialHasMore = false,
+  initialPage = 1,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -69,6 +73,18 @@ function AIController({
     remaining: number;
   } | null>(null);
   const { user } = useAuth();
+
+  // Pagination state for infinite scroll
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const hasInitializedScroll = useRef(false);
+  const shouldScrollToBottom = useRef(true);
+
+  // Get boardId early for use in callbacks
+  const params = useParams();
+  const boardId = params?.id as string;
 
   // Check token status on mount based on user data
   useEffect(() => {
@@ -104,6 +120,84 @@ function AIController({
     }
   }, [chatHistory]);
 
+  // Update hasMore when initialHasMore changes
+  useEffect(() => {
+    setHasMore(initialHasMore);
+  }, [initialHasMore]);
+
+  // Load more messages (older messages) when scrolling to top
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    shouldScrollToBottom.current = false; // Prevent auto-scroll when loading older messages
+    const nextPage = currentPage + 1;
+
+    try {
+      const response = await getChatHistory(boardId, nextPage, 20);
+      const olderMessages: Message[] = response.chats || [];
+
+      if (olderMessages.length > 0) {
+        // Store scroll position before prepending
+        const container = messagesContainerRef.current;
+        const prevScrollHeight = container?.scrollHeight || 0;
+
+        // Prepend older messages to the beginning, filtering out duplicates
+        setMessages((prev) => {
+          const existingUuids = new Set(prev.map((m) => m.uuid));
+          const uniqueOlderMessages = olderMessages.filter(
+            (m) => !existingUuids.has(m.uuid)
+          );
+          return [...uniqueOlderMessages, ...prev];
+        });
+        setCurrentPage(nextPage);
+        setHasMore(response.hasMore);
+
+        // Restore scroll position after prepending
+        requestAnimationFrame(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = newScrollHeight - prevScrollHeight;
+          }
+        });
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more messages:", error);
+      toast.error("Failed to load more messages");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [boardId, currentPage, hasMore, loadingMore]);
+
+  // Scroll handler to detect when user scrolls to top or bottom
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Only trigger load more after initial scroll to bottom is complete
+      if (!hasInitializedScroll.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+      // Re-enable auto-scroll when user scrolls back to bottom
+      if (isNearBottom) {
+        shouldScrollToBottom.current = true;
+      }
+
+      // Load more when scrolled near the top (within 50px)
+      if (scrollTop < 50 && hasMore && !loadingMore) {
+        loadMoreMessages();
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadingMore, loadMoreMessages]);
+
   // Sync messages back to parent whenever they change
   useEffect(() => {
     onMessagesChange?.(messages);
@@ -113,8 +207,6 @@ function AIController({
   const [isMessageLoading, setIsMessageLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const params = useParams();
-  const boardId = params?.id as string;
   const initialMessageSentRef = useRef(false);
   
   // Resize functionality
@@ -351,6 +443,7 @@ Type \`/\` to see available commands.`,
     // Step 3: All uploads complete - NOW add user message to UI
     const humanMessageId = uuidv4();
     humanMessageIdRef.current = humanMessageId;
+    shouldScrollToBottom.current = true; // Ensure we scroll to bottom for new messages
     setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
     // Step 4: Send message via websocket
@@ -394,6 +487,7 @@ Type \`/\` to see available commands.`,
     // Add user message with temporary UUID
     const humanMessageId = uuidv4();
     humanMessageIdRef.current = humanMessageId;
+    shouldScrollToBottom.current = true; // Ensure we scroll to bottom for new messages
     setMessages((msgs) => [...msgs, { uuid: humanMessageId, role: "user", content: text }]);
 
     const settings = localStorage.getItem("settings");
@@ -636,7 +730,18 @@ Type \`/\` to see available commands.`,
   }, [subscribe]);
 
   useEffect(() => {
+    // Only auto-scroll to bottom if we should (not when loading older messages)
+    if (!shouldScrollToBottom.current) return;
+
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    // Mark scroll as initialized after first scroll completes
+    // This prevents immediate load-more triggers on mount
+    if (!hasInitializedScroll.current && messages.length > 0) {
+      setTimeout(() => {
+        hasInitializedScroll.current = true;
+      }, 500); // Allow smooth scroll animation to complete
+    }
   }, [messages]);
 
   // Resize handlers
@@ -741,7 +846,27 @@ Type \`/\` to see available commands.`,
       >
         Ask Melina
       </h4>
-      <div className="flex-1 overflow-y-auto relative p-4" style={{ minHeight: 0 }}>
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto relative p-4"
+        style={{ minHeight: 0 }}
+      >
+            {/* Load more indicator at top */}
+            {loadingMore && (
+              <div className="flex justify-center py-2 mb-2">
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              </div>
+            )}
+            {hasMore && !loadingMore && messages.length > 0 && (
+              <div className="flex justify-center py-2 mb-2">
+                <button
+                  onClick={loadMoreMessages}
+                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                >
+                  Load older messages
+                </button>
+              </div>
+            )}
             {/* Messages container */}
             <div className="flex flex-col">
               {messages.length === 0 ? (
@@ -758,7 +883,7 @@ Type \`/\` to see available commands.`,
                         1 -
                         [...messages].reverse().findIndex((m) => m.role === "assistant");
                   return (
-                    <div key={msg.uuid}>
+                    <div key={`${msg.uuid}-${index}`}>
                       <ChatMessage
                         role={msg.role}
                         content={msg.content}

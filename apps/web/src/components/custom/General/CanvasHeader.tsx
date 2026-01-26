@@ -62,7 +62,7 @@ const CanvasHeader = ({
   const headerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const router = useRouter();
-  const { updateBoardById } = useBoard();
+  const { updateBoardById, duplicateBoardById } = useBoard();
   const [initialChatWidth, setInitialChatWidth] = useState<number>(chatWidth || 500);
 
   useEffect(() => {
@@ -123,11 +123,11 @@ const CanvasHeader = ({
     router.push(`/playground/${newId}`);
   };
 
-  const handleDuplicateBoard = () => {
-    // Get current board state and create a new board with the same data
-    const newId = uuidv4();
-    // TODO: Duplicate board data to new board
-    router.push(`/playground/${newId}`);
+  const handleDuplicateBoard = async () => {
+    const newId = await duplicateBoardById(id);
+    if (newId) {
+      router.push(`/playground/${newId}`);
+    }
   };
 
   const getMelinaStatusColor = (status: MelinaStatus) => {

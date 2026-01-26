@@ -7,6 +7,7 @@ export type Board = {
   created_at: string;
   updated_at: string;
   thumbnail: string; // Can be empty string or URL
+  starred: boolean;
 };
 
 export type SortOption = "recent" | "az" | "lastEdited";

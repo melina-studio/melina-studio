@@ -28,6 +28,8 @@ export default function PlaygroundContent() {
     fetchStarredBoards,
     getAllBoards,
     deleteBoardById,
+    duplicateBoardById,
+    toggleStarBoard,
     getActiveHref,
   } = useBoard();
 
@@ -89,14 +91,25 @@ export default function PlaygroundContent() {
     navigateWithDelay(`/playground/${board.uuid}`, startTime);
   }
 
-  function handleDuplicateBoard(board: Board) {
-    // TODO: Implement duplicate functionality
-    console.log("Duplicate board:", board.uuid);
+  async function handleDuplicateBoard(board: Board) {
+    const startTime = Date.now();
+    setNavigatingBoardTitle(`Duplicating "${board.title || "Untitled"}"...`);
+    setIsNavigating(true);
+    const newUuid = await duplicateBoardById(board.uuid);
+    if (newUuid) {
+      navigateWithDelay(`/playground/${newUuid}`, startTime);
+    } else {
+      setIsNavigating(false);
+    }
   }
 
   async function handleDeleteBoard(board: Board) {
     const activeHref = getActiveHref();
     await deleteBoardById(board.uuid, activeHref);
+  }
+
+  function handleToggleStar(board: Board) {
+    toggleStarBoard(board.uuid);
   }
 
   // Set default settings and fetch boards
@@ -179,6 +192,7 @@ export default function PlaygroundContent() {
             onOpenBoard={handleOpenBoard}
             onDuplicateBoard={handleDuplicateBoard}
             onDeleteBoard={handleDeleteBoard}
+            onToggleStar={handleToggleStar}
           />
 
           {filteredAndSortedBoards.length === 0 && !loading && (

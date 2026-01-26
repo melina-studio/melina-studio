@@ -381,6 +381,78 @@ func (h *BoardHandler) UpdateBoardByID(c *fiber.Ctx) error {
 	})
 }
 
+// function to duplicate a board along with all its data
+func (h *BoardHandler) DuplicateBoard(c *fiber.Ctx) error {
+	userID, err := uuid.Parse(c.Locals("userID").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+	boardIdStr := c.Params("boardId")
+	sourceBoardId, err := uuid.Parse(boardIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid board ID",
+		})
+	}
+
+	// Get the original board info
+	sourceBoard, err := h.repo.GetBoardById(userID, sourceBoardId)
+	if err != nil {
+		log.Println(err, "Error getting source board")
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Source board not found",
+		})
+	}
+
+	// Create a new board with copied title
+	newBoard := &models.Board{
+		Title:  sourceBoard.Title + " (Copy)",
+		UserID: userID,
+	}
+
+	newBoardId, err := h.repo.CreateBoard(newBoard)
+	if err != nil {
+		log.Println(err, "Error creating duplicate board")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create duplicate board",
+		})
+	}
+
+	// Get all shapes from the source board
+	sourceShapes, err := h.boardDataRepo.GetBoardData(sourceBoardId)
+	if err != nil {
+		log.Println(err, "Error getting source board data")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get source board data",
+		})
+	}
+
+	// Copy all shapes to the new board with new UUIDs
+	for _, shape := range sourceShapes {
+		newShapeUUID := uuid.New()
+		newShape := models.BoardData{
+			UUID:             newShapeUUID,
+			BoardId:          newBoardId,
+			Type:             shape.Type,
+			Data:             shape.Data,
+			ImageUrl:         shape.ImageUrl,
+			AnnotationNumber: shape.AnnotationNumber,
+		}
+		if err := h.boardDataRepo.CreateBoardData(&newShape); err != nil {
+			log.Println(err, "Error copying shape data")
+			// Continue with other shapes even if one fails
+		}
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"uuid":    newBoardId.String(),
+		"message": "Board duplicated successfully",
+	})
+}
+
 // function to upload selection image to gcp and storing the url of those shapes to the shape ids of that board
 func (h *BoardHandler) UploadSelectionImage(c *fiber.Ctx) error {
 	boardIdStr := c.Params("boardId")

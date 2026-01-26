@@ -30,6 +30,8 @@ func (r *ChatRepo) CreateChat(chat *models.Chat) error {
 }
 
 // signature returns chats, totalCount, error
+// Messages are returned in chronological order (oldest to newest) for display
+// Pagination fetches from the end (most recent first), then reverses for display order
 func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, fields ...string) ([]models.Chat, int64, error) {
 	var chats []models.Chat
 	var total int64
@@ -47,8 +49,6 @@ func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, 
 		pageSize = MaxPageSize
 	}
 
-	offset := (page - 1) * pageSize
-
 	base := r.db.Model(&models.Chat{}).Where("board_uuid = ?", boardId)
 
 	// total count
@@ -62,12 +62,21 @@ func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, 
 		query = query.Select(fields)
 	}
 
-	// optional: choose ordering (newest first)
-	if err := query.Order("created_at asc").
+	// Calculate offset from the end (newest messages)
+	// Page 1 = most recent messages, Page 2 = older messages, etc.
+	offset := (page - 1) * pageSize
+
+	// Fetch messages in descending order (newest first)
+	if err := query.Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&chats).Error; err != nil {
 		return nil, 0, err
+	}
+
+	// Reverse to get chronological order (oldest to newest) for display
+	for i, j := 0, len(chats)-1; i < j; i, j = i+1, j-1 {
+		chats[i], chats[j] = chats[j], chats[i]
 	}
 
 	return chats, total, nil

@@ -20,7 +20,7 @@ func NewChatHandler(chatRepo repo.ChatRepoInterface, tempUploadRepo repo.TempUpl
 	return &ChatHandler{chatRepo: chatRepo, tempUploadRepo: tempUploadRepo}
 }
 
-// get chats by board id
+// get chats by board id with pagination
 func (h *ChatHandler) GetChatsByBoardId(c *fiber.Ctx) error {
 	boardId := c.Params("boardId")
 
@@ -31,15 +31,26 @@ func (h *ChatHandler) GetChatsByBoardId(c *fiber.Ctx) error {
 		})
 	}
 
-	chats, total, err := h.chatRepo.GetChatsByBoardId(boardIdUUID, 1, 20)
+	// Parse pagination params from query string
+	page := c.QueryInt("page", 1)
+	pageSize := c.QueryInt("pageSize", 20)
+
+	chats, total, err := h.chatRepo.GetChatsByBoardId(boardIdUUID, page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get chats",
 		})
 	}
+
+	// Calculate if there are more messages
+	hasMore := int64(page*pageSize) < total
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"chats": chats,
-		"total": total,
+		"chats":    chats,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"hasMore":  hasMore,
 	})
 }
 
