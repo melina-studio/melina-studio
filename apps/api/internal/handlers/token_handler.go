@@ -106,16 +106,15 @@ func (h *TokenHandler) GetAllSubscriptionPlans(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(plans)
 }
 
-// Model pricing per 1M tokens (in USD)
 var modelPricing = map[string]struct {
 	Input  float64
 	Output float64
 }{
-	"claude-4.5-sonnet": {Input: 3.00, Output: 15.00},
-	"gpt-5.1":           {Input: 2.50, Output: 10.00},
-	"gemini-2.5-flash":  {Input: 0.075, Output: 0.30},
-	"meta-llama/llama-4-scout-17b-16e-instruct": {Input: 0.11, Output: 0.34},
-	"llama-3.3-70b-versatile":                   {Input: 0.59, Output: 0.79},
+	"claude-4.5-sonnet": {Input: 4.00, Output: 19.00},
+	"gpt-5.1":           {Input: 1.60, Output: 12.50},
+	"gemini-2.5-flash":  {Input: 0.20, Output: 0.75},
+	"meta-llama/llama-4-scout-17b-16e-instruct": {Input: 0.15, Output: 0.45},
+	"llama-3.3-70b-versatile":                   {Input: 0.75, Output: 1.00},
 }
 
 // calculateCost calculates the cost for token usage based on model pricing

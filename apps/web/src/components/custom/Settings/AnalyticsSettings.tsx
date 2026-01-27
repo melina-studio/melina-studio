@@ -106,15 +106,15 @@ export function AnalyticsSettings() {
 
   if (!analytics) return null;
 
-  const chartData = analytics.daily_usage.map(day => ({
+  const chartData = (analytics.daily_usage ?? []).map(day => ({
     date: formatDate(day.date),
-    input_tokens: day.input_tokens,
-    output_tokens: day.output_tokens,
-    total_tokens: day.total_tokens,
-    request_count: day.request_count,
+    input_tokens: day.input_tokens ?? 0,
+    output_tokens: day.output_tokens ?? 0,
+    total_tokens: day.total_tokens ?? 0,
+    request_count: day.request_count ?? 0,
   }));
 
-  const hasData = chartData.length > 0;
+  const hasData = chartData.length > 0 && chartData.some(d => d.total_tokens > 0);
 
   return (
     <SettingsSection title="Analytics" description="Visual insights into your usage.">

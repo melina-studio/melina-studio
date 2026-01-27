@@ -692,7 +692,7 @@ func StreamClaudeWithMessages(
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
 func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int) (*ClaudeResponse, error) {
-	const maxIterations = 10 // safety guard - increased for complex drawings that need many shapes
+	const maxIterations = 5 // safety guard - reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

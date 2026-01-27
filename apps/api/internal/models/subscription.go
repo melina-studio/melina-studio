@@ -7,21 +7,21 @@ import (
 )
 
 /*
-Free: 100,000 tokens/month
-Pro: 1,000,000 tokens/month
-Premium: 10,000,000 tokens/month
-On Demand: 100,000,000 tokens/month
+Free: 200,000 tokens/month
+Pro: 2,000,000 tokens/month
+Premium: 20,000,000 tokens/month
+On Demand: 200,000,000 tokens/month
 
   ┌───────────┬─────────────┬────────┐
   │   Plan    │ Token Limit │ Price  │
   ├───────────┼─────────────┼────────┤
-  │ free      │ 100K/month  │ $0     │
+  │ free      │ 200K/month  │ $0     │
   ├───────────┼─────────────┼────────┤
-  │ pro       │ 1M/month    │ $10    │
+  │ pro       │ 2M/month    │ $10    │
   ├───────────┼─────────────┼────────┤
-  │ premium   │ 10M/month   │ $30    │
+  │ premium   │ 20M/month   │ $30    │
   ├───────────┼─────────────┼────────┤
-  │ on_demand │ 100M/month  │ Custom │
+  │ on_demand │ 200M/month  │ Custom │
   └───────────┴─────────────┴────────┘
 
 */

@@ -395,7 +395,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 
 // ChatWithTools handles tool execution loop similar to Anthropic's and Gemini's implementation
 func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*LangChainResponse, error) {
-	const maxIterations = 10
+	const maxIterations = 5 // reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

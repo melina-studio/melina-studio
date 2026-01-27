@@ -96,32 +96,32 @@ func SeedSubscriptionPlans(db *gorm.DB) error {
 		{
 			UUID:              uuid.New(),
 			PlanName:          models.SubscriptionFree,
-			MonthlyTokenLimit: 100000, // 100K tokens/month
-			Description:       "Free tier with basic features - 100K tokens per month",
+			MonthlyTokenLimit: 200000, // 200K tokens/month
+			Description:       "Free tier with basic features - 200K tokens per month",
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		},
 		{
 			UUID:              uuid.New(),
 			PlanName:          models.SubscriptionPro,
-			MonthlyTokenLimit: 1000000, // 1M tokens/month
-			Description:       "Pro tier with advanced features - 1M tokens per month",
+			MonthlyTokenLimit: 2000000, // 2M tokens/month
+			Description:       "Pro tier with advanced features - 2M tokens per month",
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		},
 		{
 			UUID:              uuid.New(),
 			PlanName:          models.SubscriptionPremium,
-			MonthlyTokenLimit: 10000000, // 10M tokens/month
-			Description:       "Premium tier with premium features - 10M tokens per month",
+			MonthlyTokenLimit: 20000000, // 20M tokens/month
+			Description:       "Premium tier with premium features - 20M tokens per month",
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		},
 		{
 			UUID:              uuid.New(),
 			PlanName:          models.SubscriptionOnDemand,
-			MonthlyTokenLimit: 100000000, // 100M tokens/month
-			Description:       "On-demand tier with unlimited features - 100M tokens per month",
+			MonthlyTokenLimit: 200000000, // 200M tokens/month
+			Description:       "On-demand tier with unlimited features - 200M tokens per month",
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		},

@@ -94,8 +94,8 @@ Expected response:
       "price_display": "$10",
       "price_charged": 83000,
       "currency": "INR",
-      "token_limit": 1000000,
-      "description": "Advanced AI features with 1M tokens per month"
+      "token_limit": 2000000,
+      "description": "Advanced AI features with 2M tokens per month"
     },
     {
       "id": "premium",
@@ -103,8 +103,8 @@ Expected response:
       "price_display": "$30",
       "price_charged": 249000,
       "currency": "INR",
-      "token_limit": 10000000,
-      "description": "Premium features with 10M tokens per month"
+      "token_limit": 20000000,
+      "description": "Premium features with 20M tokens per month"
     }
   ]
 }

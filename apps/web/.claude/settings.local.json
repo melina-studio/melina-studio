@@ -22,7 +22,8 @@
       "Bash(npx husky init)",
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ]
   }
 }

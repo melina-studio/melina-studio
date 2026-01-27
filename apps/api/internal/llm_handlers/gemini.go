@@ -414,7 +414,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
 func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
-	const maxIterations = 10
+	const maxIterations = 5 // reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

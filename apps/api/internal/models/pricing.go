@@ -8,19 +8,19 @@ import (
 
 // Plan pricing in USD
 const (
-	PriceFreeUSD      = 0.0
-	PriceProUSD       = 10.0
-	PricePremiumUSD   = 30.0
-	PriceOnDemandUSD  = 0.0 // Custom pricing
-	DefaultUSDToINR   = 83.0
+	PriceFreeUSD     = 0.0
+	PriceProUSD      = 10.0
+	PricePremiumUSD  = 30.0
+	PriceOnDemandUSD = 0.0 // Custom pricing
+	DefaultUSDToINR  = 83.0
 )
 
 type PlanDetails struct {
-	Plan          Subscription `json:"plan"`
-	Name          string       `json:"name"`
-	PriceUSD      float64      `json:"price_usd"`
-	TokenLimit    int          `json:"token_limit"`
-	Description   string       `json:"description"`
+	Plan        Subscription `json:"plan"`
+	Name        string       `json:"name"`
+	PriceUSD    float64      `json:"price_usd"`
+	TokenLimit  int          `json:"token_limit"`
+	Description string       `json:"description"`
 }
 
 // GetPlanPriceUSD returns the USD price for a given subscription plan
@@ -45,12 +45,12 @@ func GetUSDToINRRate() float64 {
 	if rateStr == "" {
 		return DefaultUSDToINR
 	}
-	
+
 	rate, err := strconv.ParseFloat(rateStr, 64)
 	if err != nil {
 		return DefaultUSDToINR
 	}
-	
+
 	return rate
 }
 
@@ -84,20 +84,20 @@ func GetPlanDetails(plan Subscription) (*PlanDetails, error) {
 	switch plan {
 	case SubscriptionFree:
 		details.Name = "Free"
-		details.TokenLimit = 100000 // 100K tokens
-		details.Description = "Basic AI assistance with 100K tokens per month"
+		details.TokenLimit = 200000 // 200K tokens
+		details.Description = "Basic AI assistance with 200K tokens per month"
 	case SubscriptionPro:
 		details.Name = "Pro"
-		details.TokenLimit = 1000000 // 1M tokens
-		details.Description = "Advanced AI features with 1M tokens per month"
+		details.TokenLimit = 2000000 // 2M tokens
+		details.Description = "Advanced AI features with 2M tokens per month"
 	case SubscriptionPremium:
 		details.Name = "Premium"
-		details.TokenLimit = 10000000 // 10M tokens
-		details.Description = "Premium features with 10M tokens per month"
+		details.TokenLimit = 20000000 // 20M tokens
+		details.Description = "Premium features with 20M tokens per month"
 	case SubscriptionOnDemand:
 		details.Name = "On Demand"
-		details.TokenLimit = 100000000 // 100M tokens
-		details.Description = "Custom enterprise solution with 100M tokens per month"
+		details.TokenLimit = 200000000 // 200M tokens
+		details.Description = "Custom enterprise solution with 200M tokens per month"
 	default:
 		return nil, fmt.Errorf("invalid subscription plan: %s", plan)
 	}
