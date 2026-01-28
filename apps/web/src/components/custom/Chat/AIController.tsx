@@ -108,13 +108,31 @@ function AIController({
     }
   }, [user]);
 
+  // Ref to track current messages for comparison (avoids infinite loops)
+  const messagesRef = useRef<Message[]>(messages);
+  messagesRef.current = messages;
+
+  // Flag to track when syncing from parent (to avoid feedback loop with onMessagesChange)
+  const syncingFromParentRef = useRef(false);
+
   // Sync chatHistory from parent to local state when it changes
-  // This handles the case where API fetches messages after component mounts
+  // This handles both initial load AND streaming updates from parent
   useEffect(() => {
-    if (chatHistory.length > 0) {
-      setMessages((prev) => (prev.length === 0 ? chatHistory : prev));
+    const currentMessages = messagesRef.current;
+    const lastLocalMsg = currentMessages[currentMessages.length - 1];
+    const lastParentMsg = chatHistory[chatHistory.length - 1];
+
+    // Sync if: different length, different last message UUID, or different content (streaming)
+    const needsSync =
+      chatHistory.length !== currentMessages.length ||
+      lastLocalMsg?.uuid !== lastParentMsg?.uuid ||
+      lastLocalMsg?.content !== lastParentMsg?.content;
+
+    if (needsSync && chatHistory.length > 0) {
+      syncingFromParentRef.current = true;
+      setMessages(chatHistory);
     }
-  }, [chatHistory]);
+  }, [chatHistory]); // Only depend on chatHistory, use ref for messages
 
   // Update hasMore when initialHasMore changes
   useEffect(() => {
@@ -194,8 +212,13 @@ function AIController({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore, loadingMore, loadMoreMessages]);
 
-  // Sync messages back to parent whenever they change
+  // Sync messages back to parent whenever they change (but not when syncing FROM parent)
   useEffect(() => {
+    if (syncingFromParentRef.current) {
+      // This update came from syncing chatHistory, don't push back to parent
+      syncingFromParentRef.current = false;
+      return;
+    }
     onMessagesChange?.(messages);
   }, [messages, onMessagesChange]);
 
