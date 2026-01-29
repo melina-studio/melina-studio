@@ -897,3 +897,33 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 
 	return finalResp, nil
 }
+
+/*
+Here's what the Anthropic implementation looks like:
+
+  Current Request Body (line 150-175):
+
+  body := map[string]interface{}{
+      "anthropic_version": "vertex-2023-10-16",
+      "messages":          msgs,
+      "max_tokens":        maxTokensValue,
+      "stream":            false,
+      // NO thinking parameter
+  }
+
+  To Add Extended Thinking, you'd add:
+
+  body["thinking"] = map[string]interface{}{
+      "type":          "enabled",
+      "budget_tokens": 10000,  // max thinking tokens
+  }
+
+  Response would include thinking blocks:
+
+  {
+    "content": [
+      {"type": "thinking", "thinking": "Let me analyze..."},
+      {"type": "text", "text": "Here's my answer..."}
+    ]
+  }
+*/

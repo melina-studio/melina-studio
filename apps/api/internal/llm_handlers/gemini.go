@@ -669,3 +669,39 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *librar
 		TokenUsage: tokenUsage,
 	}, nil
 }
+
+/*
+Current Config (line 253-257):
+
+  genConfig := &genai.GenerateContentConfig{
+      Temperature:     &v.Temperature,
+      MaxOutputTokens: v.MaxTokens,
+      Tools:           genaiTools,
+      // NO ThinkingConfig
+  }
+
+  To Add Thinking, you'd add:
+
+  genConfig := &genai.GenerateContentConfig{
+      Temperature:     &v.Temperature,
+      MaxOutputTokens: v.MaxTokens,
+      Tools:           genaiTools,
+      ThinkingConfig: &genai.ThinkingConfig{
+          IncludeThoughts: true,
+          ThinkingLevel:   genai.ThinkingLevelHigh,  // "LOW" or "HIGH"
+          // OR
+          ThinkingBudget:  &budgetTokens,            // custom token budget
+      },
+  }
+
+  Available Options:
+  ┌─────────────────┬────────┬───────────────┐
+  │      Field      │  Type  │    Values     │
+  ├─────────────────┼────────┼───────────────┤
+  │ IncludeThoughts │ bool   │ true/false    │
+  ├─────────────────┼────────┼───────────────┤
+  │ ThinkingLevel   │ string │ "LOW", "HIGH" │
+  ├─────────────────┼────────┼───────────────┤
+  │ ThinkingBudget  │ *int32 │ token count   │
+  └─────────────────┴────────┴───────────────┘
+*/

@@ -748,17 +748,42 @@ func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *librarie
 
 /*
 
-func initLangChain() llm.Client {
-	cfg := llm.LangChainConfig{
-		Model:   "gpt-4.1",
-		BaseURL: "", // set for Groq/GPT-compatible endpoints
-		APIKey:  "", // optional: falls back to env
-	}
-	client, err := llm.NewLangChainClient(cfg)
-	if err != nil {
-		log.Fatalf("langchain client init: %v", err)
-	}
-	return client
-}
+To Add Thinking:
+
+  opts := []llms.CallOption{}
+  // ... existing options ...
+
+  // Add thinking support
+  opts = append(opts, llms.WithThinking(&llms.ThinkingConfig{
+      Mode:               llms.ThinkingModeHigh,  // none, low, medium, high
+      BudgetTokens:       10000,                   // OR explicit budget
+      ReturnThinking:     true,                    // include in response
+      StreamThinking:     true,                    // stream thinking tokens
+      InterleaveThinking: true,                    // thinking between tool calls
+  }))
+
+  // OR use simpler options:
+  opts = append(opts, llms.WithThinkingMode(llms.ThinkingModeHigh))
+  opts = append(opts, llms.WithThinkingBudget(10000))
+  opts = append(opts, llms.WithReturnThinking(true))
+  opts = append(opts, llms.WithStreamThinking(true))
+
+  Available Modes:
+  ┌────────────────────┬────────────────────┐
+  │        Mode        │    Description     │
+  ├────────────────────┼────────────────────┤
+  │ ThinkingModeNone   │ Disabled           │
+  ├────────────────────┼────────────────────┤
+  │ ThinkingModeLow    │ ~20% of max tokens │
+  ├────────────────────┼────────────────────┤
+  │ ThinkingModeMedium │ ~50% of max tokens │
+  ├────────────────────┼────────────────────┤
+  │ ThinkingModeHigh   │ ~80% of max tokens │
+  └────────────────────┴────────────────────┘
+  Supported Models (built-in detection):
+
+  - OpenAI: o1, o3, GPT-5 series
+  - Anthropic: Claude 3.7+
+  - DeepSeek: reasoner models
 
 */

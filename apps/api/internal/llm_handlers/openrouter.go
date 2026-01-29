@@ -412,6 +412,30 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 			}
 		}
 
+		// IMPORTANT: Add assistant's response with tool calls to message history
+		// This lets the model know what it asked for in previous iterations
+		assistantContent := ""
+		if len(lr.TextContent) > 0 {
+			assistantContent = lr.TextContent[0]
+		}
+		// Build a summary of tool calls for the assistant message
+		var toolCallSummary []string
+		for _, fc := range lr.FunctionCalls {
+			argsJSON, _ := json.Marshal(fc.Arguments)
+			toolCallSummary = append(toolCallSummary, fmt.Sprintf("[Tool Call: %s(%s)]", fc.Name, string(argsJSON)))
+		}
+		if len(toolCallSummary) > 0 {
+			if assistantContent != "" {
+				assistantContent += "\n"
+			}
+			assistantContent += strings.Join(toolCallSummary, "\n")
+		}
+		workingMessages = append(workingMessages, Message{
+			Role:    "assistant",
+			Content: assistantContent,
+		})
+		fmt.Printf("[openrouter] Added assistant message with %d tool calls\n", len(lr.FunctionCalls))
+
 		// Execute tools
 		execResults := ExecuteTools(ctx, toolCalls, currentStreamCtx)
 
@@ -429,14 +453,14 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 
 		fmt.Printf("[openrouter] Tool results formatted: %d results\n", len(toolResultTexts))
 
-		// Append tool results as user message
+		// Append tool results as user message (simulating tool response)
 		if len(toolResultTexts) > 0 {
-			combinedResult := strings.Join(toolResultTexts, "\n")
+			combinedResult := "[Tool Results]\n" + strings.Join(toolResultTexts, "\n")
 			workingMessages = append(workingMessages, Message{
 				Role:    "user",
 				Content: combinedResult,
 			})
-			fmt.Printf("[openrouter] Added tool result message: %s\n", combinedResult)
+			fmt.Printf("[openrouter] Added tool result message\n")
 		}
 
 		// Add image content blocks if any
@@ -614,3 +638,36 @@ func ExtractOpenRouterUsage(response *OpenRouterResponse, inputText string) *Tok
 	// Fallback to tiktoken estimation
 	return estimateWithTiktoken(inputText, response.TextContent, "openai")
 }
+
+/*
+Great news! The go-openrouter library fully supports reasoning/thinking parameters:
+
+  Request - Enable Thinking:
+
+  req := openrouter.ChatCompletionRequest{
+      Model:    c.modelID,
+      Messages: msgs,
+      Reasoning: &openrouter.ChatCompletionReasoning{
+          Effort:    openrouter.String("high"),  // "high", "medium", "low"
+          // OR
+          MaxTokens: &maxThinkingTokens,         // custom token budget
+          Enabled:   &enabled,                   // true/false
+          Exclude:   &exclude,                   // hide reasoning from response
+      },
+  }
+
+  Response - Access Thinking:
+
+  choice := resp.Choices[0]
+  reasoning := choice.Reasoning           // string summary
+  details := choice.ReasoningDetails      // []ChatCompletionReasoningDetails
+  for _, detail := range details {
+      fmt.Println(detail.Text)            // actual thinking content
+  }
+
+  Streaming:
+
+  The library also supports streaming reasoning via ChatCompletionStream - you'd get reasoning chunks as they come in.
+
+  Summary: ✅ Full support for thinking/reasoning in the library. Ready when you want to implement it!
+*/
