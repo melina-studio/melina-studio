@@ -115,6 +115,7 @@ var modelPricing = map[string]struct {
 	"gemini-2.5-flash":  {Input: 0.20, Output: 0.75},
 	"meta-llama/llama-4-scout-17b-16e-instruct": {Input: 0.15, Output: 0.45},
 	"llama-3.3-70b-versatile":                   {Input: 0.75, Output: 1.00},
+	"moonshotai/kimi-k2.5":                      {Input: 2.00, Output: 5.00},
 }
 
 // calculateCost calculates the cost for token usage based on model pricing
