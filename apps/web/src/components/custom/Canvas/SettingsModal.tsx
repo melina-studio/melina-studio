@@ -6,7 +6,7 @@ import { ThemeToggle } from "../General/ThemeToggle";
 import { Input } from "../../ui/input";
 import { Settings } from "@/app/playground/[id]/page";
 import { useModelAccess } from "@/hooks/useModelAccess";
-import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES, DEFAULT_MODEL } from "@/lib/constants";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -23,13 +23,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const { modelsWithStatus, canAccessModel, handleModelChange } = useModelAccess();
 
-  const [activeModel, setActiveModel] = React.useState("anthropic");
+  const [modelName, setModelName] = React.useState(DEFAULT_MODEL);
   const [temperature, setTemperature] = React.useState(0.5);
   const [maxTokens, setMaxTokens] = React.useState(1000);
 
   React.useEffect(() => {
-    // update state with active settings
-    setActiveModel(activeSettings?.activeModel || "anthropic");
+    setModelName(activeSettings?.modelName || DEFAULT_MODEL);
     setTemperature(activeSettings?.temperature || 0.5);
     setMaxTokens(activeSettings?.maxTokens || 1000);
   }, [activeSettings]);
@@ -39,8 +38,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSaveSettings = (key: keyof Settings, value: any) => {
     const settings = { ...activeSettings, [key]: value };
     localStorage.setItem("settings", JSON.stringify(settings));
-    if (key === "activeModel") {
-      setActiveModel(value);
+    if (key === "modelName") {
+      setModelName(value);
     }
     if (key === "temperature") {
       setTemperature(value);
@@ -51,12 +50,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setActiveSettings(settings as Settings);
   };
 
-  const handleModelSelect = (modelId: string) => {
-    if (!canAccessModel(modelId as ModelId)) {
+  const handleModelSelect = (selectedModelName: string) => {
+    if (!canAccessModel(selectedModelName)) {
       return;
     }
-    handleModelChange(modelId as ModelId);
-    handleSaveSettings("activeModel", modelId);
+    handleModelChange(selectedModelName);
+    handleSaveSettings("modelName", selectedModelName);
   };
 
   return (
@@ -73,15 +72,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* active llm model selector */}
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-gray-500 dark:text-white">Active Model</p>
-            <Select value={activeModel} onValueChange={handleModelSelect}>
+            <Select value={modelName} onValueChange={handleModelSelect}>
               <SelectTrigger className="w-[180px] h-[16px] cursor-pointer">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
               <SelectContent>
                 {modelsWithStatus.map((model) => (
                   <SelectItem
-                    key={model.id}
-                    value={model.id}
+                    key={model.name}
+                    value={model.name}
                     disabled={!model.isAvailable}
                     className={`text-sm cursor-pointer ${!model.isAvailable ? "opacity-50" : ""}`}
                   >

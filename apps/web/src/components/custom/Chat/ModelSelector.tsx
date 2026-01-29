@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Lock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useModelAccess } from "@/hooks/useModelAccess";
-import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
 
 type ModelSelectorProps = {
   isDark: boolean;
@@ -25,14 +25,14 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelectModel = (modelId: ModelId, isAvailable: boolean) => {
+  const handleSelectModel = (modelName: string, isAvailable: boolean) => {
     if (!isAvailable) return;
 
-    handleModelChange(modelId);
+    handleModelChange(modelName);
     setIsOpen(false);
   };
 
-  const currentModel = modelsWithStatus.find((m) => m.id === activeModel);
+  const currentModel = modelsWithStatus.find((m) => m.name === activeModel);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -58,8 +58,8 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
           <div className="py-0.5">
             {modelsWithStatus.map((model) => (
               <button
-                key={model.id}
-                onClick={() => handleSelectModel(model.id, model.isAvailable)}
+                key={model.name}
+                onClick={() => handleSelectModel(model.name, model.isAvailable)}
                 disabled={!model.isAvailable}
                 className={`w-full flex items-center justify-between gap-4 px-2.5 py-1.5 text-xs transition-colors ${
                   model.isAvailable
@@ -77,7 +77,7 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
                   {model.dropdownName}
                   {!model.isAvailable && <Lock className="w-3 h-3 text-gray-400" />}
                 </span>
-                {activeModel === model.id && model.isAvailable && (
+                {activeModel === model.name && model.isAvailable && (
                   <Check className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 )}
               </button>

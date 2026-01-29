@@ -9,14 +9,19 @@ import (
 
 // VertexAnthropicClient implements llm.Client using your libraries.ChatWithTools
 type VertexAnthropicClient struct {
-	// optional config fields (project, modelID) if needed
+	ModelID     string                   // e.g., "claude-sonnet-4-5@20250929"
 	Tools       []map[string]interface{} // optional metadata you send to Claude
 	Temperature *float32                 // Optional: nil means use default
 	MaxTokens   *int                     // Optional: nil means use default
 }
 
-func NewVertexAnthropicClient(tools []map[string]interface{}, temperature *float32, maxTokens *int) *VertexAnthropicClient {
+func NewVertexAnthropicClient(modelID string, tools []map[string]interface{}, temperature *float32, maxTokens *int) *VertexAnthropicClient {
+	// Use provided modelID or fallback to env var
+	if modelID == "" {
+		modelID = "claude-sonnet-4-5@20250929" // default
+	}
 	return &VertexAnthropicClient{
+		ModelID:     modelID,
 		Tools:       tools,
 		Temperature: temperature,
 		MaxTokens:   maxTokens,
@@ -34,7 +39,7 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 		})
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, nil, c.Temperature, c.MaxTokens)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, nil, c.Temperature, c.MaxTokens, c.ModelID)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +67,7 @@ func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.H
 			UserID:  client.UserID,
 		}
 	}
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID)
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +101,7 @@ func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *li
 		}
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID)
 	if err != nil {
 		return nil, err
 	}

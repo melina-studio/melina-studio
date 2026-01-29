@@ -14,18 +14,18 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useModelAccess } from "@/hooks/useModelAccess";
-import { SUBSCRIPTION_TIER_DISPLAY_NAMES, type ModelId } from "@/lib/constants";
-import { getModelById } from "@/lib/modelUtils";
+import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
+import { getModelByName } from "@/lib/modelUtils";
 
 interface Settings {
-  activeModel: string;
+  modelName: string; // e.g., "claude-4.5-sonnet"
   temperature: number;
   maxTokens: number;
   theme: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  activeModel: "anthropic",
+  modelName: "claude-4.5-sonnet",
   temperature: 0.5,
   maxTokens: 1000,
   theme: "dark",
@@ -58,14 +58,13 @@ export function AIModelSettings() {
   // Sync activeModel from hook with local state
   useEffect(() => {
     if (mounted) {
-      setSettings((prev) => ({ ...prev, activeModel }));
+      setSettings((prev) => ({ ...prev, modelName: activeModel }));
     }
   }, [activeModel, mounted]);
 
   const updateSettings = (updates: Partial<Settings>) => {
     setSettings((prev) => {
       const newSettings = { ...prev, ...updates };
-      // Save to localStorage
       try {
         localStorage.setItem("settings", JSON.stringify(newSettings));
       } catch (e) {
@@ -75,12 +74,12 @@ export function AIModelSettings() {
     });
   };
 
-  const handleModelSelect = (modelId: string) => {
-    if (!canAccessModel(modelId as ModelId)) {
+  const handleModelSelect = (modelName: string) => {
+    if (!canAccessModel(modelName)) {
       return;
     }
-    handleModelChange(modelId as ModelId);
-    updateSettings({ activeModel: modelId });
+    handleModelChange(modelName);
+    updateSettings({ modelName });
   };
 
   const updateCustomRules = (rules: string) => {
@@ -108,20 +107,20 @@ export function AIModelSettings() {
     );
   }
 
-  const selectedModel = getModelById(settings.activeModel);
+  const selectedModel = getModelByName(settings.modelName);
 
   return (
     <SettingsSection title="Melina" description="Configure generation parameters for Melina.">
       <SettingsRow label="Model Provider" description="Select the model provider to use.">
-        <Select value={settings.activeModel} onValueChange={handleModelSelect}>
+        <Select value={settings.modelName} onValueChange={handleModelSelect}>
           <SelectTrigger className="w-full max-w-[280px] cursor-pointer">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
           <SelectContent>
             {modelsWithStatus.map((model) => (
               <SelectItem
-                key={model.id}
-                value={model.id}
+                key={model.name}
+                value={model.name}
                 disabled={!model.isAvailable}
                 className={`cursor-pointer ${!model.isAvailable ? "opacity-50" : ""}`}
               >
@@ -129,7 +128,7 @@ export function AIModelSettings() {
                   <span className={`font-medium ${!model.isAvailable ? "text-muted-foreground" : ""}`}>
                     {model.label}
                   </span>
-                  <span className="text-xs text-muted-foreground">{model.name}</span>
+                  <span className="text-xs text-muted-foreground">{model.displayName}</span>
                   {!model.isAvailable && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Lock className="w-3 h-3" />
@@ -143,7 +142,7 @@ export function AIModelSettings() {
         </Select>
         {selectedModel && (
           <p className="text-xs text-muted-foreground mt-2">
-            Currently using: <span className="font-medium">{selectedModel.name}</span>
+            Currently using: <span className="font-medium">{selectedModel.displayName}</span>
           </p>
         )}
       </SettingsRow>

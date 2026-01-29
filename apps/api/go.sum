@@ -133,6 +133,8 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/razorpay/razorpay-go v1.4.0 h1:Vodv1hdatNQdjoIahfPCYVsnUNQD51fZqyTmbLjJUjw=
 github.com/razorpay/razorpay-go v1.4.0/go.mod h1:VcljkUylUJAUEvFfGVv/d5ht1to1dUgF4H1+3nv7i+Q=
+github.com/revrost/go-openrouter v1.1.5 h1:YkTxdRrkfTf5Y78Daa4a3k+WgX6KIKkLgDri2ZSndJ4=
+github.com/revrost/go-openrouter v1.1.5/go.mod h1:jZFcumFqvS25o8oEQc1/+4yeK7lHDSnwPMIJ/pKPdNc=
 github.com/rivo/uniseg v0.2.0 h1:S1pD9weZBuJdFmowNwbpi7BJ8TNftyUImj/0WQi72jY=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 h1:KanIMPX0QdEdB4R3CiimCAbxFrhB3j7h0/OvpYGVQa8=

@@ -2,7 +2,6 @@ import {
   MODELS,
   SUBSCRIPTION_TIER_ORDER,
   DEFAULT_MODEL,
-  type ModelId,
   type SubscriptionTier,
   type Model,
 } from "./constants";
@@ -16,10 +15,10 @@ export type ModelWithStatus = Model & {
  */
 export function canAccessModel(
   subscription: SubscriptionTier | undefined,
-  modelId: ModelId
+  modelName: string
 ): boolean {
   const userTier = subscription || "free";
-  const model = MODELS.find((m) => m.id === modelId);
+  const model = MODELS.find((m) => m.name === modelName);
 
   if (!model) return false;
 
@@ -33,7 +32,7 @@ export function canAccessModel(
  * Get all models available to a user based on their subscription tier
  */
 export function getAvailableModels(subscription: SubscriptionTier | undefined): Model[] {
-  return MODELS.filter((model) => canAccessModel(subscription, model.id));
+  return MODELS.filter((model) => canAccessModel(subscription, model.name));
 }
 
 /**
@@ -44,7 +43,7 @@ export function getModelsWithStatus(
 ): ModelWithStatus[] {
   return MODELS.map((model) => ({
     ...model,
-    isAvailable: canAccessModel(subscription, model.id),
+    isAvailable: canAccessModel(subscription, model.name),
   }));
 }
 
@@ -52,22 +51,25 @@ export function getModelsWithStatus(
  * Get a valid model for a user, falling back to default if saved model is inaccessible
  */
 export function getValidModelForUser(
-  savedModelId: ModelId | string | undefined,
+  savedModelName: string | undefined,
   subscription: SubscriptionTier | undefined
-): ModelId {
+): string {
   // If saved model is valid and accessible, use it
-  if (savedModelId && canAccessModel(subscription, savedModelId as ModelId)) {
-    const model = MODELS.find((m) => m.id === savedModelId);
-    if (model) return model.id;
+  if (savedModelName && canAccessModel(subscription, savedModelName)) {
+    const model = MODELS.find((m) => m.name === savedModelName);
+    if (model) return model.name;
   }
 
-  // Fall back to default model (anthropic, which is free tier)
+  // Fall back to default model
   return DEFAULT_MODEL;
 }
 
 /**
- * Get a model by its ID
+ * Get a model by its name
  */
-export function getModelById(modelId: ModelId | string): Model | undefined {
-  return MODELS.find((m) => m.id === modelId);
+export function getModelByName(modelName: string): Model | undefined {
+  return MODELS.find((m) => m.name === modelName);
 }
+
+// Alias for backwards compatibility
+export const getModelById = getModelByName;

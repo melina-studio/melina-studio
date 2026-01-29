@@ -9,11 +9,11 @@ export const BaseURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:
 // Model tier definitions
 export type SubscriptionTier = "free" | "pro" | "premium" | "on_demand";
 
-export type ModelId = "groq" | "anthropic" | "gemini" | "openai";
+// Provider types (internal - for backend communication)
+export type Provider = "groq" | "anthropic" | "gemini" | "openai" | "openrouter";
 
 export type Model = {
-  id: ModelId;
-  name: string;
+  name: string; // Model name sent to backend (e.g., "claude-4.5-sonnet")
   displayName: string;
   dropdownName: string;
   label: string;
@@ -36,37 +36,58 @@ export const SUBSCRIPTION_TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> =
 
 export const MODELS: Model[] = [
   {
-    id: "groq",
-    name: "llama-4-scout-17b-16e-instruct",
+    name: "meta-llama/llama-4-scout-17b-16e-instruct",
     displayName: "Llama 4 Scout 17B",
-    dropdownName: "groq (llama-4-scout-17b-16e-instruct)",
+    dropdownName: "Groq (Llama 4 Scout)",
     label: "Groq",
     minimumTier: "free",
   },
   {
-    id: "anthropic",
     name: "claude-4.5-sonnet",
     displayName: "Claude 4.5 Sonnet",
-    dropdownName: "anthropic (claude-4.5-sonnet)",
+    dropdownName: "Anthropic (Claude 4.5 Sonnet)",
     label: "Anthropic",
     minimumTier: "free",
   },
   {
-    id: "gemini",
     name: "gemini-2.5-flash",
     displayName: "Gemini 2.5 Flash",
-    dropdownName: "gemini (gemini-2.5-flash)",
+    dropdownName: "Gemini (2.5 Flash)",
     label: "Gemini",
     minimumTier: "pro",
   },
   {
-    id: "openai",
     name: "gpt-5.1",
     displayName: "GPT 5.1",
-    dropdownName: "openai (gpt-5.1)",
+    dropdownName: "OpenAI (GPT 5.1)",
     label: "OpenAI",
     minimumTier: "premium",
   },
+  {
+    name: "moonshotai/kimi-k2.5",
+    displayName: "Kimi K2.5",
+    dropdownName: "OpenRouter (Kimi K2.5)",
+    label: "OpenRouter",
+    minimumTier: "pro",
+  },
 ];
 
-export const DEFAULT_MODEL: ModelId = "anthropic";
+// Default model name
+export const DEFAULT_MODEL = "claude-4.5-sonnet";
+
+// Helper to get model by name
+export function getModelByName(name: string): Model | undefined {
+  return MODELS.find((m) => m.name === name);
+}
+
+// LocalStorage model settings structure
+export interface ModelSettings {
+  modelName: string; // e.g., "claude-4.5-sonnet"
+  temperature: number;
+}
+
+// Default model settings
+export const DEFAULT_MODEL_SETTINGS: ModelSettings = {
+  modelName: DEFAULT_MODEL,
+  temperature: 0.3,
+};

@@ -63,7 +63,7 @@ type ShapeDeletedEvent = {
 };
 
 export type Settings = {
-  activeModel: string;
+  modelName: string; // e.g., "claude-4.5-sonnet"
   temperature: number;
   maxTokens: number;
   theme: string;

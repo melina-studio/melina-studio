@@ -98,10 +98,16 @@ type streamContentBlockRef struct {
 	Name  string `json:"name,omitempty"` // for tool_use blocks
 }
 
-func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int) (*ClaudeResponse, error) {
+func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int, modelIDOverride string) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // "us-east5"
-	modelID := os.Getenv("CLAUDE_VERTEX_MODEL")             // "claude-sonnet-4-5@20250929"
+	modelID := modelIDOverride
+	if modelID == "" {
+		modelID = os.Getenv("CLAUDE_VERTEX_MODEL") // fallback to env var
+	}
+	if modelID == "" {
+		modelID = "claude-sonnet-4-5@20250929" // final fallback
+	}
 
 	// -------- 1) Build authed HTTP client from SA JSON --------
 	enc := os.Getenv("GCP_SERVICE_ACCOUNT_CREDENTIALS")
@@ -238,10 +244,17 @@ func StreamClaudeWithMessages(
 	streamCtx *StreamingContext,
 	temperature *float32,
 	maxTokens *int,
+	modelIDOverride string,
 ) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // e.g. "us-east5"
-	modelID := "claude-sonnet-4-5@20250929"                 // your model
+	modelID := modelIDOverride
+	if modelID == "" {
+		modelID = os.Getenv("CLAUDE_VERTEX_MODEL") // fallback to env var
+	}
+	if modelID == "" {
+		modelID = "claude-sonnet-4-5@20250929" // final fallback
+	}
 
 	// ---------- 1) Auth HTTP client from SA JSON ----------
 	enc := os.Getenv("GCP_SERVICE_ACCOUNT_CREDENTIALS")
@@ -691,7 +704,7 @@ func StreamClaudeWithMessages(
 }
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
-func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int) (*ClaudeResponse, error) {
+func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string) (*ClaudeResponse, error) {
 	const maxIterations = 5 // safety guard - reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -707,12 +720,12 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		var cr *ClaudeResponse
 		var err error
 		if streamCtx != nil && streamCtx.Client != nil {
-			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens)
+			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens, modelID)
 			if err != nil {
 				return nil, fmt.Errorf("StreamClaudeWithMessages: %w", err)
 			}
 		} else {
-			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens)
+			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens, modelID)
 			if err != nil {
 				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
 			}
@@ -832,9 +845,9 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 	var finalResp *ClaudeResponse
 	var err error
 	if streamCtx != nil && streamCtx.Client != nil {
-		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens)
+		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens, modelID)
 	} else {
-		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens)
+		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens, modelID)
 	}
 
 	if err != nil {

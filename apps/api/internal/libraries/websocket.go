@@ -76,7 +76,7 @@ type ChatMessageMetadata struct {
 type ChatMessagePayload struct {
 	BoardId     string               `json:"board_id,omitempty"`
 	Message     string               `json:"message"`
-	ActiveModel string               `json:"active_model"`
+	ModelName   string               `json:"model_name"` // e.g., "claude-4.5-sonnet", "gemini-2.5-flash"
 	Temperature *float32             `json:"temperature"`
 	MaxTokens   *int                 `json:"max_tokens"`
 	ActiveTheme string               `json:"active_theme"`
@@ -111,7 +111,7 @@ type WorkflowConfig struct {
 	BoardId     string
 	UserID      string
 	Message     *ChatMessagePayload
-	Model       string
+	ModelName   string // The model name (e.g., "claude-4.5-sonnet")
 	Temperature *float32
 	MaxTokens   *int
 	ActiveTheme string
@@ -470,7 +470,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 				}
 
 				fmt.Println("chatPayload", chatPayload)
-				fmt.Println("chatPayload.ActiveModel", chatPayload.ActiveModel)
+				fmt.Println("chatPayload.ModelName", chatPayload.ModelName)
 				fmt.Println("chatPayload.Temperature", chatPayload.Temperature)
 				fmt.Println("chatPayload.MaxTokens", chatPayload.MaxTokens)
 
@@ -478,7 +478,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 					BoardId:     boardId,
 					UserID:      client.UserID,
 					Message:     chatPayload,
-					Model:       chatPayload.ActiveModel,
+					ModelName:   chatPayload.ModelName,
 					Temperature: chatPayload.Temperature,
 					MaxTokens:   chatPayload.MaxTokens,
 					ActiveTheme: chatPayload.ActiveTheme,

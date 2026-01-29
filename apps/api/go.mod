@@ -68,6 +68,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/razorpay/razorpay-go v1.4.0 // indirect
+	github.com/revrost/go-openrouter v1.1.5 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect

@@ -11,6 +11,7 @@ import { CreationInput } from "@/components/custom/Boards/CreationInput";
 import type { Board } from "@/lib/types";
 import { useBoard } from "@/hooks/useBoard";
 import { Ripple } from "@/components/ui/aceternity/Ripple";
+import { DEFAULT_MODEL } from "@/lib/constants";
 
 export default function PlaygroundContent() {
   const router = useRouter();
@@ -128,7 +129,7 @@ export default function PlaygroundContent() {
       localStorage.setItem(
         "settings",
         JSON.stringify({
-          activeModel: "anthropic",
+          modelName: DEFAULT_MODEL,
           temperature: 0.5,
           maxTokens: 1000,
           theme: theme,

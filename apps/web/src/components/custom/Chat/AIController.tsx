@@ -339,7 +339,7 @@ Type \`/\` to see available commands.`,
     const settings = localStorage.getItem("settings");
     if (!settings) return;
     const settingsObj = JSON.parse(settings);
-    const { activeModel, temperature, maxTokens, theme } = settingsObj;
+    const { modelName, temperature, maxTokens, theme } = settingsObj;
 
     // Upload images for each shape in selections that don't already have an imageUrl
     // Backend will annotate images and fetch full shape data from DB
@@ -468,7 +468,7 @@ Type \`/\` to see available commands.`,
         data: {
           board_id: boardId,
           message: text,
-          active_model: activeModel,
+          model_name: modelName,
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
@@ -508,7 +508,7 @@ Type \`/\` to see available commands.`,
     const settings = localStorage.getItem("settings");
     if (!settings) return;
     const settingsObj = JSON.parse(settings);
-    const { activeModel, temperature, maxTokens, theme } = settingsObj;
+    const { modelName, temperature, maxTokens, theme } = settingsObj;
 
     // Upload images for each shape in selections that don't already have an imageUrl
     // Backend will annotate images and fetch full shape data from DB
@@ -586,7 +586,7 @@ Type \`/\` to see available commands.`,
         data: {
           board_id: boardId,
           message: text,
-          active_model: activeModel,
+          model_name: modelName,
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,

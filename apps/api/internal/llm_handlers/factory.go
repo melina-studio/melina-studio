@@ -12,6 +12,7 @@ const (
 	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
 	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
 	ProviderGemini          Provider = "gemini"
+	ProviderOpenRouter      Provider = "openrouter" // OpenRouter (supports Kimi-K2.5, etc.)
 )
 
 type Config struct {
@@ -53,7 +54,7 @@ func New(cfg Config) (Client, error) {
 		})
 
 	case ProviderVertexAnthropic:
-		return NewVertexAnthropicClient(cfg.Tools, cfg.Temperature, cfg.MaxTokens), nil
+		return NewVertexAnthropicClient(cfg.Model, cfg.Tools, cfg.Temperature, cfg.MaxTokens), nil
 
 	case ProviderGemini:
 		// Create background context for client initialization
@@ -63,6 +64,9 @@ func New(cfg Config) (Client, error) {
 			return nil, err
 		}
 		return client, nil
+
+	case ProviderOpenRouter:
+		return NewOpenRouterClient(cfg.Model, cfg.Temperature, cfg.MaxTokens, cfg.Tools)
 
 	default:
 		return nil, fmt.Errorf("unknown LLM provider: %s", cfg.Provider)

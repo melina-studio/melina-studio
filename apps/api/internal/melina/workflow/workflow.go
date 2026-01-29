@@ -153,6 +153,9 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
+	// send an event that the chat is starting
+	libraries.SendEventType(hub, client, libraries.WebSocketMessageTypeChatStarting)
+
 	// get chat history from the database
 	chatHistory, err := w.chatRepo.GetChatHistory(boardIdUUID, 20)
 	if err != nil {
@@ -160,9 +163,15 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
-	// create an agent
-	LLM := cfg.Model
-	agent := agents.NewAgent(LLM, cfg.Temperature, cfg.MaxTokens)
+	// Validate model and get provider info from registry
+	modelInfo, err := llmHandlers.ValidateModel(cfg.ModelName)
+	if err != nil {
+		libraries.SendErrorMessage(hub, client, fmt.Sprintf("Invalid model: %s", cfg.ModelName))
+		return
+	}
+
+	// Create agent with validated model info
+	agent := agents.NewAgentWithModel(modelInfo, cfg.Temperature, cfg.MaxTokens)
 
 	// Process selection images using the image processor service
 	annotatedSelections := w.imageProcessor.ProcessSelectionImages(cfg.Message.Metadata)
@@ -176,9 +185,6 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	} else {
 		log.Printf("No uploaded images in metadata (metadata nil: %v)", cfg.Message.Metadata == nil)
 	}
-
-	// send an event that the chat is starting
-	libraries.SendEventType(hub, client, libraries.WebSocketMessageTypeChatStarting)
 
 	// process the chat message - pass client and boardId for streaming
 	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
@@ -218,7 +224,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	// Store token consumption and handle warnings asynchronously to avoid latency
 	if tokenUsage != nil {
 		// Run all token tracking operations in a goroutine to not block the response
-		go runTokenTrackingOperations(hub, client, userIdUUID, boardIdUUID, human_message_id, LLM, cfg.Message.ActiveModel, tokenUsage)
+		go runTokenTrackingOperations(hub, client, userIdUUID, boardIdUUID, human_message_id, string(modelInfo.Provider), cfg.ModelName, tokenUsage)
 	}
 
 	// send an event that the chat is completed

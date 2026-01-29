@@ -5,8 +5,8 @@ import { useAuth } from "@/providers/AuthProvider";
 import {
   MODELS,
   DEFAULT_MODEL,
-  type ModelId,
   type SubscriptionTier,
+  type Model,
 } from "@/lib/constants";
 import {
   getModelsWithStatus,
@@ -17,11 +17,11 @@ import {
 } from "@/lib/modelUtils";
 
 interface UseModelAccessReturn {
-  activeModel: ModelId;
-  availableModels: typeof MODELS;
+  activeModel: string; // Model name (e.g., "claude-4.5-sonnet")
+  availableModels: Model[];
   modelsWithStatus: ModelWithStatus[];
-  handleModelChange: (modelId: ModelId) => void;
-  canAccessModel: (modelId: ModelId) => boolean;
+  handleModelChange: (modelName: string) => void;
+  canAccessModel: (modelName: string) => boolean;
   subscription: SubscriptionTier;
 }
 
@@ -29,7 +29,7 @@ export function useModelAccess(): UseModelAccessReturn {
   const { user } = useAuth();
   const subscription: SubscriptionTier = user?.subscription || "free";
 
-  const [activeModel, setActiveModel] = useState<ModelId>(DEFAULT_MODEL);
+  const [activeModel, setActiveModel] = useState<string>(DEFAULT_MODEL);
   const [mounted, setMounted] = useState(false);
 
   // Load and validate model from localStorage on mount
@@ -39,14 +39,14 @@ export function useModelAccess(): UseModelAccessReturn {
       const settings = localStorage.getItem("settings");
       if (settings) {
         const parsed = JSON.parse(settings);
-        const savedModel = parsed.activeModel;
+        const savedModel = parsed.modelName;
 
         // Validate that saved model is accessible with current subscription
         const validModel = getValidModelForUser(savedModel, subscription);
 
         // If saved model is not valid, update localStorage with valid model
         if (savedModel !== validModel) {
-          const newSettings = { ...parsed, activeModel: validModel };
+          const newSettings = { ...parsed, modelName: validModel };
           localStorage.setItem("settings", JSON.stringify(newSettings));
         }
 
@@ -71,7 +71,7 @@ export function useModelAccess(): UseModelAccessReturn {
       try {
         const settings = localStorage.getItem("settings");
         const parsed = settings ? JSON.parse(settings) : {};
-        parsed.activeModel = validModel;
+        parsed.modelName = validModel;
         localStorage.setItem("settings", JSON.stringify(parsed));
       } catch (e) {
         console.error("Failed to update model settings:", e);
@@ -80,19 +80,19 @@ export function useModelAccess(): UseModelAccessReturn {
   }, [subscription, activeModel, mounted]);
 
   const handleModelChange = useCallback(
-    (modelId: ModelId) => {
+    (modelName: string) => {
       // Only allow changing to accessible models
-      if (!canAccessModel(subscription, modelId)) {
+      if (!canAccessModel(subscription, modelName)) {
         return;
       }
 
-      setActiveModel(modelId);
+      setActiveModel(modelName);
 
       // Update localStorage
       try {
         const settings = localStorage.getItem("settings");
         const parsed = settings ? JSON.parse(settings) : {};
-        parsed.activeModel = modelId;
+        parsed.modelName = modelName;
         localStorage.setItem("settings", JSON.stringify(parsed));
       } catch (e) {
         console.error("Failed to save model settings:", e);
@@ -102,7 +102,7 @@ export function useModelAccess(): UseModelAccessReturn {
   );
 
   const checkModelAccess = useCallback(
-    (modelId: ModelId) => canAccessModel(subscription, modelId),
+    (modelName: string) => canAccessModel(subscription, modelName),
     [subscription]
   );
 
