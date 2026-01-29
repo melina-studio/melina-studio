@@ -297,8 +297,14 @@ export default function BoardPage() {
       "chat_response",
       (data: { data: { board_id: string; message: string } }) => {
         const { message } = data.data;
+
+        // Handle race condition: if chat_response arrives before chat_starting,
+        // create the AI message ID here to avoid dropping the first tokens
+        if (!aiMessageIdRef.current) {
+          aiMessageIdRef.current = crypto.randomUUID();
+          setIsAiResponding(true);
+        }
         const currentAiId = aiMessageIdRef.current;
-        if (!currentAiId) return;
 
         setChatHistory((msgs) => {
           const existingMessage = msgs.find(
