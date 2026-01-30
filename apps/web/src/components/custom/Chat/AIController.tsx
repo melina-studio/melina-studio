@@ -80,7 +80,7 @@ function AIController({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasInitializedScroll = useRef(false);
   const shouldScrollToBottom = useRef(true);
-  const { thinkingAccess, handleModelChange } = useModelAccess();
+  const { thinkingAccess, handleModelChange, activeModel, modelsWithStatus } = useModelAccess();
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
 
   const getThinkingTooltip = () => {
@@ -1006,7 +1006,12 @@ Type \`/\` to see available commands.`,
             {/* Footer with model selector, attachment button, and send button */}
             <div className="flex items-end justify-between">
               <div className="flex items-end gap-2">
-                <ModelSelector isDark={isDark} onModelChange={handleModelChange} />
+                <ModelSelector
+                  isDark={isDark}
+                  onModelChange={handleModelChange}
+                  activeModel={activeModel}
+                  modelsWithStatus={modelsWithStatus}
+                />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
