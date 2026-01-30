@@ -5,13 +5,14 @@ import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
 
 type ModelSelectorProps = {
   isDark: boolean;
+  onModelChange: (modelName: string) => void;
 };
 
-function ModelSelector({ isDark }: ModelSelectorProps) {
+function ModelSelector({ isDark, onModelChange }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { activeModel, modelsWithStatus, handleModelChange } = useModelAccess();
+  const { activeModel, modelsWithStatus } = useModelAccess();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -28,7 +29,7 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
   const handleSelectModel = (modelName: string, isAvailable: boolean) => {
     if (!isAvailable) return;
 
-    handleModelChange(modelName);
+    onModelChange(modelName);
     setIsOpen(false);
   };
 

@@ -2,16 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import {
-  MODELS,
-  DEFAULT_MODEL,
-  type SubscriptionTier,
-  type Model,
-} from "@/lib/constants";
+import { MODELS, DEFAULT_MODEL, type SubscriptionTier, type Model } from "@/lib/constants";
 import {
   getModelsWithStatus,
   getAvailableModels,
   getValidModelForUser,
+  canUseThinking,
   canAccessModel,
   type ModelWithStatus,
 } from "@/lib/modelUtils";
@@ -23,6 +19,7 @@ interface UseModelAccessReturn {
   handleModelChange: (modelName: string) => void;
   canAccessModel: (modelName: string) => boolean;
   subscription: SubscriptionTier;
+  thinkingAccess: { canUse: boolean; reason: "no_access" | "model_unsupported" | null };
 }
 
 export function useModelAccess(): UseModelAccessReturn {
@@ -31,6 +28,7 @@ export function useModelAccess(): UseModelAccessReturn {
 
   const [activeModel, setActiveModel] = useState<string>(DEFAULT_MODEL);
   const [mounted, setMounted] = useState(false);
+  const thinkingAccess = canUseThinking(subscription, activeModel);
 
   // Load and validate model from localStorage on mount
   useEffect(() => {
@@ -113,5 +111,6 @@ export function useModelAccess(): UseModelAccessReturn {
     handleModelChange,
     canAccessModel: checkModelAccess,
     subscription,
+    thinkingAccess,
   };
 }

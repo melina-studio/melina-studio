@@ -20,6 +20,9 @@ import { useImageAttachments } from "@/hooks/useImageAttachments";
 import { TokenBlockedPayload, TokenWarningPayload } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 import WarningBlock from "./WarningBlock";
+import { Switch } from "@/components/ui/switch";
+import { useModelAccess } from "@/hooks/useModelAccess";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Message = {
   uuid: string;
@@ -77,6 +80,21 @@ function AIController({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasInitializedScroll = useRef(false);
   const shouldScrollToBottom = useRef(true);
+  const { thinkingAccess, handleModelChange } = useModelAccess();
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+
+  const getThinkingTooltip = () => {
+    if (thinkingAccess.reason === "no_access") return "Upgrade your subscription";
+    if (thinkingAccess.reason === "model_unsupported") return "Model doesn't support thinking";
+    return null;
+  };
+
+  // Auto-disable thinking mode when it becomes unavailable (model change or subscription change)
+  useEffect(() => {
+    if (!thinkingAccess.canUse && thinkingEnabled) {
+      setThinkingEnabled(false);
+    }
+  }, [thinkingAccess.canUse, thinkingEnabled]);
 
   // Get boardId early for use in callbacks
   const params = useParams();
@@ -159,9 +177,7 @@ function AIController({
         // Prepend older messages to the beginning, filtering out duplicates
         setMessages((prev) => {
           const existingUuids = new Set(prev.map((m) => m.uuid));
-          const uniqueOlderMessages = olderMessages.filter(
-            (m) => !existingUuids.has(m.uuid)
-          );
+          const uniqueOlderMessages = olderMessages.filter((m) => !existingUuids.has(m.uuid));
           return [...uniqueOlderMessages, ...prev];
         });
         setCurrentPage(nextPage);
@@ -730,17 +746,28 @@ Type \`/\` to see available commands.`,
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col relative ${isMobile ? "rounded-none" : "rounded-md shadow-2xl border backdrop-blur-xl"
-        }`}
+      className={`flex flex-col relative ${
+        isMobile ? "rounded-none" : "rounded-md shadow-2xl border backdrop-blur-xl"
+      }`}
       style={{
         width: isMobile ? "100%" : `${controlledWidth}px`,
         height: "100%",
         maxHeight: "100%",
         transition: isMobile ? "none" : "width 0.2s ease-out",
-        background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.5)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.95)"),
+        background: isDark
+          ? isMobile
+            ? "#1a1a1a"
+            : "rgba(50, 51, 50, 0.5)"
+          : isMobile
+            ? "#ffffff"
+            : "rgba(255, 255, 255, 0.95)",
         backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
         WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
-        borderColor: isMobile ? "transparent" : (isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)"),
+        borderColor: isMobile
+          ? "transparent"
+          : isDark
+            ? "rgba(107, 114, 128, 0.3)"
+            : "rgba(209, 213, 219, 0.3)",
       }}
     >
       {/* Resize handle on left edge - only show on desktop */}
@@ -766,10 +793,17 @@ Type \`/\` to see available commands.`,
       )}
       {/* Header with close button on mobile */}
       <div
-        className={`flex items-center justify-between border-b sticky top-0 z-10 ${isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
-          }`}
+        className={`flex items-center justify-between border-b sticky top-0 z-10 ${
+          isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
+        }`}
         style={{
-          background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.8)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.8)"),
+          background: isDark
+            ? isMobile
+              ? "#1a1a1a"
+              : "rgba(50, 51, 50, 0.8)"
+            : isMobile
+              ? "#ffffff"
+              : "rgba(255, 255, 255, 0.8)",
           backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
           WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
           paddingTop: isMobile ? "env(safe-area-inset-top, 12px)" : undefined,
@@ -825,9 +859,9 @@ Type \`/\` to see available commands.`,
               const isLatestAI =
                 msg.role === "assistant" &&
                 index ===
-                messages.length -
-                1 -
-                [...messages].reverse().findIndex((m) => m.role === "assistant");
+                  messages.length -
+                    1 -
+                    [...messages].reverse().findIndex((m) => m.role === "assistant");
               return (
                 <div key={`${msg.uuid}-${index}`}>
                   <ChatMessage
@@ -972,7 +1006,7 @@ Type \`/\` to see available commands.`,
             {/* Footer with model selector, attachment button, and send button */}
             <div className="flex items-end justify-between">
               <div className="flex items-end gap-2">
-                <ModelSelector isDark={isDark} />
+                <ModelSelector isDark={isDark} onModelChange={handleModelChange} />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -982,16 +1016,51 @@ Type \`/\` to see available commands.`,
                 >
                   <Paperclip className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                 </button>
+
+                {/* Thinking enabled toggle */}
+                <div className="flex items-center gap-2">
+                  {!thinkingAccess.canUse ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            size="sm"
+                            id="thinking-mode"
+                            checked={thinkingEnabled}
+                            disabled
+                            className="opacity-50 cursor-not-allowed"
+                          />
+                          <span className="text-xs text-gray-400">Thinking Mode</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>{getThinkingTooltip()}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        size="sm"
+                        id="thinking-mode"
+                        checked={thinkingEnabled}
+                        onCheckedChange={() => setThinkingEnabled(!thinkingEnabled)}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {thinkingEnabled ? "Thinking Mode: On" : "Thinking Mode: Off"}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                   if (tokenStatus?.type === "blocked") return;
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
-                  }`}
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
+                  loading || tokenStatus?.type === "blocked"
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
               >
                 {loading ? (
                   <Spinner

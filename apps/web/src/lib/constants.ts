@@ -18,6 +18,7 @@ export type Model = {
   dropdownName: string;
   label: string;
   minimumTier: SubscriptionTier;
+  supportsThinking: boolean;
 };
 
 export const SUBSCRIPTION_TIER_ORDER: Record<SubscriptionTier, number> = {
@@ -34,6 +35,8 @@ export const SUBSCRIPTION_TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> =
   on_demand: "On Demand",
 };
 
+export const THINKING_MINIMUM_TIER: SubscriptionTier = "premium";
+
 export const MODELS: Model[] = [
   {
     name: "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -41,6 +44,7 @@ export const MODELS: Model[] = [
     dropdownName: "Groq (Llama 4 Scout)",
     label: "Groq",
     minimumTier: "free",
+    supportsThinking: false,
   },
   {
     name: "claude-4.5-sonnet",
@@ -48,6 +52,7 @@ export const MODELS: Model[] = [
     dropdownName: "Anthropic (Claude 4.5 Sonnet)",
     label: "Anthropic",
     minimumTier: "free",
+    supportsThinking: true,
   },
   {
     name: "gemini-2.5-flash",
@@ -55,6 +60,7 @@ export const MODELS: Model[] = [
     dropdownName: "Gemini (2.5 Flash)",
     label: "Gemini",
     minimumTier: "pro",
+    supportsThinking: true,
   },
   {
     name: "gpt-5.1",
@@ -62,6 +68,7 @@ export const MODELS: Model[] = [
     dropdownName: "OpenAI (GPT 5.1)",
     label: "OpenAI",
     minimumTier: "premium",
+    supportsThinking: true,
   },
   {
     name: "moonshotai/kimi-k2.5",
@@ -69,6 +76,7 @@ export const MODELS: Model[] = [
     dropdownName: "OpenRouter (Kimi K2.5)",
     label: "OpenRouter",
     minimumTier: "pro",
+    supportsThinking: true,
   },
 ];
 
