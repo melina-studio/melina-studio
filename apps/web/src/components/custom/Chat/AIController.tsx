@@ -769,9 +769,8 @@ function AIController({
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col relative ${
-        isMobile ? "rounded-none" : "rounded-md shadow-2xl border backdrop-blur-xl"
-      }`}
+      className={`flex flex-col relative ${isMobile ? "rounded-none" : "rounded-md shadow-2xl border backdrop-blur-xl"
+        }`}
       style={{
         width: isMobile ? "100%" : `${controlledWidth}px`,
         height: "100%",
@@ -783,7 +782,7 @@ function AIController({
             : "rgba(50, 51, 50, 0.5)"
           : isMobile
             ? "#ffffff"
-            : "rgba(255, 255, 255, 0.95)",
+            : "rgba(255, 255, 255, 0.5)",
         backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
         WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
         borderColor: isMobile
@@ -816,9 +815,8 @@ function AIController({
       )}
       {/* Header with close button on mobile */}
       <div
-        className={`flex items-center justify-between border-b sticky top-0 z-10 ${
-          isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
-        }`}
+        className={`flex items-center justify-between border-b sticky top-0 z-10 ${isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
+          }`}
         style={{
           background: isDark
             ? isMobile
@@ -882,9 +880,9 @@ function AIController({
               const isLatestAI =
                 msg.role === "assistant" &&
                 index ===
-                  messages.length -
-                    1 -
-                    [...messages].reverse().findIndex((m) => m.role === "assistant");
+                messages.length -
+                1 -
+                [...messages].reverse().findIndex((m) => m.role === "assistant");
               // Check if this is the currently streaming message
               const isStreamingMessage = msg.uuid === streamingMessageId && msg.role === "assistant";
               return (
@@ -1088,11 +1086,10 @@ function AIController({
                   if (tokenStatus?.type === "blocked") return;
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${
-                  loading || tokenStatus?.type === "blocked"
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
-                }`}
+                  }`}
               >
                 {loading ? (
                   <Spinner
