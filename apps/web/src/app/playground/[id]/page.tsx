@@ -36,6 +36,7 @@ type ChatMessage = {
   uuid: string;
   role: "user" | "assistant";
   content: string;
+  thought?: string; // Thinking/reasoning content (only for assistant messages)
 };
 
 type ShapeCreatedEvent = {
@@ -114,6 +115,20 @@ export default function BoardPage() {
   const [chatWidth, setChatWidth] = useState(500);
   const [hasChatResized, setHasChatResized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Unified streaming state - associates thinking with specific message ID
+  const [streamingState, setStreamingState] = useState<{
+    messageId: string | null;
+    thinking: {
+      content: string;
+      isActive: boolean;
+      startTime: number | null;
+      duration: number | null;
+    };
+  }>({
+    messageId: null,
+    thinking: { content: "", isActive: false, startTime: null, duration: null },
+  });
 
   // Canvas transform state for background parallax effect
   const [canvasTransform, setCanvasTransform] = useState({
@@ -288,9 +303,16 @@ export default function BoardPage() {
     const unsubscribeChatStart = subscribe("chat_starting", () => {
       setMelinaStatus("thinking");
       setIsAiResponding(true);
-      // Create temporary AI message ID
+      // Create temporary AI message ID and reset streaming state
       const aiId = crypto.randomUUID();
       aiMessageIdRef.current = aiId;
+      // Reset streaming state with new message ID and add placeholder message
+      setStreamingState({
+        messageId: aiId,
+        thinking: { content: "", isActive: false, startTime: null, duration: null },
+      });
+      // Add placeholder message to chatHistory so thinking displays on it
+      setChatHistory((msgs) => [...msgs, { uuid: aiId, role: "assistant", content: "" }]);
     });
 
     const unsubscribeChatResponse = subscribe(
@@ -333,22 +355,74 @@ export default function BoardPage() {
 
         const { ai_message_id, human_message_id } = data.data;
         if (ai_message_id && human_message_id) {
-          setChatHistory((msgs) =>
-            msgs.map((msg) => {
-              if (msg.uuid === humanMessageIdRef.current && msg.role === "user") {
-                return { ...msg, uuid: human_message_id };
-              }
-              if (msg.uuid === aiMessageIdRef.current && msg.role === "assistant") {
-                return { ...msg, uuid: ai_message_id };
-              }
-              return msg;
-            })
-          );
+          // Use functional update to get latest streamingState and save thought
+          setStreamingState((prev) => {
+            // Update chat history with the thought from streaming state
+            setChatHistory((msgs) =>
+              msgs.map((msg) => {
+                if (msg.uuid === humanMessageIdRef.current && msg.role === "user") {
+                  return { ...msg, uuid: human_message_id };
+                }
+                if (msg.uuid === prev.messageId && msg.role === "assistant") {
+                  return {
+                    ...msg,
+                    uuid: ai_message_id,
+                    thought: prev.thinking.content.trim() || undefined,
+                  };
+                }
+                return msg;
+              })
+            );
+            // Reset streaming state completely
+            return {
+              messageId: null,
+              thinking: { content: "", isActive: false, startTime: null, duration: null },
+            };
+          });
         }
         aiMessageIdRef.current = null;
         humanMessageIdRef.current = null;
       }
     );
+
+    // Thinking/reasoning WebSocket subscriptions
+    const unsubscribeThinkingStart = subscribe("thinking_start", () => {
+      setStreamingState((prev) => ({
+        ...prev,
+        thinking: {
+          content: "",
+          isActive: true,
+          startTime: Date.now(),
+          duration: null,
+        },
+      }));
+    });
+
+    const unsubscribeThinkingResponse = subscribe(
+      "thinking_response",
+      (data: { data: { board_id: string; message: string } }) => {
+        setStreamingState((prev) => ({
+          ...prev,
+          thinking: {
+            ...prev.thinking,
+            content: prev.thinking.content + data.data.message,
+          },
+        }));
+      }
+    );
+
+    const unsubscribeThinkingCompleted = subscribe("thinking_completed", () => {
+      setStreamingState((prev) => ({
+        ...prev,
+        thinking: {
+          ...prev.thinking,
+          isActive: false,
+          duration: prev.thinking.startTime
+            ? Math.round((Date.now() - prev.thinking.startTime) / 1000)
+            : null,
+        },
+      }));
+    });
 
     const unsubscribeChatError = subscribe("error", (data: { data: { message: string } }) => {
       toast.error(data.data.message);
@@ -359,6 +433,11 @@ export default function BoardPage() {
       }
       aiMessageIdRef.current = null;
       humanMessageIdRef.current = null;
+      // Reset streaming state
+      setStreamingState({
+        messageId: null,
+        thinking: { content: "", isActive: false, startTime: null, duration: null },
+      });
     });
 
     const unsubscribeBoardRename = subscribe(
@@ -376,6 +455,9 @@ export default function BoardPage() {
       unsubscribeChatCompleted();
       unsubscribeChatError();
       unsubscribeBoardRename();
+      unsubscribeThinkingStart();
+      unsubscribeThinkingResponse();
+      unsubscribeThinkingCompleted();
     };
   }, [subscribe]);
 
@@ -895,6 +977,8 @@ export default function BoardPage() {
                 }}
                 isMobile={true}
                 onClose={() => setShowAiController(false)}
+                streamingMessageId={streamingState.messageId}
+                streamingThinking={streamingState.thinking}
               />
             )}
           </div>
@@ -937,6 +1021,8 @@ export default function BoardPage() {
                   onHumanMessageIdChange={(id) => {
                     humanMessageIdRef.current = id;
                   }}
+                  streamingMessageId={streamingState.messageId}
+                  streamingThinking={streamingState.thinking}
                 />
               )}
             </div>

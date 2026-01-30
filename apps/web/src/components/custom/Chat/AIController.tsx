@@ -29,6 +29,15 @@ type Message = {
   uuid: string;
   role: "user" | "assistant";
   content: string;
+  thought?: string; // Thinking/reasoning content (only for assistant messages)
+};
+
+// Type for streaming thinking state
+type StreamingThinking = {
+  content: string;
+  isActive: boolean;
+  startTime: number | null;
+  duration: number | null;
 };
 
 interface AIControllerProps {
@@ -46,6 +55,9 @@ interface AIControllerProps {
   onHumanMessageIdChange?: (id: string | null) => void;
   isMobile?: boolean;
   onClose?: () => void;
+  // Unified streaming state - associates thinking with specific message
+  streamingMessageId?: string | null;
+  streamingThinking?: StreamingThinking;
 }
 
 function AIController({
@@ -63,6 +75,8 @@ function AIController({
   onHumanMessageIdChange,
   isMobile = false,
   onClose,
+  streamingMessageId = null,
+  streamingThinking,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -144,16 +158,13 @@ function AIController({
   // This handles both initial load AND streaming updates from parent
   useEffect(() => {
     const currentMessages = messagesRef.current;
-    const lastLocalMsg = currentMessages[currentMessages.length - 1];
-    const lastParentMsg = chatHistory[chatHistory.length - 1];
 
-    // Sync if: different length, different last message UUID, or different content (streaming)
-    const needsSync =
-      chatHistory.length !== currentMessages.length ||
-      lastLocalMsg?.uuid !== lastParentMsg?.uuid ||
-      lastLocalMsg?.content !== lastParentMsg?.content;
+    // Always sync when chatHistory changes - use JSON comparison for deep check
+    // This ensures thought field updates on any message are detected
+    const chatHistoryJson = JSON.stringify(chatHistory);
+    const currentMessagesJson = JSON.stringify(currentMessages);
 
-    if (needsSync && chatHistory.length > 0) {
+    if (chatHistoryJson !== currentMessagesJson && chatHistory.length > 0) {
       syncingFromParentRef.current = true;
       setMessages(chatHistory);
     }
@@ -683,6 +694,21 @@ function AIController({
     }
   }, [messages]);
 
+  // Auto-scroll when AI starts responding (chat_starting event triggers isAiResponding=true)
+  useEffect(() => {
+    if (isAiResponding) {
+      shouldScrollToBottom.current = true;
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isAiResponding]);
+
+  // Auto-scroll when thinking content updates (thinking_response events)
+  useEffect(() => {
+    if (streamingThinking?.content && shouldScrollToBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [streamingThinking?.content]);
+
   // Resize handlers
   useEffect(() => {
     const container = containerRef.current;
@@ -859,25 +885,29 @@ function AIController({
                   messages.length -
                     1 -
                     [...messages].reverse().findIndex((m) => m.role === "assistant");
+              // Check if this is the currently streaming message
+              const isStreamingMessage = msg.uuid === streamingMessageId && msg.role === "assistant";
               return (
                 <div key={`${msg.uuid}-${index}`}>
                   <ChatMessage
                     role={msg.role}
                     content={msg.content}
                     isLatest={isLatestAI}
-                    isStreaming={isLatestAI && isAiResponding}
+                    isStreaming={isStreamingMessage && isAiResponding}
+                    thought={msg.thought}
+                    streamingThinking={isStreamingMessage ? streamingThinking : undefined}
                   />
                 </div>
               );
             })
           )}
-          {/* bottom chat bubble loader */}
-          {isAiResponding && (
+          {/* Typing loader - only show when waiting for message to be created */}
+          {isAiResponding && !messages.some((m) => m.uuid === streamingMessageId) && (
             <div className="flex justify-start gap-3 items-start mb-4">
               <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
                 <span className="text-white font-medium text-xs">M</span>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
                   Melina
                 </span>

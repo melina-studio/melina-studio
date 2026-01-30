@@ -545,10 +545,9 @@ func StreamClaudeWithMessages(
 				}
 			}
 
-			// Finalize thinking block if active
+			// Finalize thinking block if active - send thinking_completed event
+			// Note: Don't reset currentThinkingBuilder here - it's saved to cr.ThinkingContent at the end
 			if currentThinkingBuilder.Len() > 0 {
-				// Optionally store thinking content somewhere
-				currentThinkingBuilder.Reset()
 				// Send thinking_completed event
 				if streamCtx != nil && streamCtx.Client != nil {
 					libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
