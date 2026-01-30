@@ -23,7 +23,9 @@
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(go doc:*)",
+      "Bash(go build:*)"
     ]
   }
 }

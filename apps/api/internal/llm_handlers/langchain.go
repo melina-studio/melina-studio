@@ -16,6 +16,7 @@ import (
 
 type LangChainClient struct {
 	llm         llms.Model
+	Model       string // Store model name to check for thinking support
 	Tools       []map[string]interface{}
 	Temperature *float32 // Optional: nil means use default
 	MaxTokens   *int     // Optional: nil means use default
@@ -55,6 +56,12 @@ type LangChainFunctionCall struct {
 	Arguments map[string]interface{}
 }
 
+// isLlamaModel checks if the model is a Meta/Llama model (which doesn't support thinking)
+func isLlamaModel(model string) bool {
+	modelLower := strings.ToLower(model)
+	return strings.Contains(modelLower, "llama") || strings.Contains(modelLower, "meta")
+}
+
 func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 	opts := []openai.Option{
 		openai.WithModel(cfg.Model),
@@ -73,6 +80,7 @@ func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 
 	return &LangChainClient{
 		llm:         llm,
+		Model:       cfg.Model,
 		Tools:       cfg.Tools,
 		Temperature: cfg.Temperature,
 		MaxTokens:   cfg.MaxTokens,
@@ -239,8 +247,19 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 		opts = append(opts, llms.WithMaxTokens(*c.MaxTokens))
 	}
 
-	// TODO: Add thinking support
-	fmt.Printf("[langchain] Thinking support: %v\n", enableThinking)
+	// Add thinking support - Meta/Llama models do NOT support thinking
+	if enableThinking {
+		if isLlamaModel(c.Model) {
+			fmt.Printf("[langchain] Thinking requested but Llama model %s does not support it, skipping\n", c.Model)
+		} else {
+			fmt.Printf("[langchain] Enabling thinking for model: %s\n", c.Model)
+			opts = append(opts, llms.WithThinking(&llms.ThinkingConfig{
+				Mode:           llms.ThinkingMode("auto"),
+				BudgetTokens:   1024, // Match the Anthropic budget
+				ReturnThinking: true,
+			}))
+		}
+	}
 
 	// IMPORTANT: Always add tools if available, even if we're in a tool execution loop
 	// This ensures Groq models know tools are available on every call

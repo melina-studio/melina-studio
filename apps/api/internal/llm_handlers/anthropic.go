@@ -141,17 +141,17 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 		}
 	}
 
+	body := map[string]interface{}{
+		"anthropic_version": "vertex-2023-10-16",
+		"messages":          msgs,
+		"stream":            false,
+	}
+
 	maxTokensValue := 1024 // default
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
-
-	body := map[string]interface{}{
-		"anthropic_version": "vertex-2023-10-16",
-		"messages":          msgs,
-		"max_tokens":        maxTokensValue,
-		"stream":            false,
-	}
+	body["max_tokens"] = maxTokensValue
 
 	if temperature != nil {
 		body["temperature"] = *temperature
@@ -167,6 +167,21 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 					"type": "ephemeral",
 				},
 			},
+		}
+	}
+
+	if enableThinking {
+		thinkingBudget := 1024
+		body["thinking"] = map[string]interface{}{
+			"type":          "enabled",
+			"budget_tokens": thinkingBudget,
+		}
+		body["temperature"] = 1 // for thinking temperature must be 1 always
+
+		// max_tokens MUST be greater than thinking.budget_tokens
+		// Ensure max_tokens is at least budget_tokens + 1024 for response content
+		if maxTokensValue <= thinkingBudget {
+			body["max_tokens"] = thinkingBudget + 1024
 		}
 	}
 
@@ -288,20 +303,18 @@ func StreamClaudeWithMessages(
 		}
 	}
 
+	body := map[string]interface{}{
+		"anthropic_version": "vertex-2023-10-16",
+		"messages":          msgs,
+		"stream":            true, // streaming flag
+	}
+
 	maxTokensValue := 1024 // default
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
 
-	body := map[string]interface{}{
-		"anthropic_version": "vertex-2023-10-16",
-		"messages":          msgs,
-		"max_tokens":        maxTokensValue,
-		"stream":            true, // streaming flag
-	}
-
-	// TODO: Add thinking support
-	fmt.Printf("[anthropic] Thinking support: %v\n", enableThinking)
+	body["max_tokens"] = maxTokensValue
 
 	if temperature != nil {
 		body["temperature"] = *temperature
@@ -317,6 +330,21 @@ func StreamClaudeWithMessages(
 					"type": "ephemeral",
 				},
 			},
+		}
+	}
+
+	if enableThinking {
+		thinkingBudget := 1024
+		body["thinking"] = map[string]interface{}{
+			"type":          "enabled",
+			"budget_tokens": thinkingBudget,
+		}
+		body["temperature"] = 1 // for thinking temperature must be 1 always
+
+		// max_tokens MUST be greater than thinking.budget_tokens
+		// Ensure max_tokens is at least budget_tokens + 1024 for response content
+		if maxTokensValue <= thinkingBudget {
+			body["max_tokens"] = thinkingBudget + 1024
 		}
 	}
 

@@ -174,6 +174,15 @@ func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, syste
 		MaxTokens:   c.MaxTokens,
 	}
 
+	if enableThinking {
+		req.Reasoning = &openrouter.ChatCompletionReasoning{
+			Effort:    openrouter.String("low"),
+			MaxTokens: &c.MaxTokens,
+			Enabled:   &enableThinking,
+			Exclude:   &enableThinking,
+		}
+	}
+
 	// Add tools if available
 	tools := c.convertToolsToOpenRouterTools()
 	if len(tools) > 0 {
@@ -551,7 +560,7 @@ func (c *OpenRouterClient) Chat(ctx context.Context, systemMessage string, messa
 }
 
 // ChatStream implements the Client interface - streaming chat
-func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message , enableThinking bool) (string, error) {
+func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
@@ -584,12 +593,12 @@ func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, c
 // ChatStreamWithUsage implements the Client interface - streaming chat with token usage
 func (c *OpenRouterClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
 	ctx := req.Ctx
-    hub := req.Hub
-    client := req.Client
-    boardId := req.BoardID
-    systemMessage := req.SystemMessage
-    messages := req.Messages
-    enableThinking := req.EnableThinking
+	hub := req.Hub
+	client := req.Client
+	boardId := req.BoardID
+	systemMessage := req.SystemMessage
+	messages := req.Messages
+	enableThinking := req.EnableThinking
 
 	if boardId == "" {
 		return nil, fmt.Errorf("boardId is required")
