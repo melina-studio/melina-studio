@@ -249,8 +249,6 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 	// need to hanlde streaming later
 
-	// TODO: Add thinking support
-
 	fmt.Printf("[gemini] Thinking support: %v\n", enableThinking)
 
 	// Build generation config
@@ -258,6 +256,14 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 		Temperature:     &v.Temperature,
 		MaxOutputTokens: v.MaxTokens,
 		Tools:           genaiTools,
+	}
+
+	if enableThinking {
+		budget := int32(1024)  // token budget for thinking
+		genConfig.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: true,
+			ThinkingBudget:  &budget,
+		}
 	}
 
 	// Add system instruction if exists
