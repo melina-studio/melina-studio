@@ -16,9 +16,10 @@ import (
 
 // GeminiResponse contains the parsed response from Gemini
 type GeminiResponse struct {
-	TextContent   []string
-	FunctionCalls []FunctionCall
-	RawResponse   *genai.GenerateContentResponse
+	TextContent     []string
+	ThinkingContent string // Accumulated thinking/reasoning content
+	FunctionCalls   []FunctionCall
+	RawResponse     *genai.GenerateContentResponse
 }
 
 // FunctionCall represents a function call from Gemini
@@ -277,6 +278,9 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 	var resp *genai.GenerateContentResponse
 
+	// Track accumulated thinking content (defined outside streaming block so it can be captured)
+	var accumulatedThinking strings.Builder
+
 	// Use streaming if streaming context is provided
 	if streamCtx != nil && streamCtx.Client != nil {
 		// Use GenerateContentStream for real-time tokens
@@ -284,7 +288,6 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 		var lastChunk *genai.GenerateContentResponse
 		var accumulatedText strings.Builder
-		var accumulatedThinking strings.Builder
 		var thinkingStarted bool
 		var thinkingCompleted bool
 
@@ -390,7 +393,8 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 	// Parse response
 	gr := &GeminiResponse{
-		RawResponse: resp,
+		RawResponse:     resp,
+		ThinkingContent: accumulatedThinking.String(),
 	}
 
 	cand := resp.Candidates[0]
@@ -703,6 +707,7 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(req ChatStreamRequest) (*Respons
 
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
+		Thinking:   resp.ThinkingContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }

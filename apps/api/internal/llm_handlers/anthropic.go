@@ -19,10 +19,11 @@ import (
 
 // ClaudeResponse contains the parsed response from Claude
 type ClaudeResponse struct {
-	StopReason  string
-	TextContent []string
-	ToolUses    []ToolUse
-	RawResponse interface{} // Can hold either HTTP response or gRPC response
+	StopReason      string
+	TextContent     []string
+	ThinkingContent string // Accumulated thinking/reasoning content
+	ToolUses        []ToolUse
+	RawResponse     interface{} // Can hold either HTTP response or gRPC response
 }
 
 // ToolUse represents a tool call from Claude
@@ -750,6 +751,11 @@ func StreamClaudeWithMessages(
 	// If we have accumulated text but no TextContent entries, create one
 	if accumulatedText.Len() > 0 && len(cr.TextContent) == 0 {
 		cr.TextContent = append(cr.TextContent, accumulatedText.String())
+	}
+
+	// Capture accumulated thinking content
+	if currentThinkingBuilder.Len() > 0 {
+		cr.ThinkingContent = currentThinkingBuilder.String()
 	}
 
 	// Store usage data in RawResponse for token extraction

@@ -124,6 +124,7 @@ func (c *VertexAnthropicClient) ChatStreamWithUsage(req ChatStreamRequest) (*Res
 
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
+		Thinking:   resp.ThinkingContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }

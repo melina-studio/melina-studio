@@ -150,6 +150,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 
 	aiResponse := responseWithUsage.Text
 	tokenUsage := responseWithUsage.TokenUsage
+	thinking := responseWithUsage.Thinking
 
 	// Safety net: if aiResponse is empty, provide a default message to prevent database issues
 	if strings.TrimSpace(aiResponse) == "" {
@@ -157,8 +158,14 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		aiResponse = "I processed your request but was unable to generate a text response. Please check the board for any changes that were made."
 	}
 
+	// Convert thinking to pointer (nil if empty)
+	var thoughtPtr *string
+	if strings.TrimSpace(thinking) != "" {
+		thoughtPtr = &thinking
+	}
+
 	// after get successful response, create a chat in the database
-	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
+	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse, thoughtPtr)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
 		return

@@ -18,6 +18,7 @@ type Chat struct {
 	BoardUUID uuid.UUID `gorm:"not null" json:"board_uuid"`
 	Content   string    `gorm:"not null" json:"content"`
 	Role      Role      `gorm:"not null" json:"role"`
+	Thought   *string   `gorm:"type:text" json:"thought,omitempty"` // Only for assistant messages (thinking/reasoning content)
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

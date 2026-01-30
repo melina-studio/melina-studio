@@ -495,6 +495,7 @@ func (c *OpenAIClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWith
 
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
+		Thinking:   resp.ReasoningContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }

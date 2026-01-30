@@ -802,6 +802,7 @@ func (c *OpenRouterClient) ChatStreamWithUsage(req ChatStreamRequest) (*Response
 
 	return &ResponseWithUsage{
 		Text:       resp.TextContent[0],
+		Thinking:   resp.ReasoningContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }
