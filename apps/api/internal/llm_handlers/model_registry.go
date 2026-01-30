@@ -71,6 +71,21 @@ var ModelRegistry = map[string]ModelInfo{
 		ModelID:     "moonshotai/kimi-k2.5",
 		DisplayName: "Kimi K2.5",
 	},
+	"moonshotai/kimi-k2-thinking": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "moonshotai/kimi-k2-thinking",
+		DisplayName: "Kimi K2 Thinking",
+	},
+	"deepseek/deepseek-r1": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "deepseek/deepseek-r1",
+		DisplayName: "DeepSeek R1",
+	},
+	"deepseek/deepseek-r1-0528": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "deepseek/deepseek-r1-0528",
+		DisplayName: "DeepSeek R1 (0528)",
+	},
 	"anthropic/claude-3.5-sonnet": {
 		Provider:    ProviderOpenRouter,
 		ModelID:     "anthropic/claude-3.5-sonnet",
