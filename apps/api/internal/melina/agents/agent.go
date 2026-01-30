@@ -48,9 +48,9 @@ func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, m
 	var cfg llmHandlers.Config
 
 	switch modelInfo.Provider {
-	case llmHandlers.ProviderLangChainOpenAI:
+	case llmHandlers.ProviderOpenAI:
 		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainOpenAI,
+			Provider:    llmHandlers.ProviderOpenAI,
 			Model:       modelInfo.ModelID,
 			APIKey:      os.Getenv("OPENAI_API_KEY"),
 			Tools:       tools.GetOpenAITools(),
@@ -110,78 +110,9 @@ func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, m
 	}
 }
 
-// NewAgent creates an agent using a provider string (legacy method)
-// Deprecated: Use NewAgentWithModel instead
-func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
-	var cfg llmHandlers.Config
-
-	switch provider {
-	case "openai":
-		tools := tools.GetOpenAITools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainOpenAI,
-			Model:       "gpt-5.1",
-			APIKey:      os.Getenv("OPENAI_API_KEY"),
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "groq":
-		tools := tools.GetGroqTools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainGroq,
-			Model:       os.Getenv("GROQ_MODEL_NAME"),
-			BaseURL:     os.Getenv("GROQ_BASE_URL"),
-			APIKey:      os.Getenv("GROQ_API_KEY"),
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "anthropic":
-		tools := tools.GetAnthropicTools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderVertexAnthropic,
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-	case "gemini":
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderGemini,
-			Tools:       tools.GetGeminiTools(),
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "openrouter":
-		tools := tools.GetOpenAITools() // OpenRouter is OpenAI-compatible
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderOpenRouter,
-			Model:       os.Getenv("OPENROUTER_MODEL_NAME"), // e.g., "moonshotai/kimi-k2.5"
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	default:
-		log.Fatalf("Unknown provider: %s. Valid options: openai, groq, anthropic, gemini, openrouter", provider)
-	}
-
-	llmClient, err := llmHandlers.New(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize LLM client (%s): %v", provider, err)
-	}
-
-	return &Agent{
-		llmClient: llmClient,
-	}
-}
-
 // ProcessRequest processes a user message with optional board image
 // boardId can be empty string if no image should be included
-func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
+func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string, enableThinking bool) (string, error) {
 	// Build messages for the LLM
 	// Default to "light" theme if not provided (prompt expects 2 placeholders: boardId and activeTheme)
 	activeTheme := "light"
@@ -202,7 +133,7 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 	})
 
 	// Call the LLM
-	response, err := a.llmClient.Chat(ctx, systemMessage, messages)
+	response, err := a.llmClient.Chat(ctx, systemMessage, messages, enableThinking)
 	if err != nil {
 		return "", fmt.Errorf("LLM chat error: %w", err)
 	}
@@ -224,7 +155,8 @@ func (a *Agent) ProcessRequestStream(
 	boardId string,
 	activeTheme string,
 	selections interface{},
-	uploadedImages []UploadedImage) (string, error) {
+	uploadedImages []UploadedImage,
+	enableThinking bool) (string, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
@@ -263,7 +195,7 @@ func (a *Agent) ProcessRequestStream(
 	})
 
 	// Call the LLM - pass client and boardId for streaming
-	response, err := a.llmClient.ChatStream(ctx, hub, client, boardId, systemMessage, messages)
+	response, err := a.llmClient.ChatStream(ctx, hub, client, boardId, systemMessage, messages, enableThinking)
 	if err != nil {
 		return "", fmt.Errorf("LLM chat error: %w", err)
 	}
@@ -281,7 +213,8 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	boardId string,
 	activeTheme string,
 	selections interface{},
-	uploadedImages []UploadedImage) (*llmHandlers.ResponseWithUsage, error) {
+	uploadedImages []UploadedImage,
+	enableThinking bool) (*llmHandlers.ResponseWithUsage, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
@@ -316,7 +249,20 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	})
 
 	// Call the LLM with usage tracking
-	return a.llmClient.ChatStreamWithUsage(ctx, hub, client, boardId, systemMessage, messages)
+	resp, err := a.llmClient.ChatStreamWithUsage(llmHandlers.ChatStreamRequest{
+		Ctx:            ctx,
+		Hub:            hub,
+		Client:         client,
+		BoardID:        boardId,
+		SystemMessage:  systemMessage,
+		Messages:       messages,
+		EnableThinking: enableThinking,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("LLM chat error: %w", err)
+	}
+
+	return resp, nil
 }
 
 // buildMultimodalContentWithAnnotations creates content with annotated images, TOON-formatted shape data, and uploaded images

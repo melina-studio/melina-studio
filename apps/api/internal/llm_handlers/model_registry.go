@@ -36,14 +36,19 @@ var ModelRegistry = map[string]ModelInfo{
 		DisplayName: "Llama 3.3 70B Versatile",
 	},
 
-	// OpenAI models (via LangChain)
+	// OpenAI models (via direct SDK with thinking/reasoning support)
 	"gpt-5.1": {
-		Provider:    ProviderLangChainOpenAI,
+		Provider:    ProviderOpenAI,
 		ModelID:     "gpt-5.1",
 		DisplayName: "GPT 5.1",
 	},
+	"gpt-5.2": {
+		Provider:    ProviderOpenAI,
+		ModelID:     "gpt-5.2",
+		DisplayName: "GPT 5.2",
+	},
 	"gpt-4.1": {
-		Provider:    ProviderLangChainOpenAI,
+		Provider:    ProviderOpenAI,
 		ModelID:     "gpt-4.1",
 		DisplayName: "GPT 4.1",
 	},
@@ -65,6 +70,21 @@ var ModelRegistry = map[string]ModelInfo{
 		Provider:    ProviderOpenRouter,
 		ModelID:     "moonshotai/kimi-k2.5",
 		DisplayName: "Kimi K2.5",
+	},
+	"moonshotai/kimi-k2-thinking": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "moonshotai/kimi-k2-thinking",
+		DisplayName: "Kimi K2 Thinking",
+	},
+	"deepseek/deepseek-r1": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "deepseek/deepseek-r1",
+		DisplayName: "DeepSeek R1",
+	},
+	"deepseek/deepseek-r1-0528": {
+		Provider:    ProviderOpenRouter,
+		ModelID:     "deepseek/deepseek-r1-0528",
+		DisplayName: "DeepSeek R1 (0528)",
 	},
 	"anthropic/claude-3.5-sonnet": {
 		Provider:    ProviderOpenRouter,

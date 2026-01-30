@@ -16,7 +16,7 @@ type ChatRepo struct {
 type ChatRepoInterface interface {
 	CreateChat(chat *models.Chat) error
 	GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, fields ...string) ([]models.Chat, int64, error)
-	CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string) (uuid.UUID, uuid.UUID, error)
+	CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string, thought *string) (uuid.UUID, uuid.UUID, error)
 	GetChatHistory(boardId uuid.UUID, size int) ([]llmHandlers.Message, error)
 	GetLatestChats(boardId uuid.UUID, limit int, fields ...string) ([]models.Chat, error)
 }
@@ -82,7 +82,7 @@ func (r *ChatRepo) GetChatsByBoardId(boardId uuid.UUID, page int, pageSize int, 
 	return chats, total, nil
 }
 
-func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string) (uuid.UUID, uuid.UUID, error) {
+func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage string, aiMessage string, thought *string) (uuid.UUID, uuid.UUID, error) {
 	humanMessageUUID := uuid.New()
 	aiMessageUUID := uuid.New()
 
@@ -100,12 +100,13 @@ func (r *ChatRepo) CreateHumanAndAiMessages(boardUUID uuid.UUID, humanMessage st
 			return err
 		}
 
-		// Create AI message
+		// Create AI message with optional thought content
 		if err := tx.Create(&models.Chat{
 			UUID:      aiMessageUUID,
 			BoardUUID: boardUUID,
 			Content:   aiMessage,
 			Role:      models.RoleAssistant,
+			Thought:   thought,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}).Error; err != nil {

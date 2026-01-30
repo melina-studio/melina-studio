@@ -20,11 +20,24 @@ import { useImageAttachments } from "@/hooks/useImageAttachments";
 import { TokenBlockedPayload, TokenWarningPayload } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 import WarningBlock from "./WarningBlock";
+import { Switch } from "@/components/ui/switch";
+import { useModelAccess } from "@/hooks/useModelAccess";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MELINA_HELP_DEFAULT_TEXT } from "@/lib/constants";
 
 type Message = {
   uuid: string;
   role: "user" | "assistant";
   content: string;
+  thought?: string; // Thinking/reasoning content (only for assistant messages)
+};
+
+// Type for streaming thinking state
+type StreamingThinking = {
+  content: string;
+  isActive: boolean;
+  startTime: number | null;
+  duration: number | null;
 };
 
 interface AIControllerProps {
@@ -42,6 +55,9 @@ interface AIControllerProps {
   onHumanMessageIdChange?: (id: string | null) => void;
   isMobile?: boolean;
   onClose?: () => void;
+  // Unified streaming state - associates thinking with specific message
+  streamingMessageId?: string | null;
+  streamingThinking?: StreamingThinking;
 }
 
 function AIController({
@@ -59,6 +75,8 @@ function AIController({
   onHumanMessageIdChange,
   isMobile = false,
   onClose,
+  streamingMessageId = null,
+  streamingThinking,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -77,6 +95,27 @@ function AIController({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasInitializedScroll = useRef(false);
   const shouldScrollToBottom = useRef(true);
+  const {
+    thinkingAccess,
+    handleModelChange,
+    thinkingEnabled,
+    handleThinkingChange,
+    activeModel,
+    modelsWithStatus,
+  } = useModelAccess();
+
+  const getThinkingTooltip = () => {
+    if (thinkingAccess.reason === "no_access") return "Upgrade your subscription";
+    if (thinkingAccess.reason === "model_unsupported") return "Model doesn't support thinking";
+    return null;
+  };
+
+  // Auto-disable thinking mode when it becomes unavailable (model change or subscription change)
+  useEffect(() => {
+    if (!thinkingAccess.canUse && thinkingEnabled) {
+      handleThinkingChange(false);
+    }
+  }, [handleThinkingChange, thinkingAccess.canUse, thinkingEnabled]);
 
   // Get boardId early for use in callbacks
   const params = useParams();
@@ -119,16 +158,13 @@ function AIController({
   // This handles both initial load AND streaming updates from parent
   useEffect(() => {
     const currentMessages = messagesRef.current;
-    const lastLocalMsg = currentMessages[currentMessages.length - 1];
-    const lastParentMsg = chatHistory[chatHistory.length - 1];
 
-    // Sync if: different length, different last message UUID, or different content (streaming)
-    const needsSync =
-      chatHistory.length !== currentMessages.length ||
-      lastLocalMsg?.uuid !== lastParentMsg?.uuid ||
-      lastLocalMsg?.content !== lastParentMsg?.content;
+    // Always sync when chatHistory changes - use JSON comparison for deep check
+    // This ensures thought field updates on any message are detected
+    const chatHistoryJson = JSON.stringify(chatHistory);
+    const currentMessagesJson = JSON.stringify(currentMessages);
 
-    if (needsSync && chatHistory.length > 0) {
+    if (chatHistoryJson !== currentMessagesJson && chatHistory.length > 0) {
       syncingFromParentRef.current = true;
       setMessages(chatHistory);
     }
@@ -159,9 +195,7 @@ function AIController({
         // Prepend older messages to the beginning, filtering out duplicates
         setMessages((prev) => {
           const existingUuids = new Set(prev.map((m) => m.uuid));
-          const uniqueOlderMessages = olderMessages.filter(
-            (m) => !existingUuids.has(m.uuid)
-          );
+          const uniqueOlderMessages = olderMessages.filter((m) => !existingUuids.has(m.uuid));
           return [...uniqueOlderMessages, ...prev];
         });
         setCurrentPage(nextPage);
@@ -280,19 +314,7 @@ function AIController({
           const helpMessage: Message = {
             uuid: uuidv4(),
             role: "assistant",
-            content: `**Getting Started with Melina:**
-
-Ask Melina to generate text, shapes, or ideas directly on your canvas. Just describe what you want!
-
-**Working with Selections:**
-Use the **Marquee Select** tool to draw a selection around shapes on the canvas. Selected shapes appear as pills above the input - Melina can then see and edit those specific shapes based on your instructions.
-
-**Commands:**
-- \`/clear\` - Clear chat history
-- \`/help\` - Show this help message
-- \`/export\` - Export canvas as image
-
-Type \`/\` to see available commands.`,
+            content: MELINA_HELP_DEFAULT_TEXT,
           };
           setMessages((msgs) => [...msgs, helpMessage]);
           break;
@@ -472,6 +494,7 @@ Type \`/\` to see available commands.`,
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
+          enable_thinking: thinkingEnabled,
           metadata: {
             ...(shapeImageUrls.length > 0 && {
               shape_image_urls: shapeImageUrls,
@@ -589,6 +612,7 @@ Type \`/\` to see available commands.`,
           model_name: modelName,
           temperature: temperature,
           max_tokens: maxTokens,
+          enable_thinking: thinkingEnabled,
           active_theme: theme,
           metadata: {
             ...(shapeImageUrls.length > 0 && {
@@ -670,6 +694,21 @@ Type \`/\` to see available commands.`,
     }
   }, [messages]);
 
+  // Auto-scroll when AI starts responding (chat_starting event triggers isAiResponding=true)
+  useEffect(() => {
+    if (isAiResponding) {
+      shouldScrollToBottom.current = true;
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isAiResponding]);
+
+  // Auto-scroll when thinking content updates (thinking_response events)
+  useEffect(() => {
+    if (streamingThinking?.content && shouldScrollToBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [streamingThinking?.content]);
+
   // Resize handlers
   useEffect(() => {
     const container = containerRef.current;
@@ -737,10 +776,20 @@ Type \`/\` to see available commands.`,
         height: "100%",
         maxHeight: "100%",
         transition: isMobile ? "none" : "width 0.2s ease-out",
-        background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.5)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.95)"),
+        background: isDark
+          ? isMobile
+            ? "#1a1a1a"
+            : "rgba(50, 51, 50, 0.5)"
+          : isMobile
+            ? "#ffffff"
+            : "rgba(255, 255, 255, 0.5)",
         backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
         WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
-        borderColor: isMobile ? "transparent" : (isDark ? "rgba(107, 114, 128, 0.3)" : "rgba(209, 213, 219, 0.3)"),
+        borderColor: isMobile
+          ? "transparent"
+          : isDark
+            ? "rgba(107, 114, 128, 0.3)"
+            : "rgba(209, 213, 219, 0.3)",
       }}
     >
       {/* Resize handle on left edge - only show on desktop */}
@@ -769,7 +818,13 @@ Type \`/\` to see available commands.`,
         className={`flex items-center justify-between border-b sticky top-0 z-10 ${isMobile ? "px-4 py-3 pt-safe" : "p-3 rounded-t-md"
           }`}
         style={{
-          background: isDark ? (isMobile ? "#1a1a1a" : "rgba(50, 51, 50, 0.8)") : (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.8)"),
+          background: isDark
+            ? isMobile
+              ? "#1a1a1a"
+              : "rgba(50, 51, 50, 0.8)"
+            : isMobile
+              ? "#ffffff"
+              : "rgba(255, 255, 255, 0.8)",
           backdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
           WebkitBackdropFilter: isMobile ? "none" : "saturate(180%) blur(12px)",
           paddingTop: isMobile ? "env(safe-area-inset-top, 12px)" : undefined,
@@ -828,25 +883,29 @@ Type \`/\` to see available commands.`,
                 messages.length -
                 1 -
                 [...messages].reverse().findIndex((m) => m.role === "assistant");
+              // Check if this is the currently streaming message
+              const isStreamingMessage = msg.uuid === streamingMessageId && msg.role === "assistant";
               return (
                 <div key={`${msg.uuid}-${index}`}>
                   <ChatMessage
                     role={msg.role}
                     content={msg.content}
                     isLatest={isLatestAI}
-                    isStreaming={isLatestAI && isAiResponding}
+                    isStreaming={isStreamingMessage && isAiResponding}
+                    thought={msg.thought}
+                    streamingThinking={isStreamingMessage ? streamingThinking : undefined}
                   />
                 </div>
               );
             })
           )}
-          {/* bottom chat bubble loader */}
-          {isAiResponding && (
+          {/* Typing loader - only show when waiting for message to be created */}
+          {isAiResponding && !messages.some((m) => m.uuid === streamingMessageId) && (
             <div className="flex justify-start gap-3 items-start mb-4">
               <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
                 <span className="text-white font-medium text-xs">M</span>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
                   Melina
                 </span>
@@ -972,7 +1031,12 @@ Type \`/\` to see available commands.`,
             {/* Footer with model selector, attachment button, and send button */}
             <div className="flex items-end justify-between">
               <div className="flex items-end gap-2">
-                <ModelSelector isDark={isDark} />
+                <ModelSelector
+                  isDark={isDark}
+                  onModelChange={handleModelChange}
+                  activeModel={activeModel}
+                  modelsWithStatus={modelsWithStatus}
+                />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -982,6 +1046,40 @@ Type \`/\` to see available commands.`,
                 >
                   <Paperclip className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                 </button>
+
+                {/* Thinking enabled toggle */}
+                <div className="flex items-center gap-2">
+                  {!thinkingAccess.canUse ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            size="sm"
+                            id="thinking-mode"
+                            checked={thinkingEnabled}
+                            disabled
+                            className="opacity-50 cursor-not-allowed"
+                          />
+                          <span className="text-xs text-gray-400">Thinking Mode</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>{getThinkingTooltip()}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        size="sm"
+                        id="thinking-mode"
+                        checked={thinkingEnabled}
+                        onCheckedChange={handleThinkingChange}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {thinkingEnabled ? "Thinking Mode: On" : "Thinking Mode: Off"}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => {
@@ -989,8 +1087,8 @@ Type \`/\` to see available commands.`,
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
                 className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
                   }`}
               >
                 {loading ? (

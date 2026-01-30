@@ -16,9 +16,10 @@ import (
 
 // GeminiResponse contains the parsed response from Gemini
 type GeminiResponse struct {
-	TextContent   []string
-	FunctionCalls []FunctionCall
-	RawResponse   *genai.GenerateContentResponse
+	TextContent     []string
+	ThinkingContent string // Accumulated thinking/reasoning content
+	FunctionCalls   []FunctionCall
+	RawResponse     *genai.GenerateContentResponse
 }
 
 // FunctionCall represents a function call from Gemini
@@ -238,7 +239,7 @@ func convertToolsToGenaiTools(tools []map[string]interface{}) []*genai.Tool {
 }
 
 // callGeminiWithMessages calls Gemini API and returns parsed response
-func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*GeminiResponse, error) {
 	systemText, contents, err := convertMessagesToGenaiContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -247,13 +248,19 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	// Convert tools to genai.Tool format
 	genaiTools := convertToolsToGenaiTools(v.Tools)
 
-	// need to hanlde streaming later
-
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
 		Temperature:     &v.Temperature,
 		MaxOutputTokens: v.MaxTokens,
 		Tools:           genaiTools,
+	}
+
+	if enableThinking {
+		budget := int32(1024) // token budget for thinking
+		genConfig.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: true,
+			ThinkingBudget:  &budget,
+		}
 	}
 
 	// Add system instruction if exists
@@ -271,6 +278,9 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 	var resp *genai.GenerateContentResponse
 
+	// Track accumulated thinking content (defined outside streaming block so it can be captured)
+	var accumulatedThinking strings.Builder
+
 	// Use streaming if streaming context is provided
 	if streamCtx != nil && streamCtx.Client != nil {
 		// Use GenerateContentStream for real-time tokens
@@ -278,9 +288,10 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 		var lastChunk *genai.GenerateContentResponse
 		var accumulatedText strings.Builder
+		var thinkingStarted bool
+		var thinkingCompleted bool
 
 		// Iterate over streaming chunks
-		// Note: chunk and chunkErr are the loop variables, not shadowing outer resp
 		for chunk, chunkErr := range iterator {
 			if chunkErr != nil {
 				return nil, fmt.Errorf("gemini stream error: %w", chunkErr)
@@ -289,52 +300,69 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 			// Store the last chunk (contains final state including function calls)
 			lastChunk = chunk
 
-			// Extract text from the current chunk and stream it
-			// Note: chunk.Text() returns only the incremental text (new token)
-			token := chunk.Text()
-			if token != "" {
-				// Accumulate the full text
-				accumulatedText.WriteString(token)
-
-				// Send streaming chunk to client
-				payload := &libraries.ChatMessageResponsePayload{
-					Message: token,
+			// Process each candidate's parts to detect thinking vs text
+			if len(chunk.Candidates) > 0 && chunk.Candidates[0].Content != nil {
+				for _, part := range chunk.Candidates[0].Content.Parts {
+					if part.Text != "" {
+						if part.Thought {
+							// This is THINKING content
+							if !thinkingStarted {
+								thinkingStarted = true
+								libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
+							}
+							accumulatedThinking.WriteString(part.Text)
+							payload := &libraries.ChatMessageResponsePayload{
+								Message: part.Text,
+							}
+							if streamCtx.BoardId != "" {
+								payload.BoardId = streamCtx.BoardId
+							}
+							libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
+						} else {
+							// This is REGULAR text - send thinking_completed first if needed
+							if thinkingStarted && !thinkingCompleted {
+								thinkingCompleted = true
+								libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+							}
+							accumulatedText.WriteString(part.Text)
+							payload := &libraries.ChatMessageResponsePayload{
+								Message: part.Text,
+							}
+							if streamCtx.BoardId != "" {
+								payload.BoardId = streamCtx.BoardId
+							}
+							libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+						}
+					}
 				}
-				// Only include BoardId if it's not empty
-				if streamCtx.BoardId != "" {
-					payload.BoardId = streamCtx.BoardId
-				}
-				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 			}
 		}
 
+		// If thinking started but no text came, send completed
+		if thinkingStarted && !thinkingCompleted {
+			libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+		}
+
 		// Use the last chunk as the base for the final response
-		// This contains the complete response structure including any function calls
 		resp = lastChunk
 
 		if resp == nil {
 			return nil, fmt.Errorf("gemini stream returned no response")
 		}
 
-		// IMPORTANT: The last chunk's Content.Parts might only contain the last token
-		// We need to ensure the full accumulated text is in the response
 		// Update the response to include the full accumulated text
 		if len(resp.Candidates) > 0 {
 			if resp.Candidates[0].Content != nil && len(resp.Candidates[0].Content.Parts) > 0 {
-				// Replace the text in the first part with the accumulated full text
-				// This ensures the response parsing later gets the complete text
 				fullText := accumulatedText.String()
 				if fullText != "" {
-					// Find the first text part and update it, or create one if needed
 					foundTextPart := false
 					for _, part := range resp.Candidates[0].Content.Parts {
-						if part.Text != "" {
+						if part.Text != "" && !part.Thought {
 							part.Text = fullText
 							foundTextPart = true
 							break
 						}
 					}
-					// If no text part exists, create one with the full text
 					if !foundTextPart && fullText != "" {
 						resp.Candidates[0].Content.Parts = append([]*genai.Part{
 							{Text: fullText},
@@ -365,7 +393,8 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 	// Parse response
 	gr := &GeminiResponse{
-		RawResponse: resp,
+		RawResponse:     resp,
+		ThinkingContent: accumulatedThinking.String(),
 	}
 
 	cand := resp.Candidates[0]
@@ -413,7 +442,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
-func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*GeminiResponse, error) {
 	const maxIterations = 5 // reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -425,7 +454,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	var totalPromptTokens, totalCandidatesTokens int32
 
 	for iter := 0; iter < maxIterations; iter++ {
-		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx, enableThinking)
 		if err != nil {
 			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
 		}
@@ -530,7 +559,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	// Temporarily disable tools for final call
 	originalTools := v.Tools
 	v.Tools = nil
-	finalResp, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+	finalResp, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx, enableThinking)
 	v.Tools = originalTools
 
 	if err != nil {
@@ -575,11 +604,11 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	return finalResp, nil
 }
 
-func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, nil)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, nil, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -591,7 +620,7 @@ func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, mess
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -604,7 +633,7 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 			UserID:  client.UserID,
 		}
 	}
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -616,7 +645,19 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+func (v *GenaiGeminiClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
+	ctx := req.Ctx
+	hub := req.Hub
+	client := req.Client
+	boardId := req.BoardID
+	systemMessage := req.SystemMessage
+	messages := req.Messages
+	enableThinking := req.EnableThinking
+
+	if boardId == "" {
+		return nil, fmt.Errorf("boardId is required")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -640,7 +681,7 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *librar
 		}
 	}
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return nil, err
 	}
@@ -666,6 +707,7 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *librar
 
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
+		Thinking:   resp.ThinkingContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }

@@ -18,6 +18,7 @@ export type Model = {
   dropdownName: string;
   label: string;
   minimumTier: SubscriptionTier;
+  supportsThinking: boolean;
 };
 
 export const SUBSCRIPTION_TIER_ORDER: Record<SubscriptionTier, number> = {
@@ -34,13 +35,16 @@ export const SUBSCRIPTION_TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> =
   on_demand: "On Demand",
 };
 
+export const THINKING_MINIMUM_TIER: SubscriptionTier = "premium";
+
 export const MODELS: Model[] = [
   {
     name: "meta-llama/llama-4-scout-17b-16e-instruct",
     displayName: "Llama 4 Scout 17B",
-    dropdownName: "Groq (Llama 4 Scout)",
+    dropdownName: "Llama (4 Scout 17B)",
     label: "Groq",
     minimumTier: "free",
+    supportsThinking: false,
   },
   {
     name: "claude-4.5-sonnet",
@@ -48,6 +52,7 @@ export const MODELS: Model[] = [
     dropdownName: "Anthropic (Claude 4.5 Sonnet)",
     label: "Anthropic",
     minimumTier: "free",
+    supportsThinking: true,
   },
   {
     name: "gemini-2.5-flash",
@@ -55,6 +60,7 @@ export const MODELS: Model[] = [
     dropdownName: "Gemini (2.5 Flash)",
     label: "Gemini",
     minimumTier: "pro",
+    supportsThinking: true,
   },
   {
     name: "gpt-5.1",
@@ -62,13 +68,47 @@ export const MODELS: Model[] = [
     dropdownName: "OpenAI (GPT 5.1)",
     label: "OpenAI",
     minimumTier: "premium",
+    supportsThinking: false,
+  },
+  {
+    name: "gpt-5.2",
+    displayName: "GPT 5.2",
+    dropdownName: "OpenAI (GPT 5.2)",
+    label: "OpenAI",
+    minimumTier: "premium",
+    supportsThinking: true,
   },
   {
     name: "moonshotai/kimi-k2.5",
     displayName: "Kimi K2.5",
-    dropdownName: "OpenRouter (Kimi K2.5)",
+    dropdownName: "Moonshot (Kimi K2.5)",
     label: "OpenRouter",
     minimumTier: "pro",
+    supportsThinking: false,
+  },
+  {
+    name: "moonshotai/kimi-k2-thinking",
+    displayName: "Kimi K2 Thinking",
+    dropdownName: "Moonshot (Kimi K2 Thinking)",
+    label: "OpenRouter",
+    minimumTier: "premium",
+    supportsThinking: true,
+  },
+  {
+    name: "deepseek/deepseek-r1",
+    displayName: "DeepSeek R1",
+    dropdownName: "DeepSeek (R1)",
+    label: "OpenRouter",
+    minimumTier: "premium",
+    supportsThinking: true,
+  },
+  {
+    name: "deepseek/deepseek-r1-0528",
+    displayName: "DeepSeek R1 (0528)",
+    dropdownName: "DeepSeek (R1 (0528))",
+    label: "OpenRouter",
+    minimumTier: "premium",
+    supportsThinking: true,
   },
 ];
 
@@ -91,3 +131,17 @@ export const DEFAULT_MODEL_SETTINGS: ModelSettings = {
   modelName: DEFAULT_MODEL,
   temperature: 0.3,
 };
+
+export const MELINA_HELP_DEFAULT_TEXT = `**Getting Started with Melina:**
+
+Ask Melina to generate text, shapes, or ideas directly on your canvas. Just describe what you want!
+
+**Working with Selections:**
+Use the **Marquee Select** tool to draw a selection around shapes on the canvas. Selected shapes appear as pills above the input - Melina can then see and edit those specific shapes based on your instructions.
+
+**Commands:**
+- \`/clear\` - Clear chat history
+- \`/help\` - Show this help message
+- \`/export\` - Export canvas as image
+
+Type \`/\` to see available commands.`;

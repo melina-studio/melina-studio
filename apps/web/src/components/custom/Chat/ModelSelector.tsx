@@ -2,16 +2,23 @@ import { Check, ChevronDown, Lock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useModelAccess } from "@/hooks/useModelAccess";
 import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
+import { type ModelWithStatus } from "@/lib/modelUtils";
 
 type ModelSelectorProps = {
   isDark: boolean;
+  onModelChange: (modelName: string) => void;
+  activeModel: string;
+  modelsWithStatus: ModelWithStatus[];
 };
 
-function ModelSelector({ isDark }: ModelSelectorProps) {
+function ModelSelector({
+  isDark,
+  onModelChange,
+  activeModel,
+  modelsWithStatus,
+}: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const { activeModel, modelsWithStatus, handleModelChange } = useModelAccess();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -28,7 +35,7 @@ function ModelSelector({ isDark }: ModelSelectorProps) {
   const handleSelectModel = (modelName: string, isAvailable: boolean) => {
     if (!isAvailable) return;
 
-    handleModelChange(modelName);
+    onModelChange(modelName);
     setIsOpen(false);
   };
 

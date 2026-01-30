@@ -2,6 +2,7 @@ package llmHandlers
 
 import (
 	"context"
+	"fmt"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"strings"
@@ -29,7 +30,7 @@ func NewVertexAnthropicClient(modelID string, tools []map[string]interface{}, te
 }
 
 // Chat returns a single string answer (convenience wrapper).
-func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	// Convert llmMessage -> libraries.Message
 	msgs := make([]Message, 0, len(messages))
 	for _, m := range messages {
@@ -39,14 +40,14 @@ func (c *VertexAnthropicClient) Chat(ctx context.Context, systemMessage string, 
 		})
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, nil, c.Temperature, c.MaxTokens, c.ModelID)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, nil, c.Temperature, c.MaxTokens, c.ModelID, enableThinking)
 	if err != nil {
 		return "", err
 	}
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	// fmt.Print("Calling VertexAnthropicClient ChatStream")
 	// return "", fmt.Errorf("vertex anthropic chat stream not implemented")
 	// Convert llmMessage -> libraries.Message
@@ -67,14 +68,26 @@ func (c *VertexAnthropicClient) ChatStream(ctx context.Context, hub *libraries.H
 			UserID:  client.UserID,
 		}
 	}
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID, enableThinking)
 	if err != nil {
 		return "", err
 	}
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+func (c *VertexAnthropicClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
+	ctx := req.Ctx
+	hub := req.Hub
+	client := req.Client
+	boardId := req.BoardID
+	systemMessage := req.SystemMessage
+	messages := req.Messages
+	enableThinking := req.EnableThinking
+
+	if boardId == "" {
+		return nil, fmt.Errorf("boardId is required")
+	}
+
 	// Convert llmMessage -> libraries.Message
 	msgs := make([]Message, 0, len(messages))
 	var inputText string
@@ -101,7 +114,7 @@ func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *li
 		}
 	}
 
-	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID)
+	resp, err := ChatWithTools(ctx, systemMessage, msgs, c.Tools, streamCtx, c.Temperature, c.MaxTokens, c.ModelID, enableThinking)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +124,7 @@ func (c *VertexAnthropicClient) ChatStreamWithUsage(ctx context.Context, hub *li
 
 	return &ResponseWithUsage{
 		Text:       strings.Join(resp.TextContent, "\n\n"),
+		Thinking:   resp.ThinkingContent,
 		TokenUsage: tokenUsage,
 	}, nil
 }

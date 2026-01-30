@@ -2,16 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import {
-  MODELS,
-  DEFAULT_MODEL,
-  type SubscriptionTier,
-  type Model,
-} from "@/lib/constants";
+import { MODELS, DEFAULT_MODEL, type SubscriptionTier, type Model } from "@/lib/constants";
 import {
   getModelsWithStatus,
   getAvailableModels,
   getValidModelForUser,
+  canUseThinking,
   canAccessModel,
   type ModelWithStatus,
 } from "@/lib/modelUtils";
@@ -23,6 +19,9 @@ interface UseModelAccessReturn {
   handleModelChange: (modelName: string) => void;
   canAccessModel: (modelName: string) => boolean;
   subscription: SubscriptionTier;
+  thinkingAccess: { canUse: boolean; reason: "no_access" | "model_unsupported" | null };
+  thinkingEnabled: boolean;
+  handleThinkingChange: (enabled: boolean) => void;
 }
 
 export function useModelAccess(): UseModelAccessReturn {
@@ -31,6 +30,9 @@ export function useModelAccess(): UseModelAccessReturn {
 
   const [activeModel, setActiveModel] = useState<string>(DEFAULT_MODEL);
   const [mounted, setMounted] = useState(false);
+  const thinkingAccess = canUseThinking(subscription, activeModel);
+
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
 
   // Load and validate model from localStorage on mount
   useEffect(() => {
@@ -106,6 +108,34 @@ export function useModelAccess(): UseModelAccessReturn {
     [subscription]
   );
 
+  // load from localstorage on mount
+  useEffect(() => {
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      const parsed = JSON.parse(settings);
+      setThinkingEnabled(parsed.thinkingEnabled);
+    }
+  }, []);
+
+  //auto disable thinking mode when it becomes unavailable (model change or subscription change)
+  useEffect(() => {
+    if (!thinkingAccess.canUse && thinkingEnabled) {
+      setThinkingEnabled(false);
+    }
+  }, [thinkingAccess.canUse, thinkingEnabled]);
+
+  // handler that persists to localstorage when thinking enabled changes
+  const handleThinkingChange = (enabled: boolean) => {
+    // Only allow enabling if model supports it
+    if (enabled && !thinkingAccess.canUse) return;
+
+    setThinkingEnabled(enabled);
+    // Persist to localStorage
+    const settings = JSON.parse(localStorage.getItem("settings") || "{}");
+    settings.thinkingEnabled = enabled;
+    localStorage.setItem("settings", JSON.stringify(settings));
+  };
+
   return {
     activeModel,
     availableModels: getAvailableModels(subscription),
@@ -113,5 +143,8 @@ export function useModelAccess(): UseModelAccessReturn {
     handleModelChange,
     canAccessModel: checkModelAccess,
     subscription,
+    thinkingAccess,
+    thinkingEnabled,
+    handleThinkingChange,
   };
 }

@@ -16,14 +16,25 @@ const (
 // ResponseWithUsage wraps the text response with token usage information
 type ResponseWithUsage struct {
 	Text       string
+	Thinking   string // Accumulated thinking/reasoning content (if enabled)
 	TokenUsage *TokenUsage
 }
 
+type ChatStreamRequest struct {
+	Ctx            context.Context
+	Hub            *libraries.Hub
+	Client         *libraries.Client
+	BoardID        string
+	SystemMessage  string
+	Messages       []Message
+	EnableThinking bool
+}
+
 type Client interface {
-	Chat(ctx context.Context, systemMessage string, messages []Message) (string, error)
-	ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error)
+	Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error)
+	ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error)
 	// ChatStreamWithUsage returns both the response text and token usage
-	ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error)
+	ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error)
 }
 
 /*

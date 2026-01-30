@@ -19,10 +19,11 @@ import (
 
 // ClaudeResponse contains the parsed response from Claude
 type ClaudeResponse struct {
-	StopReason  string
-	TextContent []string
-	ToolUses    []ToolUse
-	RawResponse interface{} // Can hold either HTTP response or gRPC response
+	StopReason      string
+	TextContent     []string
+	ThinkingContent string // Accumulated thinking/reasoning content
+	ToolUses        []ToolUse
+	RawResponse     interface{} // Can hold either HTTP response or gRPC response
 }
 
 // ToolUse represents a tool call from Claude
@@ -89,6 +90,7 @@ type streamDelta struct {
 	Text        string `json:"text"`         // for text_delta
 	Delta       string `json:"delta"`        // for input_json_delta (partial JSON) - some APIs use this
 	PartialJSON string `json:"partial_json"` // for input_json_delta (partial JSON) - Vertex AI uses this
+	Thinking    string `json:"thinking"`     // for thinking blocks
 }
 
 type streamContentBlockRef struct {
@@ -98,7 +100,7 @@ type streamContentBlockRef struct {
 	Name  string `json:"name,omitempty"` // for tool_use blocks
 }
 
-func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int, modelIDOverride string) (*ClaudeResponse, error) {
+func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int, modelIDOverride string, enableThinking bool) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // "us-east5"
 	modelID := modelIDOverride
@@ -141,17 +143,17 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 		}
 	}
 
+	body := map[string]interface{}{
+		"anthropic_version": "vertex-2023-10-16",
+		"messages":          msgs,
+		"stream":            false,
+	}
+
 	maxTokensValue := 1024 // default
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
-
-	body := map[string]interface{}{
-		"anthropic_version": "vertex-2023-10-16",
-		"messages":          msgs,
-		"max_tokens":        maxTokensValue,
-		"stream":            false,
-	}
+	body["max_tokens"] = maxTokensValue
 
 	if temperature != nil {
 		body["temperature"] = *temperature
@@ -167,6 +169,21 @@ func callClaudeWithMessages(ctx context.Context, systemMessage string, messages 
 					"type": "ephemeral",
 				},
 			},
+		}
+	}
+
+	if enableThinking {
+		thinkingBudget := 1024
+		body["thinking"] = map[string]interface{}{
+			"type":          "enabled",
+			"budget_tokens": thinkingBudget,
+		}
+		body["temperature"] = 1 // for thinking temperature must be 1 always
+
+		// max_tokens MUST be greater than thinking.budget_tokens
+		// Ensure max_tokens is at least budget_tokens + 1024 for response content
+		if maxTokensValue <= thinkingBudget {
+			body["max_tokens"] = thinkingBudget + 1024
 		}
 	}
 
@@ -245,6 +262,7 @@ func StreamClaudeWithMessages(
 	temperature *float32,
 	maxTokens *int,
 	modelIDOverride string,
+	enableThinking bool,
 ) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // e.g. "us-east5"
@@ -287,17 +305,18 @@ func StreamClaudeWithMessages(
 		}
 	}
 
+	body := map[string]interface{}{
+		"anthropic_version": "vertex-2023-10-16",
+		"messages":          msgs,
+		"stream":            true, // streaming flag
+	}
+
 	maxTokensValue := 1024 // default
 	if maxTokens != nil {
 		maxTokensValue = *maxTokens
 	}
 
-	body := map[string]interface{}{
-		"anthropic_version": "vertex-2023-10-16",
-		"messages":          msgs,
-		"max_tokens":        maxTokensValue,
-		"stream":            true, // streaming flag
-	}
+	body["max_tokens"] = maxTokensValue
 
 	if temperature != nil {
 		body["temperature"] = *temperature
@@ -313,6 +332,21 @@ func StreamClaudeWithMessages(
 					"type": "ephemeral",
 				},
 			},
+		}
+	}
+
+	if enableThinking {
+		thinkingBudget := 1024
+		body["thinking"] = map[string]interface{}{
+			"type":          "enabled",
+			"budget_tokens": thinkingBudget,
+		}
+		body["temperature"] = 1 // for thinking temperature must be 1 always
+
+		// max_tokens MUST be greater than thinking.budget_tokens
+		// Ensure max_tokens is at least budget_tokens + 1024 for response content
+		if maxTokensValue <= thinkingBudget {
+			body["max_tokens"] = thinkingBudget + 1024
 		}
 	}
 
@@ -355,6 +389,7 @@ func StreamClaudeWithMessages(
 	// Track current text block being built
 	var currentTextBuilder strings.Builder
 	var accumulatedText strings.Builder
+	var currentThinkingBuilder strings.Builder
 
 	// Track current tool_use block being built (by index)
 	// Map of block index -> ToolUse being built
@@ -444,6 +479,18 @@ func StreamClaudeWithMessages(
 							}
 						}
 					}
+				} else if ev.Delta.Type == "thinking_delta" && ev.Delta.Thinking != "" {
+					currentThinkingBuilder.WriteString(ev.Delta.Thinking)
+					// Stream thinking to client (reuse chat_response or create a new type)
+					if streamCtx != nil && streamCtx.Client != nil {
+						payload := &libraries.ChatMessageResponsePayload{
+							Message: ev.Delta.Thinking,
+						}
+						if streamCtx.BoardId != "" {
+							payload.BoardId = streamCtx.BoardId
+						}
+						libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
+					}
 				}
 			}
 
@@ -498,6 +545,15 @@ func StreamClaudeWithMessages(
 				}
 			}
 
+			// Finalize thinking block if active - send thinking_completed event
+			// Note: Don't reset currentThinkingBuilder here - it's saved to cr.ThinkingContent at the end
+			if currentThinkingBuilder.Len() > 0 {
+				// Send thinking_completed event
+				if streamCtx != nil && streamCtx.Client != nil {
+					libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+				}
+			}
+
 		case "content_block_start":
 			// A new content block is starting
 			if ev.ContentBlock != nil {
@@ -514,6 +570,13 @@ func StreamClaudeWithMessages(
 				} else if ev.ContentBlock.Type == "text" {
 					// Reset text builder for new text block
 					currentTextBuilder.Reset()
+				} else if ev.ContentBlock.Type == "thinking" {
+					// Reset thinking builder for new thinking block
+					currentThinkingBuilder.Reset()
+					// Send thinking_start event
+					if streamCtx != nil && streamCtx.Client != nil {
+						libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
+					}
 				}
 			}
 
@@ -689,6 +752,11 @@ func StreamClaudeWithMessages(
 		cr.TextContent = append(cr.TextContent, accumulatedText.String())
 	}
 
+	// Capture accumulated thinking content
+	if currentThinkingBuilder.Len() > 0 {
+		cr.ThinkingContent = currentThinkingBuilder.String()
+	}
+
 	// Store usage data in RawResponse for token extraction
 	if usageData != nil {
 		if rawMap, ok := cr.RawResponse.(map[string]interface{}); ok {
@@ -704,7 +772,7 @@ func StreamClaudeWithMessages(
 }
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
-func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string) (*ClaudeResponse, error) {
+func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string, enableThinking bool) (*ClaudeResponse, error) {
 	const maxIterations = 5 // safety guard - reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -720,12 +788,12 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		var cr *ClaudeResponse
 		var err error
 		if streamCtx != nil && streamCtx.Client != nil {
-			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens, modelID)
+			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens, modelID, enableThinking)
 			if err != nil {
 				return nil, fmt.Errorf("StreamClaudeWithMessages: %w", err)
 			}
 		} else {
-			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens, modelID)
+			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens, modelID, enableThinking)
 			if err != nil {
 				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
 			}
@@ -845,9 +913,9 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 	var finalResp *ClaudeResponse
 	var err error
 	if streamCtx != nil && streamCtx.Client != nil {
-		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens, modelID)
+		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens, modelID, enableThinking)
 	} else {
-		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens, modelID)
+		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens, modelID, enableThinking)
 	}
 
 	if err != nil {

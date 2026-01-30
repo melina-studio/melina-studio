@@ -4,6 +4,7 @@ import {
   DEFAULT_MODEL,
   type SubscriptionTier,
   type Model,
+  THINKING_MINIMUM_TIER,
 } from "./constants";
 
 export type ModelWithStatus = Model & {
@@ -38,9 +39,7 @@ export function getAvailableModels(subscription: SubscriptionTier | undefined): 
 /**
  * Get all models with their availability status for a user
  */
-export function getModelsWithStatus(
-  subscription: SubscriptionTier | undefined
-): ModelWithStatus[] {
+export function getModelsWithStatus(subscription: SubscriptionTier | undefined): ModelWithStatus[] {
   return MODELS.map((model) => ({
     ...model,
     isAvailable: canAccessModel(subscription, model.name),
@@ -69,6 +68,23 @@ export function getValidModelForUser(
  */
 export function getModelByName(modelName: string): Model | undefined {
   return MODELS.find((m) => m.name === modelName);
+}
+
+/**
+ * Check if a model supports thinking based on its minimum tier
+ */
+export function canUseThinking(
+  subscription: SubscriptionTier,
+  modelName: string
+): { canUse: boolean; reason: "no_access" | "model_unsupported" | null } {
+  const model = getModelByName(modelName);
+  const hasSubscription =
+    SUBSCRIPTION_TIER_ORDER[subscription] >= SUBSCRIPTION_TIER_ORDER[THINKING_MINIMUM_TIER];
+
+  if (!hasSubscription) return { canUse: false, reason: "no_access" };
+  if (!model?.supportsThinking) return { canUse: false, reason: "model_unsupported" };
+
+  return { canUse: true, reason: null };
 }
 
 // Alias for backwards compatibility

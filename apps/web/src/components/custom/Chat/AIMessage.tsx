@@ -2,14 +2,32 @@ import { Copy, Check } from "lucide-react";
 import { useEffect, useRef, useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import type { Components } from "react-markdown";
+import ThinkingDropdown from "./ThinkingDropdown";
+import TypingLoader from "./TypingLoader";
+
+// Type for streaming thinking state
+type StreamingThinking = {
+  content: string;
+  isActive: boolean;
+  startTime: number | null;
+  duration: number | null;
+};
 
 type AIMessageProps = {
   content: string;
   isLatest?: boolean;
   isStreaming?: boolean;
+  thought?: string; // From database (history) - only shown after message is complete
+  streamingThinking?: StreamingThinking; // Live streaming thinking for current message
 };
 
-function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessageProps) {
+function AIMessage({
+  content,
+  isLatest = false,
+  isStreaming = false,
+  thought,
+  streamingThinking,
+}: AIMessageProps) {
   const prevContentLengthRef = useRef(content.length);
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -134,13 +152,52 @@ function AIMessage({ content, isLatest = false, isStreaming = false }: AIMessage
           {/* Name */}
           <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">Melina</span>
 
-          {/* Message content */}
-          <div
-            className="text-sm leading-relaxed text-gray-700 dark:text-gray-200 prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere"
-            style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-          >
-            <Markdown components={markdownComponents}>{content}</Markdown>
-          </div>
+          {/* Thinking dropdown - streaming takes priority over historical */}
+          {(() => {
+            const showStreamingThinking =
+              streamingThinking && (streamingThinking.isActive || streamingThinking.content);
+            const showHistoricalThinking = thought && !streamingThinking;
+
+            return (
+              <>
+                {showStreamingThinking && (
+                  <ThinkingDropdown
+                    content={streamingThinking.content}
+                    isThinking={streamingThinking.isActive}
+                    duration={streamingThinking.duration}
+                    isFromHistory={false}
+                  />
+                )}
+                {showHistoricalThinking && (
+                  <ThinkingDropdown
+                    content={thought}
+                    isThinking={false}
+                    duration={null}
+                    isFromHistory={true}
+                  />
+                )}
+              </>
+            );
+          })()}
+
+          {/* Message content - show if has content */}
+          {content && (
+            <div
+              className="text-sm leading-relaxed text-gray-700 dark:text-gray-200 prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere"
+              style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+            >
+              <Markdown components={markdownComponents}>{content}</Markdown>
+            </div>
+          )}
+
+          {/* Typing indicator if streaming but no content yet and not showing thinking */}
+          {isStreaming &&
+            !content &&
+            !(streamingThinking && (streamingThinking.isActive || streamingThinking.content)) && (
+              <div className="inline-flex items-center">
+                <TypingLoader />
+              </div>
+            )}
 
           {/* Copy button - hidden during streaming, visible for latest or on hover */}
           {!isStreaming && (

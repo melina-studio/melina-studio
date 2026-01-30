@@ -8,7 +8,7 @@ import (
 type Provider string
 
 const (
-	ProviderLangChainOpenAI Provider = "openai"           // LangChainGo (OpenAI)
+	ProviderOpenAI          Provider = "openai"           // Direct OpenAI SDK (supports thinking/reasoning)
 	ProviderLangChainGroq   Provider = "groq"             // LangChainGo (Groq, uses BaseURL)
 	ProviderVertexAnthropic Provider = "vertex_anthropic" // Your anthropic.go wrapper
 	ProviderGemini          Provider = "gemini"
@@ -34,14 +34,8 @@ type Config struct {
 func New(cfg Config) (Client, error) {
 	switch cfg.Provider {
 
-	case ProviderLangChainOpenAI:
-		return NewLangChainClient(LangChainConfig{
-			Model:       cfg.Model,
-			APIKey:      cfg.APIKey,
-			Tools:       cfg.Tools,
-			Temperature: cfg.Temperature,
-			MaxTokens:   cfg.MaxTokens,
-		})
+	case ProviderOpenAI:
+		return NewOpenAIClient(cfg.Model, cfg.Tools, cfg.Temperature, cfg.MaxTokens)
 
 	case ProviderLangChainGroq:
 		return NewLangChainClient(LangChainConfig{

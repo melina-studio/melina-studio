@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	"melina-studio-backend/internal/config"
@@ -32,72 +31,6 @@ func NewWorkflow(chatRepo repo.ChatRepoInterface, boardDataRepo repo.BoardDataRe
 		boardRepo:      boardRepo,
 		imageProcessor: service.NewImageProcessor(boardDataRepo),
 	}
-}
-
-func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
-	// Extract boardId from route params
-	boardId := c.Params("boardId")
-	// convert boardId to uuid
-	boardUUID, err := uuid.Parse(boardId)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Invalid board ID: %v", err),
-		})
-	}
-	var dto struct {
-		Message string `json:"message"`
-	}
-
-	if err := c.BodyParser(&dto); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Invalid request body: %v", err),
-		})
-	}
-
-	if dto.Message == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Message cannot be empty: %v", err),
-		})
-	}
-
-	// Default to gemini if not specified
-	LLM := "groq"
-	temperature := float32(0.2)
-	maxTokens := 1024
-
-	// Create agent on-demand with specified LLM provider
-	agent := agents.NewAgent(LLM, &temperature, &maxTokens)
-
-	// get chat history from the database
-	chatHistory, err := w.chatRepo.GetChatHistory(boardUUID, 20)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to get chat history: %v", err),
-		})
-	}
-
-	// Call the agent to process the message with boardId (for image context)
-	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, chatHistory, boardId)
-	if err != nil {
-		log.Printf("Error processing request: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to process message: %v", err),
-		})
-	}
-
-	// after get successful response, create a chat in the database
-	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardUUID, dto.Message, aiResponse)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to create human and ai messages: %v", err),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message":          aiResponse,
-		"human_message_id": human_message_id.String(),
-		"ai_message_id":    ai_message_id.String(),
-	})
 }
 
 func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Client, cfg *libraries.WorkflowConfig) {
@@ -187,7 +120,17 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	}
 
 	// process the chat message - pass client and boardId for streaming
-	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
+	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(
+		context.Background(),
+		hub, client,
+		cfg.Message.Message,
+		chatHistory,
+		cfg.BoardId,
+		cfg.ActiveTheme,
+		annotatedSelections,
+		uploadedImages,
+		cfg.EnableThinking,
+	)
 	if err != nil {
 		// Log the error for debugging
 		log.Printf("Error processing chat message: %v", err)
@@ -207,6 +150,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 
 	aiResponse := responseWithUsage.Text
 	tokenUsage := responseWithUsage.TokenUsage
+	thinking := responseWithUsage.Thinking
 
 	// Safety net: if aiResponse is empty, provide a default message to prevent database issues
 	if strings.TrimSpace(aiResponse) == "" {
@@ -214,8 +158,14 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		aiResponse = "I processed your request but was unable to generate a text response. Please check the board for any changes that were made."
 	}
 
+	// Convert thinking to pointer (nil if empty)
+	var thoughtPtr *string
+	if strings.TrimSpace(thinking) != "" {
+		thoughtPtr = &thinking
+	}
+
 	// after get successful response, create a chat in the database
-	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse)
+	human_message_id, ai_message_id, err := w.chatRepo.CreateHumanAndAiMessages(boardIdUUID, cfg.Message.Message, aiResponse, thoughtPtr)
 	if err != nil {
 		libraries.SendErrorMessage(hub, client, "Failed to create human and ai messages")
 		return

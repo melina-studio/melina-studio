@@ -16,6 +16,7 @@ import (
 
 type LangChainClient struct {
 	llm         llms.Model
+	Model       string // Store model name to check for thinking support
 	Tools       []map[string]interface{}
 	Temperature *float32 // Optional: nil means use default
 	MaxTokens   *int     // Optional: nil means use default
@@ -55,6 +56,12 @@ type LangChainFunctionCall struct {
 	Arguments map[string]interface{}
 }
 
+// isLlamaModel checks if the model is a Meta/Llama model (which doesn't support thinking)
+func isLlamaModel(model string) bool {
+	modelLower := strings.ToLower(model)
+	return strings.Contains(modelLower, "llama") || strings.Contains(modelLower, "meta")
+}
+
 func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 	opts := []openai.Option{
 		openai.WithModel(cfg.Model),
@@ -73,6 +80,7 @@ func NewLangChainClient(cfg LangChainConfig) (*LangChainClient, error) {
 
 	return &LangChainClient{
 		llm:         llm,
+		Model:       cfg.Model,
 		Tools:       cfg.Tools,
 		Temperature: cfg.Temperature,
 		MaxTokens:   cfg.MaxTokens,
@@ -186,7 +194,7 @@ func (c *LangChainClient) convertMessagesToLangChainContent(messages []Message) 
 }
 
 // callLangChainWithMessages calls LangChain API and returns parsed response
-func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*LangChainResponse, error) {
+func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*LangChainResponse, error) {
 	msgContents, err := c.convertMessagesToLangChainContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -237,6 +245,20 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 	// Add max tokens if configured
 	if c.MaxTokens != nil {
 		opts = append(opts, llms.WithMaxTokens(*c.MaxTokens))
+	}
+
+	// Add thinking support - Meta/Llama models do NOT support thinking
+	if enableThinking {
+		if isLlamaModel(c.Model) {
+			fmt.Printf("[langchain] Thinking requested but Llama model %s does not support it, skipping\n", c.Model)
+		} else {
+			fmt.Printf("[langchain] Enabling thinking for model: %s\n", c.Model)
+			opts = append(opts, llms.WithThinking(&llms.ThinkingConfig{
+				Mode:           llms.ThinkingMode("auto"),
+				BudgetTokens:   1024, // Match the Anthropic budget
+				ReturnThinking: true,
+			}))
+		}
 	}
 
 	// IMPORTANT: Always add tools if available, even if we're in a tool execution loop
@@ -394,7 +416,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's and Gemini's implementation
-func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*LangChainResponse, error) {
+func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*LangChainResponse, error) {
 	const maxIterations = 5 // reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -421,7 +443,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		}
 
 		// Make the call with streaming enabled (but buffered)
-		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx)
+		lr, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx, enableThinking)
 		if err != nil {
 			return nil, fmt.Errorf("callLangChainWithMessages: %w", err)
 		}
@@ -561,7 +583,7 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 		}
 	}
 
-	finalResp, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, finalStreamCtx)
+	finalResp, err := c.callLangChainWithMessages(ctx, systemMessage, workingMessages, finalStreamCtx, enableThinking)
 	c.Tools = originalTools
 
 	if err != nil {
@@ -641,12 +663,12 @@ func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage strin
 	return finalResp, nil
 }
 
-func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	// No streaming context for regular Chat
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, nil)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, nil, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -668,7 +690,7 @@ func (c *LangChainClient) Chat(ctx context.Context, systemMessage string, messag
 	return "", fmt.Errorf("langchain returned no text content and no function calls")
 }
 
-func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -682,7 +704,7 @@ func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, cl
 			UserID:  client.UserID,
 		}
 	}
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -704,7 +726,19 @@ func (c *LangChainClient) ChatStream(ctx context.Context, hub *libraries.Hub, cl
 	return "", fmt.Errorf("langchain returned no text content and no function calls")
 }
 
-func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+func (c *LangChainClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
+	ctx := req.Ctx
+	hub := req.Hub
+	client := req.Client
+	boardId := req.BoardID
+	systemMessage := req.SystemMessage
+	messages := req.Messages
+	enableThinking := req.EnableThinking
+
+	if boardId == "" {
+		return nil, fmt.Errorf("boardId is required")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -728,7 +762,7 @@ func (c *LangChainClient) ChatStreamWithUsage(ctx context.Context, hub *librarie
 		}
 	}
 
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return nil, err
 	}
