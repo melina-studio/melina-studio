@@ -23,6 +23,7 @@ import WarningBlock from "./WarningBlock";
 import { Switch } from "@/components/ui/switch";
 import { useModelAccess } from "@/hooks/useModelAccess";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MELINA_HELP_DEFAULT_TEXT } from "@/lib/constants";
 
 type Message = {
   uuid: string;
@@ -302,19 +303,7 @@ function AIController({
           const helpMessage: Message = {
             uuid: uuidv4(),
             role: "assistant",
-            content: `**Getting Started with Melina:**
-
-Ask Melina to generate text, shapes, or ideas directly on your canvas. Just describe what you want!
-
-**Working with Selections:**
-Use the **Marquee Select** tool to draw a selection around shapes on the canvas. Selected shapes appear as pills above the input - Melina can then see and edit those specific shapes based on your instructions.
-
-**Commands:**
-- \`/clear\` - Clear chat history
-- \`/help\` - Show this help message
-- \`/export\` - Export canvas as image
-
-Type \`/\` to see available commands.`,
+            content: MELINA_HELP_DEFAULT_TEXT,
           };
           setMessages((msgs) => [...msgs, helpMessage]);
           break;

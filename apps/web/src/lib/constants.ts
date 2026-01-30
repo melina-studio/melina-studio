@@ -99,3 +99,17 @@ export const DEFAULT_MODEL_SETTINGS: ModelSettings = {
   modelName: DEFAULT_MODEL,
   temperature: 0.3,
 };
+
+export const MELINA_HELP_DEFAULT_TEXT = `**Getting Started with Melina:**
+
+Ask Melina to generate text, shapes, or ideas directly on your canvas. Just describe what you want!
+
+**Working with Selections:**
+Use the **Marquee Select** tool to draw a selection around shapes on the canvas. Selected shapes appear as pills above the input - Melina can then see and edit those specific shapes based on your instructions.
+
+**Commands:**
+- \`/clear\` - Clear chat history
+- \`/help\` - Show this help message
+- \`/export\` - Export canvas as image
+
+Type \`/\` to see available commands.`;
