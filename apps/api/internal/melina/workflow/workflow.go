@@ -64,6 +64,7 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	LLM := "groq"
 	temperature := float32(0.2)
 	maxTokens := 1024
+	enableThinking := true
 
 	// Create agent on-demand with specified LLM provider
 	agent := agents.NewAgent(LLM, &temperature, &maxTokens)
@@ -77,7 +78,7 @@ func (w *Workflow) TriggerChatWorkflow(c *fiber.Ctx) error {
 	}
 
 	// Call the agent to process the message with boardId (for image context)
-	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, chatHistory, boardId)
+	aiResponse, err := agent.ProcessRequest(c.Context(), dto.Message, chatHistory, boardId, enableThinking)
 	if err != nil {
 		log.Printf("Error processing request: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -187,7 +188,17 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	}
 
 	// process the chat message - pass client and boardId for streaming
-	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(context.Background(), hub, client, cfg.Message.Message, chatHistory, cfg.BoardId, cfg.ActiveTheme, annotatedSelections, uploadedImages)
+	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(
+		context.Background(), 
+		hub, client, 
+		cfg.Message.Message, 
+		chatHistory, 
+		cfg.BoardId, 
+		cfg.ActiveTheme, 
+		annotatedSelections, 
+		uploadedImages,
+		cfg.EnableThinking,
+	)
 	if err != nil {
 		// Log the error for debugging
 		log.Printf("Error processing chat message: %v", err)

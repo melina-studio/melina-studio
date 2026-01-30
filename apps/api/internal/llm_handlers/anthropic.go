@@ -98,7 +98,7 @@ type streamContentBlockRef struct {
 	Name  string `json:"name,omitempty"` // for tool_use blocks
 }
 
-func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int, modelIDOverride string) (*ClaudeResponse, error) {
+func callClaudeWithMessages(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, temperature *float32, maxTokens *int, modelIDOverride string, enableThinking bool) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // "us-east5"
 	modelID := modelIDOverride
@@ -245,6 +245,7 @@ func StreamClaudeWithMessages(
 	temperature *float32,
 	maxTokens *int,
 	modelIDOverride string,
+	enableThinking bool,
 ) (*ClaudeResponse, error) {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	location := os.Getenv("GOOGLE_CLOUD_VERTEXAI_LOCATION") // e.g. "us-east5"
@@ -298,6 +299,9 @@ func StreamClaudeWithMessages(
 		"max_tokens":        maxTokensValue,
 		"stream":            true, // streaming flag
 	}
+
+	// TODO: Add thinking support
+	fmt.Printf("[anthropic] Thinking support: %v\n", enableThinking)
 
 	if temperature != nil {
 		body["temperature"] = *temperature
@@ -704,7 +708,7 @@ func StreamClaudeWithMessages(
 }
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
-func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string) (*ClaudeResponse, error) {
+func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string, enableThinking bool) (*ClaudeResponse, error) {
 	const maxIterations = 5 // safety guard - reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -720,12 +724,12 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 		var cr *ClaudeResponse
 		var err error
 		if streamCtx != nil && streamCtx.Client != nil {
-			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens, modelID)
+			cr, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, tools, streamCtx, temperature, maxTokens, modelID, enableThinking)
 			if err != nil {
 				return nil, fmt.Errorf("StreamClaudeWithMessages: %w", err)
 			}
 		} else {
-			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens, modelID)
+			cr, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, tools, temperature, maxTokens, modelID, enableThinking)
 			if err != nil {
 				return nil, fmt.Errorf("callClaudeWithMessages: %w", err)
 			}
@@ -845,9 +849,9 @@ func ChatWithTools(ctx context.Context, systemMessage string, messages []Message
 	var finalResp *ClaudeResponse
 	var err error
 	if streamCtx != nil && streamCtx.Client != nil {
-		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens, modelID)
+		finalResp, err = StreamClaudeWithMessages(ctx, systemMessage, workingMessages, nil, streamCtx, temperature, maxTokens, modelID, enableThinking)
 	} else {
-		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens, modelID)
+		finalResp, err = callClaudeWithMessages(ctx, systemMessage, workingMessages, nil, temperature, maxTokens, modelID, enableThinking)
 	}
 
 	if err != nil {

@@ -483,6 +483,7 @@ function AIController({
           temperature: temperature,
           max_tokens: maxTokens,
           active_theme: theme,
+          enable_thinking: thinkingEnabled,
           metadata: {
             ...(shapeImageUrls.length > 0 && {
               shape_image_urls: shapeImageUrls,
@@ -600,6 +601,7 @@ function AIController({
           model_name: modelName,
           temperature: temperature,
           max_tokens: maxTokens,
+          enable_thinking: thinkingEnabled,
           active_theme: theme,
           metadata: {
             ...(shapeImageUrls.length > 0 && {

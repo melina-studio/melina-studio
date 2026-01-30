@@ -181,7 +181,7 @@ func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
 
 // ProcessRequest processes a user message with optional board image
 // boardId can be empty string if no image should be included
-func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string) (string, error) {
+func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory []llmHandlers.Message, boardId string, enableThinking bool) (string, error) {
 	// Build messages for the LLM
 	// Default to "light" theme if not provided (prompt expects 2 placeholders: boardId and activeTheme)
 	activeTheme := "light"
@@ -202,7 +202,7 @@ func (a *Agent) ProcessRequest(ctx context.Context, message string, chatHistory 
 	})
 
 	// Call the LLM
-	response, err := a.llmClient.Chat(ctx, systemMessage, messages)
+	response, err := a.llmClient.Chat(ctx, systemMessage, messages, enableThinking)
 	if err != nil {
 		return "", fmt.Errorf("LLM chat error: %w", err)
 	}
@@ -224,7 +224,8 @@ func (a *Agent) ProcessRequestStream(
 	boardId string,
 	activeTheme string,
 	selections interface{},
-	uploadedImages []UploadedImage) (string, error) {
+	uploadedImages []UploadedImage,
+	enableThinking bool) (string, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
@@ -263,7 +264,7 @@ func (a *Agent) ProcessRequestStream(
 	})
 
 	// Call the LLM - pass client and boardId for streaming
-	response, err := a.llmClient.ChatStream(ctx, hub, client, boardId, systemMessage, messages)
+	response, err := a.llmClient.ChatStream(ctx, hub, client, boardId, systemMessage, messages, enableThinking)
 	if err != nil {
 		return "", fmt.Errorf("LLM chat error: %w", err)
 	}
@@ -281,7 +282,8 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	boardId string,
 	activeTheme string,
 	selections interface{},
-	uploadedImages []UploadedImage) (*llmHandlers.ResponseWithUsage, error) {
+	uploadedImages []UploadedImage,
+	enableThinking bool) (*llmHandlers.ResponseWithUsage, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
@@ -316,7 +318,20 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	})
 
 	// Call the LLM with usage tracking
-	return a.llmClient.ChatStreamWithUsage(ctx, hub, client, boardId, systemMessage, messages)
+	resp, err := a.llmClient.ChatStreamWithUsage(llmHandlers.ChatStreamRequest{
+		Ctx:            ctx,
+		Hub:            hub,
+		Client:         client,
+		BoardID:        boardId,
+		SystemMessage:  systemMessage,
+		Messages:       messages,
+		EnableThinking: enableThinking,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("LLM chat error: %w", err)
+	}
+
+	return resp, nil
 }
 
 // buildMultimodalContentWithAnnotations creates content with annotated images, TOON-formatted shape data, and uploaded images

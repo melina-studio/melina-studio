@@ -153,7 +153,7 @@ func (c *OpenRouterClient) convertMessagesToOpenRouterMessages(messages []Messag
 }
 
 // callOpenRouterWithMessages calls OpenRouter API and returns parsed response
-func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*OpenRouterResponse, error) {
+func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*OpenRouterResponse, error) {
 	msgs := c.convertMessagesToOpenRouterMessages(messages)
 
 	// Add system message if provided
@@ -162,6 +162,9 @@ func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, syste
 			openrouter.SystemMessage(systemMessage),
 		}, msgs...)
 	}
+
+	// TODO: Add thinking support
+	fmt.Printf("[openrouter] Thinking support: %v\n", enableThinking)
 
 	// Build request
 	req := openrouter.ChatCompletionRequest{
@@ -345,7 +348,7 @@ func (c *OpenRouterClient) parseResponse(resp *openrouter.ChatCompletionResponse
 }
 
 // ChatWithTools handles tool execution loop
-func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*OpenRouterResponse, error) {
+func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*OpenRouterResponse, error) {
 	const maxIterations = 5
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -370,7 +373,7 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 			}
 		}
 
-		lr, err := c.callOpenRouterWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx)
+		lr, err := c.callOpenRouterWithMessages(ctx, systemMessage, workingMessages, currentStreamCtx, enableThinking)
 		if err != nil {
 			return nil, fmt.Errorf("callOpenRouterWithMessages: %w", err)
 		}
@@ -498,7 +501,7 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 		}
 	}
 
-	finalResp, err := c.callOpenRouterWithMessages(ctx, systemMessage, workingMessages, finalStreamCtx)
+	finalResp, err := c.callOpenRouterWithMessages(ctx, systemMessage, workingMessages, finalStreamCtx, enableThinking)
 	c.Tools = originalTools
 
 	if err != nil {
@@ -527,11 +530,11 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 }
 
 // Chat implements the Client interface - non-streaming chat
-func (c *OpenRouterClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+func (c *OpenRouterClient) Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, nil)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, nil, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -548,7 +551,7 @@ func (c *OpenRouterClient) Chat(ctx context.Context, systemMessage string, messa
 }
 
 // ChatStream implements the Client interface - streaming chat
-func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message , enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
@@ -562,7 +565,7 @@ func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, c
 		}
 	}
 
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -579,7 +582,19 @@ func (c *OpenRouterClient) ChatStream(ctx context.Context, hub *libraries.Hub, c
 }
 
 // ChatStreamWithUsage implements the Client interface - streaming chat with token usage
-func (c *OpenRouterClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+func (c *OpenRouterClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
+	ctx := req.Ctx
+    hub := req.Hub
+    client := req.Client
+    boardId := req.BoardID
+    systemMessage := req.SystemMessage
+    messages := req.Messages
+    enableThinking := req.EnableThinking
+
+	if boardId == "" {
+		return nil, fmt.Errorf("boardId is required")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
@@ -603,7 +618,7 @@ func (c *OpenRouterClient) ChatStreamWithUsage(ctx context.Context, hub *librari
 		}
 	}
 
-	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := c.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return nil, err
 	}

@@ -81,6 +81,7 @@ type ChatMessagePayload struct {
 	MaxTokens   *int                 `json:"max_tokens"`
 	ActiveTheme string               `json:"active_theme"`
 	Metadata    *ChatMessageMetadata `json:"metadata,omitempty"`
+	EnableThinking bool               `json:"enable_thinking"`
 }
 
 type ChatMessageResponsePayload struct {
@@ -115,6 +116,7 @@ type WorkflowConfig struct {
 	Temperature *float32
 	MaxTokens   *int
 	ActiveTheme string
+	EnableThinking bool
 }
 
 type BoardRenamedPayload struct {
@@ -482,6 +484,7 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 					Temperature: chatPayload.Temperature,
 					MaxTokens:   chatPayload.MaxTokens,
 					ActiveTheme: chatPayload.ActiveTheme,
+					EnableThinking: chatPayload.EnableThinking,
 				}
 
 				// send the chat message to the processor

@@ -238,7 +238,7 @@ func convertToolsToGenaiTools(tools []map[string]interface{}) []*genai.Tool {
 }
 
 // callGeminiWithMessages calls Gemini API and returns parsed response
-func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*GeminiResponse, error) {
 	systemText, contents, err := convertMessagesToGenaiContent(messages)
 	if err != nil {
 		return nil, fmt.Errorf("convert messages: %w", err)
@@ -248,6 +248,10 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	genaiTools := convertToolsToGenaiTools(v.Tools)
 
 	// need to hanlde streaming later
+
+	// TODO: Add thinking support
+
+	fmt.Printf("[gemini] Thinking support: %v\n", enableThinking)
 
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
@@ -413,7 +417,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 }
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
-func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext) (*GeminiResponse, error) {
+func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*GeminiResponse, error) {
 	const maxIterations = 5 // reduced to limit token consumption per message
 
 	workingMessages := make([]Message, 0, len(messages)+6)
@@ -425,7 +429,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	var totalPromptTokens, totalCandidatesTokens int32
 
 	for iter := 0; iter < maxIterations; iter++ {
-		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+		gr, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx, enableThinking)
 		if err != nil {
 			return nil, fmt.Errorf("callGeminiWithMessages: %w", err)
 		}
@@ -530,7 +534,7 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	// Temporarily disable tools for final call
 	originalTools := v.Tools
 	v.Tools = nil
-	finalResp, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx)
+	finalResp, err := v.callGeminiWithMessages(ctx, systemMessage, workingMessages, streamCtx, enableThinking)
 	v.Tools = originalTools
 
 	if err != nil {
@@ -575,11 +579,11 @@ func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage str
 	return finalResp, nil
 }
 
-func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message) (string, error) {
+func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, nil)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, nil, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -591,7 +595,7 @@ func (v *GenaiGeminiClient) Chat(ctx context.Context, systemMessage string, mess
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (string, error) {
+func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message, enableThinking bool) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -604,7 +608,7 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 			UserID:  client.UserID,
 		}
 	}
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return "", err
 	}
@@ -616,7 +620,19 @@ func (v *GenaiGeminiClient) ChatStream(ctx context.Context, hub *libraries.Hub, 
 	return strings.Join(resp.TextContent, "\n\n"), nil
 }
 
-func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *libraries.Hub, client *libraries.Client, boardId string, systemMessage string, messages []Message) (*ResponseWithUsage, error) {
+func (v *GenaiGeminiClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseWithUsage, error) {
+	ctx := req.Ctx
+	hub := req.Hub
+	client := req.Client
+	boardId := req.BoardID
+	systemMessage := req.SystemMessage
+	messages := req.Messages
+	enableThinking := req.EnableThinking
+
+	if boardId == "" {
+		return nil, fmt.Errorf("boardId is required")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -640,7 +656,7 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(ctx context.Context, hub *librar
 		}
 	}
 
-	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx)
+	resp, err := v.ChatWithTools(ctx, systemMessage, messages, streamCtx, enableThinking)
 	if err != nil {
 		return nil, err
 	}
