@@ -29,7 +29,7 @@ const features = [
     icon: Zap,
     title: "Choose How Melina Thinks",
     description:
-      "Switch between Claude, GPT-5.1, Gemini, or Llama depending on the task. One canvas, different minds.",
+      "Switch between Claude, GPT-5.1, Gemini, DeepSeek, Kimi, or Llama depending on the task. One canvas, different minds.",
     gradient: "from-yellow-500/20 to-orange-500/20",
     iconColor: "text-yellow-400",
   },
