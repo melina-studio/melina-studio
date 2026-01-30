@@ -80,8 +80,14 @@ function AIController({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasInitializedScroll = useRef(false);
   const shouldScrollToBottom = useRef(true);
-  const { thinkingAccess, handleModelChange, activeModel, modelsWithStatus } = useModelAccess();
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const {
+    thinkingAccess,
+    handleModelChange,
+    thinkingEnabled,
+    handleThinkingChange,
+    activeModel,
+    modelsWithStatus,
+  } = useModelAccess();
 
   const getThinkingTooltip = () => {
     if (thinkingAccess.reason === "no_access") return "Upgrade your subscription";
@@ -92,9 +98,9 @@ function AIController({
   // Auto-disable thinking mode when it becomes unavailable (model change or subscription change)
   useEffect(() => {
     if (!thinkingAccess.canUse && thinkingEnabled) {
-      setThinkingEnabled(false);
+      handleThinkingChange(false);
     }
-  }, [thinkingAccess.canUse, thinkingEnabled]);
+  }, [handleThinkingChange, thinkingAccess.canUse, thinkingEnabled]);
 
   // Get boardId early for use in callbacks
   const params = useParams();
@@ -1046,7 +1052,7 @@ Type \`/\` to see available commands.`,
                         size="sm"
                         id="thinking-mode"
                         checked={thinkingEnabled}
-                        onCheckedChange={() => setThinkingEnabled(!thinkingEnabled)}
+                        onCheckedChange={handleThinkingChange}
                         className="cursor-pointer"
                       />
                       <span className="text-xs text-gray-500 dark:text-gray-400">
