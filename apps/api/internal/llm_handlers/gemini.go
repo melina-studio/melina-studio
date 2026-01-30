@@ -247,10 +247,6 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	// Convert tools to genai.Tool format
 	genaiTools := convertToolsToGenaiTools(v.Tools)
 
-	// need to hanlde streaming later
-
-	fmt.Printf("[gemini] Thinking support: %v\n", enableThinking)
-
 	// Build generation config
 	genConfig := &genai.GenerateContentConfig{
 		Temperature:     &v.Temperature,
@@ -259,7 +255,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 	}
 
 	if enableThinking {
-		budget := int32(1024)  // token budget for thinking
+		budget := int32(1024) // token budget for thinking
 		genConfig.ThinkingConfig = &genai.ThinkingConfig{
 			IncludeThoughts: true,
 			ThinkingBudget:  &budget,
@@ -288,9 +284,11 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 		var lastChunk *genai.GenerateContentResponse
 		var accumulatedText strings.Builder
+		var accumulatedThinking strings.Builder
+		var thinkingStarted bool
+		var thinkingCompleted bool
 
 		// Iterate over streaming chunks
-		// Note: chunk and chunkErr are the loop variables, not shadowing outer resp
 		for chunk, chunkErr := range iterator {
 			if chunkErr != nil {
 				return nil, fmt.Errorf("gemini stream error: %w", chunkErr)
@@ -299,52 +297,69 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 			// Store the last chunk (contains final state including function calls)
 			lastChunk = chunk
 
-			// Extract text from the current chunk and stream it
-			// Note: chunk.Text() returns only the incremental text (new token)
-			token := chunk.Text()
-			if token != "" {
-				// Accumulate the full text
-				accumulatedText.WriteString(token)
-
-				// Send streaming chunk to client
-				payload := &libraries.ChatMessageResponsePayload{
-					Message: token,
+			// Process each candidate's parts to detect thinking vs text
+			if len(chunk.Candidates) > 0 && chunk.Candidates[0].Content != nil {
+				for _, part := range chunk.Candidates[0].Content.Parts {
+					if part.Text != "" {
+						if part.Thought {
+							// This is THINKING content
+							if !thinkingStarted {
+								thinkingStarted = true
+								libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
+							}
+							accumulatedThinking.WriteString(part.Text)
+							payload := &libraries.ChatMessageResponsePayload{
+								Message: part.Text,
+							}
+							if streamCtx.BoardId != "" {
+								payload.BoardId = streamCtx.BoardId
+							}
+							libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
+						} else {
+							// This is REGULAR text - send thinking_completed first if needed
+							if thinkingStarted && !thinkingCompleted {
+								thinkingCompleted = true
+								libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+							}
+							accumulatedText.WriteString(part.Text)
+							payload := &libraries.ChatMessageResponsePayload{
+								Message: part.Text,
+							}
+							if streamCtx.BoardId != "" {
+								payload.BoardId = streamCtx.BoardId
+							}
+							libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+						}
+					}
 				}
-				// Only include BoardId if it's not empty
-				if streamCtx.BoardId != "" {
-					payload.BoardId = streamCtx.BoardId
-				}
-				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 			}
 		}
 
+		// If thinking started but no text came, send completed
+		if thinkingStarted && !thinkingCompleted {
+			libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+		}
+
 		// Use the last chunk as the base for the final response
-		// This contains the complete response structure including any function calls
 		resp = lastChunk
 
 		if resp == nil {
 			return nil, fmt.Errorf("gemini stream returned no response")
 		}
 
-		// IMPORTANT: The last chunk's Content.Parts might only contain the last token
-		// We need to ensure the full accumulated text is in the response
 		// Update the response to include the full accumulated text
 		if len(resp.Candidates) > 0 {
 			if resp.Candidates[0].Content != nil && len(resp.Candidates[0].Content.Parts) > 0 {
-				// Replace the text in the first part with the accumulated full text
-				// This ensures the response parsing later gets the complete text
 				fullText := accumulatedText.String()
 				if fullText != "" {
-					// Find the first text part and update it, or create one if needed
 					foundTextPart := false
 					for _, part := range resp.Candidates[0].Content.Parts {
-						if part.Text != "" {
+						if part.Text != "" && !part.Thought {
 							part.Text = fullText
 							foundTextPart = true
 							break
 						}
 					}
-					// If no text part exists, create one with the full text
 					if !foundTextPart && fullText != "" {
 						resp.Candidates[0].Content.Parts = append([]*genai.Part{
 							{Text: fullText},

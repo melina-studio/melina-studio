@@ -89,6 +89,7 @@ type streamDelta struct {
 	Text        string `json:"text"`         // for text_delta
 	Delta       string `json:"delta"`        // for input_json_delta (partial JSON) - some APIs use this
 	PartialJSON string `json:"partial_json"` // for input_json_delta (partial JSON) - Vertex AI uses this
+	Thinking    string `json:"thinking"`     // for thinking blocks
 }
 
 type streamContentBlockRef struct {
@@ -387,6 +388,7 @@ func StreamClaudeWithMessages(
 	// Track current text block being built
 	var currentTextBuilder strings.Builder
 	var accumulatedText strings.Builder
+	var currentThinkingBuilder strings.Builder
 
 	// Track current tool_use block being built (by index)
 	// Map of block index -> ToolUse being built
@@ -476,6 +478,18 @@ func StreamClaudeWithMessages(
 							}
 						}
 					}
+				} else if ev.Delta.Type == "thinking_delta" && ev.Delta.Thinking != "" {
+					currentThinkingBuilder.WriteString(ev.Delta.Thinking)
+					// Stream thinking to client (reuse chat_response or create a new type)
+					if streamCtx != nil && streamCtx.Client != nil {
+						payload := &libraries.ChatMessageResponsePayload{
+							Message: ev.Delta.Thinking,
+						}
+						if streamCtx.BoardId != "" {
+							payload.BoardId = streamCtx.BoardId
+						}
+						libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
+					}
 				}
 			}
 
@@ -530,6 +544,16 @@ func StreamClaudeWithMessages(
 				}
 			}
 
+			// Finalize thinking block if active
+			if currentThinkingBuilder.Len() > 0 {
+				// Optionally store thinking content somewhere
+				currentThinkingBuilder.Reset()
+				// Send thinking_completed event
+				if streamCtx != nil && streamCtx.Client != nil {
+					libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+				}
+			}
+
 		case "content_block_start":
 			// A new content block is starting
 			if ev.ContentBlock != nil {
@@ -546,6 +570,13 @@ func StreamClaudeWithMessages(
 				} else if ev.ContentBlock.Type == "text" {
 					// Reset text builder for new text block
 					currentTextBuilder.Reset()
+				} else if ev.ContentBlock.Type == "thinking" {
+					// Reset thinking builder for new thinking block
+					currentThinkingBuilder.Reset()
+					// Send thinking_start event
+					if streamCtx != nil && streamCtx.Client != nil {
+						libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
+					}
 				}
 			}
 

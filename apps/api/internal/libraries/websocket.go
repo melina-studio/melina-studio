@@ -17,21 +17,24 @@ import (
 type WebSocketMessageType string
 
 const (
-	WebSocketMessageTypePing             WebSocketMessageType = "ping"
-	WebSocketMessageTypePong             WebSocketMessageType = "pong"
-	WebSocketMessageTypeError            WebSocketMessageType = "error"
-	WebSocketMessageTypeMessage          WebSocketMessageType = "chat_message"
-	WebSocketMessageTypeChatResponse     WebSocketMessageType = "chat_response"
-	WebSocketMessageTypeChatStarting     WebSocketMessageType = "chat_starting"
-	WebSocketMessageTypeChatCompleted    WebSocketMessageType = "chat_completed"
-	WebSocketMessageTypeShapeStart       WebSocketMessageType = "shape_start"
-	WebSocketMessageTypeShapeCreated     WebSocketMessageType = "shape_created"
-	WebSocketMessageTypeShapeUpdateStart WebSocketMessageType = "shape_update_start"
-	WebSocketMessageTypeShapeUpdated     WebSocketMessageType = "shape_updated"
-	WebSocketMessageTypeShapeDeleted     WebSocketMessageType = "shape_deleted"
-	WebSocketMessageTypeBoardRenamed     WebSocketMessageType = "board_renamed"
-	WebSocketMessageTypeTokenWarning     WebSocketMessageType = "token_warning"
-	WebSocketMessageTypeTokenBlocked     WebSocketMessageType = "token_blocked"
+	WebSocketMessageTypePing              WebSocketMessageType = "ping"
+	WebSocketMessageTypePong              WebSocketMessageType = "pong"
+	WebSocketMessageTypeError             WebSocketMessageType = "error"
+	WebSocketMessageTypeMessage           WebSocketMessageType = "chat_message"
+	WebSocketMessageTypeChatResponse      WebSocketMessageType = "chat_response"
+	WebSocketMessageTypeChatStarting      WebSocketMessageType = "chat_starting"
+	WebSocketMessageTypeChatCompleted     WebSocketMessageType = "chat_completed"
+	WebSocketMessageTypeShapeStart        WebSocketMessageType = "shape_start"
+	WebSocketMessageTypeShapeCreated      WebSocketMessageType = "shape_created"
+	WebSocketMessageTypeShapeUpdateStart  WebSocketMessageType = "shape_update_start"
+	WebSocketMessageTypeShapeUpdated      WebSocketMessageType = "shape_updated"
+	WebSocketMessageTypeShapeDeleted      WebSocketMessageType = "shape_deleted"
+	WebSocketMessageTypeBoardRenamed      WebSocketMessageType = "board_renamed"
+	WebSocketMessageTypeTokenWarning      WebSocketMessageType = "token_warning"
+	WebSocketMessageTypeTokenBlocked      WebSocketMessageType = "token_blocked"
+	WebSocketMessageTypeThinkingStart     WebSocketMessageType = "thinking_start"
+	WebSocketMessageTypeThinkingResponse  WebSocketMessageType = "thinking_response"
+	WebSocketMessageTypeThinkingCompleted WebSocketMessageType = "thinking_completed"
 )
 
 type Client struct {
@@ -74,14 +77,14 @@ type ChatMessageMetadata struct {
 }
 
 type ChatMessagePayload struct {
-	BoardId     string               `json:"board_id,omitempty"`
-	Message     string               `json:"message"`
-	ModelName   string               `json:"model_name"` // e.g., "claude-4.5-sonnet", "gemini-2.5-flash"
-	Temperature *float32             `json:"temperature"`
-	MaxTokens   *int                 `json:"max_tokens"`
-	ActiveTheme string               `json:"active_theme"`
-	Metadata    *ChatMessageMetadata `json:"metadata,omitempty"`
-	EnableThinking bool               `json:"enable_thinking"`
+	BoardId        string               `json:"board_id,omitempty"`
+	Message        string               `json:"message"`
+	ModelName      string               `json:"model_name"` // e.g., "claude-4.5-sonnet", "gemini-2.5-flash"
+	Temperature    *float32             `json:"temperature"`
+	MaxTokens      *int                 `json:"max_tokens"`
+	ActiveTheme    string               `json:"active_theme"`
+	Metadata       *ChatMessageMetadata `json:"metadata,omitempty"`
+	EnableThinking bool                 `json:"enable_thinking"`
 }
 
 type ChatMessageResponsePayload struct {
@@ -109,13 +112,13 @@ type ShapeDeletedPayload struct {
 }
 
 type WorkflowConfig struct {
-	BoardId     string
-	UserID      string
-	Message     *ChatMessagePayload
-	ModelName   string // The model name (e.g., "claude-4.5-sonnet")
-	Temperature *float32
-	MaxTokens   *int
-	ActiveTheme string
+	BoardId        string
+	UserID         string
+	Message        *ChatMessagePayload
+	ModelName      string // The model name (e.g., "claude-4.5-sonnet")
+	Temperature    *float32
+	MaxTokens      *int
+	ActiveTheme    string
 	EnableThinking bool
 }
 
@@ -477,13 +480,13 @@ func WebSocketHandler(hub *Hub, processor ChatMessageProcessor) fiber.Handler {
 				fmt.Println("chatPayload.MaxTokens", chatPayload.MaxTokens)
 
 				payload := &WorkflowConfig{
-					BoardId:     boardId,
-					UserID:      client.UserID,
-					Message:     chatPayload,
-					ModelName:   chatPayload.ModelName,
-					Temperature: chatPayload.Temperature,
-					MaxTokens:   chatPayload.MaxTokens,
-					ActiveTheme: chatPayload.ActiveTheme,
+					BoardId:        boardId,
+					UserID:         client.UserID,
+					Message:        chatPayload,
+					ModelName:      chatPayload.ModelName,
+					Temperature:    chatPayload.Temperature,
+					MaxTokens:      chatPayload.MaxTokens,
+					ActiveTheme:    chatPayload.ActiveTheme,
 					EnableThinking: chatPayload.EnableThinking,
 				}
 
