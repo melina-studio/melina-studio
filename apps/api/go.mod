@@ -14,7 +14,10 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/openai/openai-go v1.12.0
 	github.com/pkoukk/tiktoken-go v0.1.8
+	github.com/razorpay/razorpay-go v1.4.0
+	github.com/revrost/go-openrouter v1.1.5
 	github.com/tmc/langchaingo v0.1.14
 	golang.org/x/crypto v0.47.0
 	golang.org/x/oauth2 v0.34.0
@@ -67,11 +70,13 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
-	github.com/razorpay/razorpay-go v1.4.0 // indirect
-	github.com/revrost/go-openrouter v1.1.5 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
+	github.com/tidwall/gjson v1.17.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.52.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect

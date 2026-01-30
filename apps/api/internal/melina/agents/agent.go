@@ -48,9 +48,9 @@ func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, m
 	var cfg llmHandlers.Config
 
 	switch modelInfo.Provider {
-	case llmHandlers.ProviderLangChainOpenAI:
+	case llmHandlers.ProviderOpenAI:
 		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainOpenAI,
+			Provider:    llmHandlers.ProviderOpenAI,
 			Model:       modelInfo.ModelID,
 			APIKey:      os.Getenv("OPENAI_API_KEY"),
 			Tools:       tools.GetOpenAITools(),
@@ -103,75 +103,6 @@ func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, m
 	llmClient, err := llmHandlers.New(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize LLM client (%s/%s): %v", modelInfo.Provider, modelInfo.ModelID, err)
-	}
-
-	return &Agent{
-		llmClient: llmClient,
-	}
-}
-
-// NewAgent creates an agent using a provider string (legacy method)
-// Deprecated: Use NewAgentWithModel instead
-func NewAgent(provider string, temperature *float32, maxTokens *int) *Agent {
-	var cfg llmHandlers.Config
-
-	switch provider {
-	case "openai":
-		tools := tools.GetOpenAITools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainOpenAI,
-			Model:       "gpt-5.1",
-			APIKey:      os.Getenv("OPENAI_API_KEY"),
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "groq":
-		tools := tools.GetGroqTools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderLangChainGroq,
-			Model:       os.Getenv("GROQ_MODEL_NAME"),
-			BaseURL:     os.Getenv("GROQ_BASE_URL"),
-			APIKey:      os.Getenv("GROQ_API_KEY"),
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "anthropic":
-		tools := tools.GetAnthropicTools()
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderVertexAnthropic,
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-	case "gemini":
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderGemini,
-			Tools:       tools.GetGeminiTools(),
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	case "openrouter":
-		tools := tools.GetOpenAITools() // OpenRouter is OpenAI-compatible
-		cfg = llmHandlers.Config{
-			Provider:    llmHandlers.ProviderOpenRouter,
-			Model:       os.Getenv("OPENROUTER_MODEL_NAME"), // e.g., "moonshotai/kimi-k2.5"
-			Tools:       tools,
-			Temperature: temperature,
-			MaxTokens:   maxTokens,
-		}
-
-	default:
-		log.Fatalf("Unknown provider: %s. Valid options: openai, groq, anthropic, gemini, openrouter", provider)
-	}
-
-	llmClient, err := llmHandlers.New(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize LLM client (%s): %v", provider, err)
 	}
 
 	return &Agent{

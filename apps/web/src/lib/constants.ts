@@ -68,6 +68,14 @@ export const MODELS: Model[] = [
     dropdownName: "OpenAI (GPT 5.1)",
     label: "OpenAI",
     minimumTier: "premium",
+    supportsThinking: false,
+  },
+  {
+    name: "gpt-5.2",
+    displayName: "GPT 5.2",
+    dropdownName: "OpenAI (GPT 5.2)",
+    label: "OpenAI",
+    minimumTier: "premium",
     supportsThinking: true,
   },
   {
