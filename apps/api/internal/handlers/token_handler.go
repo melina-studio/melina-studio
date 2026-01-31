@@ -116,6 +116,9 @@ var modelPricing = map[string]struct {
 	"meta-llama/llama-4-scout-17b-16e-instruct": {Input: 0.15, Output: 0.45},
 	"llama-3.3-70b-versatile":                   {Input: 0.75, Output: 1.00},
 	"moonshotai/kimi-k2.5":                      {Input: 2.00, Output: 5.00},
+	"moonshotai/kimi-k2-thinking":               {Input: 2.00, Output: 5.00},
+	"deepseek/deepseek-r1":                      {Input: 0.90, Output: 3.00},
+	"deepseek/deepseek-r1-0528":                 {Input: 0.90, Output: 3.00},
 }
 
 // calculateCost calculates the cost for token usage based on model pricing
