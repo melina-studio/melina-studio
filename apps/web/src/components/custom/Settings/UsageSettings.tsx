@@ -185,9 +185,9 @@ export function UsageSettings() {
         <div>
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">By Model</h3>
           <div className="space-y-1.5">
-            {analytics.usage_by_model.map((model) => (
+            {analytics.usage_by_model.map((model, index) => (
               <div
-                key={model.model}
+                key={`${model.model}-${model.provider ?? ""}-${index}`}
                 className="flex items-center justify-between p-2 rounded border border-border bg-card"
               >
                 <div className="flex items-center gap-2">
