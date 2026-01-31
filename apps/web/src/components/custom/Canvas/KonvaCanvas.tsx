@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Rect, Transformer } from "react-konva";
 import { ACTIONS, Shape, TOOL_CURSOR } from "@/lib/konavaTypes";
 import { getRelativePointerPosition } from "@/utils/canvasUtils";
-import { useCanvasZoom } from "@/hooks/useCanvasZoom";
+import { useCanvasZoom, NavigateOptions } from "@/hooks/useCanvasZoom";
 import { useCanvasSelection } from "@/hooks/useCanvasSelection";
 import { useCanvasDrawing } from "@/hooks/useCanvasDrawing";
 import { useTextEditor } from "@/hooks/useTextEditor";
@@ -21,6 +21,7 @@ function KonvaCanvas({
   shapes: externalShapes,
   handleSave,
   onCanvasTransform,
+  onNavigateToRef,
   isDarkMode = false,
 }: {
   activeTool: any;
@@ -31,6 +32,7 @@ function KonvaCanvas({
   shapes: Shape[];
   handleSave: any;
   onCanvasTransform?: (transform: { position: { x: number; y: number }; scale: number }) => void;
+  onNavigateToRef?: (navigateTo: (options: NavigateOptions) => void) => void;
   isDarkMode?: boolean;
 }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -60,7 +62,13 @@ function KonvaCanvas({
     zoomIn,
     zoomOut,
     handleStageDrag,
+    navigateTo,
   } = useCanvasZoom(canvasRef, dimensions);
+
+  // Expose navigateTo function to parent
+  useEffect(() => {
+    onNavigateToRef?.(navigateTo);
+  }, [navigateTo, onNavigateToRef]);
 
   // Selection functionality
   const {

@@ -37,7 +37,8 @@
       "Bash(gh api:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx jsrepo:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

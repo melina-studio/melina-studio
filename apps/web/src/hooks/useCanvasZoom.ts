@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef } from "react";
+import Konva from "konva";
 import { STAGE_MIN_SCALE, STAGE_MAX_SCALE, STAGE_DEFAULT_SCALE } from "@/lib/constants";
 import { clamp, getDistance } from "@/utils/canvasUtils";
 
 const ZOOM_STEP = 0.1; // 10% increment
+
+// Options for the navigateTo function
+export type NavigateOptions = {
+  x: number; // Target canvas X coordinate (center point)
+  y: number; // Target canvas Y coordinate (center point)
+  width?: number; // Optional: bounding box width for auto-zoom
+  height?: number; // Optional: bounding box height for auto-zoom
+  autoZoom?: boolean; // Default: true - auto-adjust zoom to fit target
+  animated?: boolean; // Default: true - smooth animation
+  padding?: number; // Default: 100 - extra padding around target (pixels)
+};
 
 // Zoom around pointer: stage = Konva.Stage instance, pointer = container coords
 const zoomStage = (stage: any, pointer: any, scaleBy: number) => {
@@ -144,6 +156,62 @@ export const useCanvasZoom = (canvasRef: any, dimensions: { width: number; heigh
     setPosition({ x: stage.x(), y: stage.y() });
   };
 
+  // Navigate to specific coordinates with optional auto-zoom
+  const navigateTo = (options: NavigateOptions) => {
+    const {
+      x,
+      y,
+      width,
+      height,
+      autoZoom = true,
+      animated = true,
+      padding = 100,
+    } = options;
+
+    const stage = canvasRef.current;
+    if (!stage) return;
+
+    let targetScale = scale;
+
+    // Calculate auto-zoom scale if bounding box provided
+    if (autoZoom && width && height && width > 0 && height > 0) {
+      const viewportWidth = dimensions.width - padding * 2;
+      const viewportHeight = dimensions.height - padding * 2;
+      const scaleX = viewportWidth / width;
+      const scaleY = viewportHeight / height;
+      targetScale = clamp(Math.min(scaleX, scaleY), STAGE_MIN_SCALE, STAGE_MAX_SCALE);
+    }
+
+    // Calculate stage position to center the target coordinates
+    const targetPosition = {
+      x: dimensions.width / 2 - x * targetScale,
+      y: dimensions.height / 2 - y * targetScale,
+    };
+
+    if (animated) {
+      // Use Konva's tween for smooth animation
+      stage.to({
+        x: targetPosition.x,
+        y: targetPosition.y,
+        scaleX: targetScale,
+        scaleY: targetScale,
+        duration: 0.3,
+        easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          setScale(targetScale);
+          setPosition(targetPosition);
+        },
+      });
+    } else {
+      // Instant positioning
+      stage.position(targetPosition);
+      stage.scale({ x: targetScale, y: targetScale });
+      stage.batchDraw();
+      setScale(targetScale);
+      setPosition(targetPosition);
+    }
+  };
+
   return {
     scale,
     position,
@@ -154,5 +222,6 @@ export const useCanvasZoom = (canvasRef: any, dimensions: { width: number; heigh
     zoomIn,
     zoomOut,
     handleStageDrag,
+    navigateTo,
   };
 };

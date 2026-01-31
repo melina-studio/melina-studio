@@ -137,3 +137,115 @@ export const getDistance = (p1: any, p2: any) => {
   const dy = p1.clientY - p2.clientY;
   return Math.hypot(dx, dy);
 };
+
+// Bounds type for shape bounding boxes
+export type Bounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+// Get the bounding box of a shape
+export const getShapeBounds = (shape: Shape): Bounds => {
+  if (shape.type === "rect" || shape.type === "frame") {
+    return {
+      minX: shape.x,
+      minY: shape.y,
+      maxX: shape.x + shape.w,
+      maxY: shape.y + shape.h,
+    };
+  } else if (shape.type === "circle") {
+    return {
+      minX: shape.x - shape.r,
+      minY: shape.y - shape.r,
+      maxX: shape.x + shape.r,
+      maxY: shape.y + shape.r,
+    };
+  } else if (shape.type === "ellipse") {
+    const e = shape as any;
+    return {
+      minX: shape.x - e.radiusX,
+      minY: shape.y - e.radiusY,
+      maxX: shape.x + e.radiusX,
+      maxY: shape.y + e.radiusY,
+    };
+  } else if (shape.type === "path") {
+    const p = shape as any;
+    const pathX = p.x || 0;
+    const pathY = p.y || 0;
+    const defaultSize = 100;
+    return {
+      minX: pathX,
+      minY: pathY,
+      maxX: pathX + defaultSize,
+      maxY: pathY + defaultSize,
+    };
+  } else if (
+    shape.type === "line" ||
+    shape.type === "pencil" ||
+    shape.type === "arrow" ||
+    shape.type === "eraser"
+  ) {
+    const points = (shape as any).points || [];
+    const offsetX = (shape as any).x || 0;
+    const offsetY = (shape as any).y || 0;
+
+    if (points.length < 2) {
+      return { minX: offsetX, minY: offsetY, maxX: offsetX, maxY: offsetY };
+    }
+
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let i = 0; i < points.length; i += 2) {
+      const px = points[i] + offsetX;
+      const py = points[i + 1] + offsetY;
+      minX = Math.min(minX, px);
+      minY = Math.min(minY, py);
+      maxX = Math.max(maxX, px);
+      maxY = Math.max(maxY, py);
+    }
+    return { minX, minY, maxX, maxY };
+  } else if (shape.type === "text") {
+    const t = shape as any;
+    const fontSize = t.fontSize || 16;
+    const text = t.text || "";
+    const lines = text.split("\n");
+    const maxLineLength = Math.max(...lines.map((line: string) => line.length));
+    const estimatedWidth = Math.max(maxLineLength * fontSize * 0.7, 50);
+    const estimatedHeight = lines.length * fontSize * 1.4;
+    return {
+      minX: shape.x,
+      minY: shape.y,
+      maxX: shape.x + estimatedWidth,
+      maxY: shape.y + estimatedHeight,
+    };
+  } else if (shape.type === "image") {
+    const img = shape as any;
+    return {
+      minX: shape.x,
+      minY: shape.y,
+      maxX: shape.x + (img.width || 150),
+      maxY: shape.y + (img.height || 150),
+    };
+  }
+
+  // Fallback for unknown types
+  const s = shape as any;
+  return { minX: s.x || 0, minY: s.y || 0, maxX: (s.x || 0) + 100, maxY: (s.y || 0) + 100 };
+};
+
+// Merge multiple bounds into one encompassing bounding box
+export const mergeBounds = (bounds: Bounds[]): Bounds => {
+  if (bounds.length === 0) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+  return {
+    minX: Math.min(...bounds.map((b) => b.minX)),
+    minY: Math.min(...bounds.map((b) => b.minY)),
+    maxX: Math.max(...bounds.map((b) => b.maxX)),
+    maxY: Math.max(...bounds.map((b) => b.maxY)),
+  };
+};

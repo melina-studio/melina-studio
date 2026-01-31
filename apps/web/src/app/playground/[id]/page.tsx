@@ -14,6 +14,8 @@ import {
   buildShapes,
   exportCompositedImageWithBoth,
 } from "@/helpers/helpers";
+import { getShapeBounds, mergeBounds } from "@/utils/canvasUtils";
+import type { NavigateOptions } from "@/hooks/useCanvasZoom";
 import AIController from "@/components/custom/Chat/AIController";
 import { getChatHistory } from "@/service/chatService";
 import Image from "next/image";
@@ -160,6 +162,11 @@ export default function BoardPage() {
     isSaving: boolean;
     lastShapes: Shape[] | null;
   }>({ timeoutId: null, isSaving: false, lastShapes: null });
+
+  // Refs for batched navigation (navigates to new shapes after LLM adds them)
+  const pendingNavigationRef = useRef<Shape[]>([]);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigateToRef = useRef<((options: NavigateOptions) => void) | null>(null);
 
   const { subscribe } = useWebsocket();
 
@@ -740,6 +747,44 @@ export default function BoardPage() {
     [debouncedSave, performSave]
   );
 
+  // Queue shape for batched navigation - debounces multiple shapes into one navigation
+  const queueShapeForNavigation = useCallback((shape: Shape) => {
+    pendingNavigationRef.current.push(shape);
+
+    // Clear existing timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
+
+    // Set new timeout - navigate 500ms after last shape
+    navigationTimeoutRef.current = setTimeout(() => {
+      const shapes = pendingNavigationRef.current;
+      if (shapes.length === 0 || !navigateToRef.current) return;
+
+      // Calculate combined bounding box of all pending shapes
+      const bounds = shapes.map(getShapeBounds);
+      const combined = mergeBounds(bounds);
+
+      // Calculate center and dimensions
+      const centerX = (combined.minX + combined.maxX) / 2;
+      const centerY = (combined.minY + combined.maxY) / 2;
+      const width = combined.maxX - combined.minX;
+      const height = combined.maxY - combined.minY;
+
+      // Navigate to combined bounds
+      navigateToRef.current({
+        x: centerX,
+        y: centerY,
+        width,
+        height,
+        autoZoom: true,
+      });
+
+      // Clear the queue
+      pendingNavigationRef.current = [];
+    }, 500);
+  }, []);
+
   // listen for board updates event
   useEffect(() => {
     // listen for new shape created event
@@ -750,6 +795,9 @@ export default function BoardPage() {
       // Update Melina status
       setMelinaStatus("editing");
       setTimeout(() => setMelinaStatus("idle"), 1000);
+
+      // Queue shape for batched navigation (auto-scroll to new shapes)
+      queueShapeForNavigation(shape);
 
       // Use functional update to get the current state and append the new shape
       setHistory((cur) => {
@@ -787,6 +835,24 @@ export default function BoardPage() {
       const { shape } = data.data;
       setHistory((cur) => {
         const currentShapes = cloneShapes(cur.present);
+
+        // Check if shape moved significantly (> 200px) - if so, navigate to it
+        const oldShape = cur.present.find((s) => s.id === shape.id);
+        if (oldShape) {
+          const oldBounds = getShapeBounds(oldShape);
+          const newBounds = getShapeBounds(shape);
+          const oldCenterX = (oldBounds.minX + oldBounds.maxX) / 2;
+          const oldCenterY = (oldBounds.minY + oldBounds.maxY) / 2;
+          const newCenterX = (newBounds.minX + newBounds.maxX) / 2;
+          const newCenterY = (newBounds.minY + newBounds.maxY) / 2;
+          const dx = newCenterX - oldCenterX;
+          const dy = newCenterY - oldCenterY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance > 200) {
+            queueShapeForNavigation(shape);
+          }
+        }
+
         const newShapes = currentShapes.map((s) => (s.id === shape.id ? shape : s));
         return {
           past: cur.past,
@@ -837,8 +903,12 @@ export default function BoardPage() {
       if (pendingSaveRef.current.timeoutId) {
         clearTimeout(pendingSaveRef.current.timeoutId);
       }
+      // Clean up navigation timeout on unmount
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
     };
-  }, [subscribe]);
+  }, [subscribe, queueShapeForNavigation]);
 
   const handleClearBoard = async () => {
     try {
@@ -926,6 +996,9 @@ export default function BoardPage() {
           shapes={presentShapes}
           handleSave={handleSave}
           onCanvasTransform={setCanvasTransform}
+          onNavigateToRef={(fn) => {
+            navigateToRef.current = fn;
+          }}
           isDarkMode={resolvedTheme === "dark"}
         />
       </div>
