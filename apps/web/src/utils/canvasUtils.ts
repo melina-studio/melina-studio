@@ -1,4 +1,5 @@
 import { Shape } from "@/lib/konavaTypes";
+import { getBendPoint, convertLegacyArrow } from "@/utils/arrowUtils";
 
 // Clamp helper
 export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -77,12 +78,40 @@ export const isShapeInSelectionBox = (
       bottom: pathY + defaultSize,
     };
     return rectsIntersect(shapeRect, selectionRect);
-  } else if (
-    shape.type === "line" ||
-    shape.type === "pencil" ||
-    shape.type === "arrow" ||
-    shape.type === "eraser"
-  ) {
+  } else if (shape.type === "arrow") {
+    // Handle new arrow format with start, end, bend
+    const arrowShape = shape as Extract<Shape, { type: "arrow" }>;
+    let start = arrowShape.start;
+    let end = arrowShape.end;
+    let bend = arrowShape.bend ?? 0;
+
+    // Handle legacy format
+    if (!start || !end) {
+      const legacy = convertLegacyArrow(arrowShape);
+      if (legacy) {
+        start = legacy.start;
+        end = legacy.end;
+        bend = legacy.bend;
+      } else {
+        return false;
+      }
+    }
+
+    const bendPoint = getBendPoint(start, end, bend);
+    const points = [start, end, bendPoint];
+
+    for (const point of points) {
+      if (
+        point.x >= selectionRect.left &&
+        point.x <= selectionRect.right &&
+        point.y >= selectionRect.top &&
+        point.y <= selectionRect.bottom
+      ) {
+        return true;
+      }
+    }
+    return false;
+  } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
     // Check if any point is within the selection box
     const points = (shape as any).points || [];
     const offsetX = (shape as any).x || 0;
@@ -181,12 +210,33 @@ export const getShapeBounds = (shape: Shape): Bounds => {
       maxX: pathX + defaultSize,
       maxY: pathY + defaultSize,
     };
-  } else if (
-    shape.type === "line" ||
-    shape.type === "pencil" ||
-    shape.type === "arrow" ||
-    shape.type === "eraser"
-  ) {
+  } else if (shape.type === "arrow") {
+    // Handle new arrow format with start, end, bend
+    const arrowShape = shape as Extract<Shape, { type: "arrow" }>;
+    let start = arrowShape.start;
+    let end = arrowShape.end;
+    let bend = arrowShape.bend ?? 0;
+
+    // Handle legacy format
+    if (!start || !end) {
+      const legacy = convertLegacyArrow(arrowShape);
+      if (legacy) {
+        start = legacy.start;
+        end = legacy.end;
+        bend = legacy.bend;
+      } else {
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+      }
+    }
+
+    const bendPoint = getBendPoint(start, end, bend);
+    return {
+      minX: Math.min(start.x, end.x, bendPoint.x),
+      minY: Math.min(start.y, end.y, bendPoint.y),
+      maxX: Math.max(start.x, end.x, bendPoint.x),
+      maxY: Math.max(start.y, end.y, bendPoint.y),
+    };
+  } else if (shape.type === "line" || shape.type === "pencil" || shape.type === "eraser") {
     const points = (shape as any).points || [];
     const offsetX = (shape as any).x || 0;
     const offsetY = (shape as any).y || 0;

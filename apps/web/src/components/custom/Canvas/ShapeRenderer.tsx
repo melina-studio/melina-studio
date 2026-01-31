@@ -13,6 +13,13 @@ import {
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
 import { getFreehandPath } from "@/utils/freehandUtils";
+import {
+  getArrowPathData,
+  getArrowSvgPath,
+  getArrowHeadPath,
+  convertLegacyArrow,
+  getBendPoint,
+} from "@/utils/arrowUtils";
 
 // Separate component for image shapes to avoid conditional hooks
 const ImageShape: React.FC<{
@@ -145,6 +152,7 @@ type ShapeRendererProps = {
   isDraggingStage: boolean;
   cursor: string;
   isDarkMode: boolean;
+  isSelected?: boolean;
   onShapeClick: (e: any, id: string) => void;
   onShapeDragStart: (e: any, id: string) => void;
   onShapeDragEnd: (e: any, id: string) => void;
@@ -154,6 +162,11 @@ type ShapeRendererProps = {
   onImageTransform: (node: any, id: string) => void;
   onTextDoubleClick: (id: string, pos: { x: number; y: number }) => void;
   onColorClick: (e: any, id: string) => void;
+  onArrowControlPointDrag?: (
+    pointType: "start" | "end" | "bend",
+    newPos: { x: number; y: number }
+  ) => void;
+  onArrowControlPointDragEnd?: () => void;
   setStageCursor: (c: string) => void;
   setIsDraggingStage: (dragging: boolean) => void;
 };
@@ -165,6 +178,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   isDraggingStage,
   cursor,
   isDarkMode,
+  isSelected,
   onShapeClick,
   onShapeDragStart,
   onShapeDragEnd,
@@ -174,6 +188,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   onImageTransform,
   onTextDoubleClick,
   onColorClick,
+  onArrowControlPointDrag,
+  onArrowControlPointDragEnd,
   setStageCursor,
   setIsDraggingStage,
 }) => {
@@ -457,22 +473,46 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   }
 
   if (shape.type === "arrow") {
-    const arrowShape = shape as any;
+    const arrowShape = shape as Extract<Shape, { type: "arrow" }>;
     const arrowStroke = getThemeAwareColor(arrowShape.stroke, isDarkMode, defaultStroke);
+
+    // Handle legacy arrow format (with points array) by converting to new format
+    let start = arrowShape.start;
+    let end = arrowShape.end;
+    let bend = arrowShape.bend ?? 0;
+
+    if (!start || !end) {
+      const legacy = convertLegacyArrow(arrowShape);
+      if (legacy) {
+        start = legacy.start;
+        end = legacy.end;
+        bend = legacy.bend;
+      } else {
+        // Invalid arrow data, skip rendering
+        return null;
+      }
+    }
+
+    // Calculate arrow path data
+    const arrowData = getArrowPathData(start, end, bend);
+    const pathData = getArrowSvgPath(arrowData);
+    const headPath = getArrowHeadPath(
+      arrowData.ex,
+      arrowData.ey,
+      arrowData.endAngle,
+      arrowShape.arrowHeadSize || 12
+    );
+
+    // Calculate bend point for control points
+    const bendPoint = getBendPoint(start, end, bend);
+    const handleRadius = 6;
+    const handleFill = "#ffffff";
+    const handleStroke = "#3b82f6";
+
     return (
-      <Arrow
+      <Group
         key={shape.id}
         id={shape.id}
-        x={arrowShape.x || 0}
-        y={arrowShape.y || 0}
-        points={arrowShape.points || []}
-        stroke={arrowStroke}
-        fill={arrowStroke}
-        strokeWidth={arrowShape.strokeWidth || 2}
-        pointerLength={arrowShape.pointerLength || 10}
-        pointerWidth={arrowShape.pointerWidth || 10}
-        lineCap="round"
-        lineJoin="round"
         draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
         onDragStart={(e) => onShapeDragStart(e, shape.id)}
         onDragMove={(e) => onShapeDragMove(e, shape.id)}
@@ -494,7 +534,148 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             setStageCursor(cursor);
           }
         }}
-      />
+      >
+        {/* Arrow curve */}
+        <Path
+          data={pathData}
+          stroke={arrowStroke}
+          strokeWidth={arrowShape.strokeWidth || 2}
+          lineCap="round"
+          lineJoin="round"
+          listening={false}
+        />
+        {/* Arrow head */}
+        <Path
+          data={headPath}
+          fill={arrowStroke}
+          stroke={arrowStroke}
+          strokeWidth={1}
+          listening={false}
+        />
+
+        {/* Control points - only when selected */}
+        {isSelected && onArrowControlPointDrag && onArrowControlPointDragEnd && (
+          <>
+            {/* Connection lines to show control structure */}
+            <Line
+              points={[start.x, start.y, bendPoint.x, bendPoint.y]}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+            <Line
+              points={[bendPoint.x, bendPoint.y, end.x, end.y]}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+
+            {/* Start control point */}
+            <Circle
+              x={start.x}
+              y={start.y}
+              radius={handleRadius}
+              fill={handleFill}
+              stroke={handleStroke}
+              strokeWidth={2}
+              draggable
+              onMouseDown={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragStart={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragMove={(e) => {
+                e.cancelBubble = true;
+                const node = e.target;
+                onArrowControlPointDrag("start", { x: node.x(), y: node.y() });
+              }}
+              onDragEnd={(e) => {
+                e.cancelBubble = true;
+                onArrowControlPointDragEnd();
+              }}
+              onMouseEnter={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "move";
+              }}
+              onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "default";
+              }}
+            />
+
+            {/* Bend control point (middle) */}
+            <Circle
+              x={bendPoint.x}
+              y={bendPoint.y}
+              radius={handleRadius}
+              fill="#fbbf24"
+              stroke={handleStroke}
+              strokeWidth={2}
+              draggable
+              onMouseDown={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragStart={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragMove={(e) => {
+                e.cancelBubble = true;
+                const node = e.target;
+                onArrowControlPointDrag("bend", { x: node.x(), y: node.y() });
+              }}
+              onDragEnd={(e) => {
+                e.cancelBubble = true;
+                onArrowControlPointDragEnd();
+              }}
+              onMouseEnter={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "move";
+              }}
+              onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "default";
+              }}
+            />
+
+            {/* End control point */}
+            <Circle
+              x={end.x}
+              y={end.y}
+              radius={handleRadius}
+              fill={handleFill}
+              stroke={handleStroke}
+              strokeWidth={2}
+              draggable
+              onMouseDown={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragStart={(e) => {
+                e.cancelBubble = true;
+              }}
+              onDragMove={(e) => {
+                e.cancelBubble = true;
+                const node = e.target;
+                onArrowControlPointDrag("end", { x: node.x(), y: node.y() });
+              }}
+              onDragEnd={(e) => {
+                e.cancelBubble = true;
+                onArrowControlPointDragEnd();
+              }}
+              onMouseEnter={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "move";
+              }}
+              onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "default";
+              }}
+            />
+          </>
+        )}
+      </Group>
     );
   }
 

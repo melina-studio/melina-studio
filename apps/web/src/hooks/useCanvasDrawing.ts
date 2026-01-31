@@ -18,6 +18,12 @@ const isShapeValid = (shape: Shape): boolean => {
     const points = shape.points || [];
     return points.length >= 4; // At least 2 points (4 values: x1,y1,x2,y2)
   }
+  if (shape.type === "arrow") {
+    // Arrow is valid if start and end are at least 10px apart
+    const dx = shape.end.x - shape.start.x;
+    const dy = shape.end.y - shape.start.y;
+    return Math.sqrt(dx * dx + dy * dy) > 10;
+  }
   if (shape.type === "text") {
     // Text is valid only if it has content (non-empty text)
     return Boolean(shape.text && shape.text.trim().length > 0);
@@ -109,6 +115,23 @@ export const useCanvasDrawing = (
           strokeWidth: 2,
         },
       ]);
+    } else if (activeTool === ACTIONS.ARROW) {
+      const newId = uuidv4();
+      setShapesBeforeDrawing([...shapes]);
+      setIsDrawing(true);
+      setLastCreatedId(newId);
+      const arrowShape: Shape = {
+        id: newId,
+        type: "arrow",
+        start: { x: pos.x, y: pos.y },
+        end: { x: pos.x, y: pos.y },
+        bend: 0,
+        stroke: strokeColor,
+        strokeWidth: 2,
+        arrowHeadSize: 12,
+      };
+      setShapes([...shapes, arrowShape]);
+      setShapesWithHistory([...shapes, arrowShape], { pushHistory: false });
     } else if (activeTool === ACTIONS.TEXT) {
       const newId = uuidv4();
       setShapesBeforeDrawing([...shapes]);
@@ -213,11 +236,15 @@ export const useCanvasDrawing = (
         const r = Math.hypot(dx, dy);
         return [...arr.slice(0, -1), { ...last, r }];
       }
-      if (last.type === "line" || last.type === "arrow") {
-        // For line/arrow, update to draw from start point to current point
+      if (last.type === "line") {
+        // For line, update to draw from start point to current point
         const startX = last.points[0];
         const startY = last.points[1];
         return [...arr.slice(0, -1), { ...last, points: [startX, startY, pos.x, pos.y] }];
+      }
+      if (last.type === "arrow") {
+        // For arrow, update the end point
+        return [...arr.slice(0, -1), { ...last, end: { x: pos.x, y: pos.y } }];
       }
       return arr;
     });
@@ -245,11 +272,15 @@ export const useCanvasDrawing = (
           const r = Math.hypot(dx, dy);
           return [...arr.slice(0, -1), { ...last, r }];
         }
-        if (last.type === "line" || last.type === "arrow") {
-          // For line/arrow, update to draw from start point to current point (straight line)
+        if (last.type === "line") {
+          // For line, update to draw from start point to current point (straight line)
           const startX = last.points[0];
           const startY = last.points[1];
           return [...arr.slice(0, -1), { ...last, points: [startX, startY, pos.x, pos.y] }];
+        }
+        if (last.type === "arrow") {
+          // For arrow, update the end point
+          return [...arr.slice(0, -1), { ...last, end: { x: pos.x, y: pos.y } }];
         }
         if (last.type === "eraser") {
           const newPoints = (last.points || []).concat([pos.x, pos.y]);

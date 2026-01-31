@@ -8,6 +8,7 @@ import { useCanvasDrawing } from "@/hooks/useCanvasDrawing";
 import { useTextEditor } from "@/hooks/useTextEditor";
 import { useCanvasExport } from "@/hooks/useCanvasExport";
 import { ShapeRenderer } from "./ShapeRenderer";
+import { getBendFromPoint } from "@/utils/arrowUtils";
 import { ZoomControls } from "./ZoomControls";
 import { SelectionButtons } from "./SelectionButtons";
 import { addSelectionAction } from "@/store/useSelection";
@@ -43,6 +44,7 @@ function KonvaCanvas({
 
   // Ref to track if we're updating shapes locally (to skip external sync)
   const isLocalUpdateRef = useRef(false);
+
 
   const cursor = TOOL_CURSOR[activeTool] ?? TOOL_CURSOR.default;
 
@@ -238,15 +240,20 @@ function KonvaCanvas({
     } else if (activeTool === ACTIONS.MARQUEE_SELECT && clickedOnEmpty) {
       startMarqueeSelection(pos);
     } else if (
-      activeTool === ACTIONS.PENCIL ||
-      activeTool === ACTIONS.RECTANGLE ||
-      activeTool === ACTIONS.CIRCLE ||
-      activeTool === ACTIONS.LINE ||
-      activeTool === ACTIONS.TEXT ||
-      activeTool === ACTIONS.IMAGE ||
-      activeTool === ACTIONS.ERASER ||
-      activeTool === ACTIONS.FRAME
+      clickedOnEmpty &&
+      (activeTool === ACTIONS.PENCIL ||
+        activeTool === ACTIONS.RECTANGLE ||
+        activeTool === ACTIONS.CIRCLE ||
+        activeTool === ACTIONS.LINE ||
+        activeTool === ACTIONS.ARROW ||
+        activeTool === ACTIONS.TEXT ||
+        activeTool === ACTIONS.IMAGE ||
+        activeTool === ACTIONS.FRAME)
     ) {
+      // Only start drawing on empty canvas
+      startDrawing(pos, stage);
+    } else if (activeTool === ACTIONS.ERASER) {
+      // Eraser can work on shapes too
       startDrawing(pos, stage);
     }
   };
@@ -444,9 +451,10 @@ function KonvaCanvas({
     }
   };
 
-  // Shape drag move - for now just a no-op, single shape drag handled by Konva
+  // Shape drag move - no-op, let Konva handle visual movement
   const onShapeDragMove = (_e: any, _id: string) => {
-    // No-op for single shape drag - Konva handles the visual
+    // No-op - Konva handles visual movement
+    // Control points are inside the Group so they move automatically
   };
 
   // Shape drag end
@@ -459,20 +467,52 @@ function KonvaCanvas({
     // Mark that we're doing a local update to skip external sync
     isLocalUpdateRef.current = true;
 
-    // Update the dragged shape's position using callback to get latest state
-    setShapes((currentShapes) => {
-      const updatedShapes = currentShapes.map((s) =>
-        s.id === id ? { ...s, x: finalX, y: finalY } : s
-      );
+    const shape = shapes.find((s) => s.id === id);
 
-      // Push to history after state update
-      queueMicrotask(() => {
-        setShapesWithHistory(updatedShapes, { pushHistory: true });
-        handleSave();
+    // For arrows, apply the final offset to start/end coordinates
+    if (shape?.type === "arrow") {
+      if (finalX !== 0 || finalY !== 0) {
+        node.x(0);
+        node.y(0);
+        setShapes((currentShapes) => {
+          const updatedShapes = currentShapes.map((s) => {
+            if (s.id !== id || s.type !== "arrow") return s;
+            const a = s as Extract<Shape, { type: "arrow" }>;
+            return {
+              ...a,
+              start: { x: a.start.x + finalX, y: a.start.y + finalY },
+              end: { x: a.end.x + finalX, y: a.end.y + finalY },
+            };
+          });
+          queueMicrotask(() => {
+            setShapesWithHistory(updatedShapes, { pushHistory: true });
+            handleSave();
+          });
+          return updatedShapes;
+        });
+      } else {
+        // No movement, just push current state to history
+        queueMicrotask(() => {
+          setShapesWithHistory(shapes, { pushHistory: true });
+          handleSave();
+        });
+      }
+    } else {
+      // Update the dragged shape's position using callback to get latest state
+      setShapes((currentShapes) => {
+        const updatedShapes = currentShapes.map((s) =>
+          s.id === id ? { ...s, x: finalX, y: finalY } : s
+        );
+
+        // Push to history after state update
+        queueMicrotask(() => {
+          setShapesWithHistory(updatedShapes, { pushHistory: true });
+          handleSave();
+        });
+
+        return updatedShapes;
       });
-
-      return updatedShapes;
-    });
+    }
 
     // restore stage cursor to grab if SELECT tool and not panning
     if (
@@ -481,6 +521,46 @@ function KonvaCanvas({
     )
       setStageCursor("grab");
     else setStageCursor(cursor);
+  };
+
+  // Arrow control point drag handler
+  const handleArrowControlPointDrag = (
+    arrowId: string,
+    pointType: "start" | "end" | "bend",
+    newPos: { x: number; y: number }
+  ) => {
+    setShapes((currentShapes) => {
+      return currentShapes.map((s) => {
+        if (s.id !== arrowId || s.type !== "arrow") return s;
+
+        const arrow = s as Extract<Shape, { type: "arrow" }>;
+
+        // Handle legacy format
+        let start = arrow.start;
+        let end = arrow.end;
+
+        if (!start || !end) {
+          // Legacy arrow, skip control point updates
+          return s;
+        }
+
+        if (pointType === "start") {
+          return { ...arrow, start: newPos };
+        } else if (pointType === "end") {
+          return { ...arrow, end: newPos };
+        } else {
+          // Calculate new bend value from the dragged position
+          const newBend = getBendFromPoint(start, end, newPos);
+          return { ...arrow, bend: newBend };
+        }
+      });
+    });
+  };
+
+  const handleArrowControlPointDragEnd = () => {
+    isLocalUpdateRef.current = true;
+    setShapesWithHistory(shapes, { pushHistory: true });
+    handleSave(shapes);
   };
 
   // AI button handler
@@ -581,6 +661,7 @@ function KonvaCanvas({
                 isDraggingStage={isDraggingStage}
                 cursor={cursor}
                 isDarkMode={isDarkMode}
+                isSelected={selectedIds.includes(s.id)}
                 onShapeClick={handleShapeClick}
                 onShapeDragStart={onShapeDragStart}
                 onShapeDragEnd={onShapeDragEnd}
@@ -590,6 +671,14 @@ function KonvaCanvas({
                 onImageTransform={onImageTransform}
                 onTextDoubleClick={(id, pos) => openTextEditor(id, pos)}
                 onColorClick={handleColorClick}
+                onArrowControlPointDrag={
+                  s.type === "arrow"
+                    ? (pointType, pos) => handleArrowControlPointDrag(s.id, pointType, pos)
+                    : undefined
+                }
+                onArrowControlPointDragEnd={
+                  s.type === "arrow" ? handleArrowControlPointDragEnd : undefined
+                }
                 setStageCursor={setStageCursor}
                 setIsDraggingStage={setIsDraggingStage}
               />
@@ -609,6 +698,7 @@ function KonvaCanvas({
               listening={false}
             />
           )}
+
 
           {/* show transformer for selected shapes */}
           {selectedIds.length > 0 && (

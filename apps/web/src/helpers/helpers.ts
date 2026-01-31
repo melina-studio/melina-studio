@@ -103,16 +103,32 @@ export const buildShapes = (data: any): Shape[] => {
         };
       }
       if (shape.type === "arrow") {
-        return {
-          ...baseShape,
-          x: shape.data?.x ?? 0,
-          y: shape.data?.y ?? 0,
-          points: shape.data?.points ?? [],
-          stroke: shape.data?.stroke,
-          strokeWidth: shape.data?.strokeWidth,
-          pointerLength: shape.data?.pointerLength,
-          pointerWidth: shape.data?.pointerWidth,
-        };
+        // Handle both new format (start, end, bend) and legacy format (points)
+        if (shape.data?.start && shape.data?.end) {
+          // New format
+          return {
+            ...baseShape,
+            start: shape.data.start,
+            end: shape.data.end,
+            bend: shape.data.bend ?? 0,
+            stroke: shape.data?.stroke,
+            strokeWidth: shape.data?.strokeWidth,
+            arrowHeadSize: shape.data?.arrowHeadSize,
+          };
+        } else {
+          // Legacy format - include legacy fields for conversion at render time
+          return {
+            ...baseShape,
+            start: { x: 0, y: 0 }, // Will be converted from points
+            end: { x: 0, y: 0 },
+            bend: 0,
+            x: shape.data?.x ?? 0,
+            y: shape.data?.y ?? 0,
+            points: shape.data?.points ?? [],
+            stroke: shape.data?.stroke,
+            strokeWidth: shape.data?.strokeWidth,
+          };
+        }
       }
       if (shape.type === "eraser") {
         return {

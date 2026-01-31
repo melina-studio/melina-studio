@@ -51,4 +51,9 @@ type Shape struct {
 	FontFamily  *string    `json:"fontFamily,omitempty"`
 	Data        *string    `json:"data,omitempty"` // SVG path data string for path shapes
 	Name        *string    `json:"name,omitempty"` // Label text for frame shapes
+	// Arrow-specific fields (new format)
+	Start         map[string]float64 `json:"start,omitempty"`
+	End           map[string]float64 `json:"end,omitempty"`
+	Bend          *float64           `json:"bend,omitempty"`
+	ArrowHeadSize *float64           `json:"arrowHeadSize,omitempty"`
 }

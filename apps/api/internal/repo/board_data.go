@@ -88,11 +88,31 @@ func (r *BoardDataRepo) SaveShapeData(boardId uuid.UUID, shapeData *models.Shape
 		addString("fill", shapeData.Fill)
 		addFloat("strokeWidth", shapeData.StrokeWidth)
 
-	case "line", "arrow":
+	case "line":
 		addFloat("x", shapeData.X)
 		addFloat("y", shapeData.Y)
 		if shapeData.Points != nil {
 			// store slice, not pointer
+			dataMap["points"] = *shapeData.Points
+		}
+		addString("stroke", shapeData.Stroke)
+		addString("fill", shapeData.Fill)
+		addFloat("strokeWidth", shapeData.StrokeWidth)
+
+	case "arrow":
+		// New arrow format (start, end, bend)
+		if shapeData.Start != nil {
+			dataMap["start"] = shapeData.Start
+		}
+		if shapeData.End != nil {
+			dataMap["end"] = shapeData.End
+		}
+		addFloat("bend", shapeData.Bend)
+		addFloat("arrowHeadSize", shapeData.ArrowHeadSize)
+		// Legacy format support
+		addFloat("x", shapeData.X)
+		addFloat("y", shapeData.Y)
+		if shapeData.Points != nil {
 			dataMap["points"] = *shapeData.Points
 		}
 		addString("stroke", shapeData.Stroke)

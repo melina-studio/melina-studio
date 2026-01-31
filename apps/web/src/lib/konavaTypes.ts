@@ -8,6 +8,7 @@ import {
   TypeOutline,
   PaintBucket,
   LayoutPanelLeft,
+  MoveUpRight,
 } from "lucide-react";
 import MarqueeAIIcon from "@/components/icons/MarqueeAIIcon";
 
@@ -60,15 +61,15 @@ export const ACTION_BUTTONS = [
     label: "Rectangle",
     value: ACTIONS.RECTANGLE,
   },
-  // {
-  //   icon: MoveUpRight,
-  //   label: "Arrow",
-  //   value: ACTIONS.ARROW,
-  // },
   {
     icon: Slash,
     label: "Line",
     value: ACTIONS.LINE,
+  },
+  {
+    icon: MoveUpRight,
+    label: "Arrow",
+    value: ACTIONS.ARROW,
   },
   {
     icon: TypeOutline,
@@ -218,14 +219,17 @@ export type Shape =
   | {
       id: string;
       type: "arrow";
-      x?: number;
-      y?: number;
-      points: number[];
+      start: { x: number; y: number };
+      end: { x: number; y: number };
+      bend: number;
       stroke?: string;
       strokeWidth?: number;
-      pointerLength?: number;
-      pointerWidth?: number;
+      arrowHeadSize?: number;
       imageUrl?: string;
+      // Legacy fields for backward compatibility (converted on render)
+      x?: number;
+      y?: number;
+      points?: number[];
     }
   | {
       id: string;
@@ -287,7 +291,7 @@ export const TOOL_CURSOR = {
   [ACTIONS.MARQUEE_SELECT]: "crosshair",
   [ACTIONS.CIRCLE]: "crosshair", // there's no 'circle' cursor — use crosshair or custom
   [ACTIONS.RECTANGLE]: "crosshair",
-  [ACTIONS.ARROW]: "pointer", // clickable/select
+  [ACTIONS.ARROW]: "crosshair", // drawing cursor
   [ACTIONS.LINE]: "crosshair",
   [ACTIONS.FRAME]: "crosshair",
   [ACTIONS.ERASER]: "url(/icons/eraser.svg) 2 22, auto", // custom image with hotspot at bottom-left tip
