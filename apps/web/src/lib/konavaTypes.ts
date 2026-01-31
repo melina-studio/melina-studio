@@ -208,6 +208,12 @@ export type Shape =
       strokeWidth?: number;
       tension?: number;
       imageUrl?: string;
+      // Perfect-freehand options for beautiful ink-like strokes
+      size?: number;
+      thinning?: number;
+      smoothing?: number;
+      streamline?: number;
+      simulatePressure?: boolean;
     }
   | {
       id: string;

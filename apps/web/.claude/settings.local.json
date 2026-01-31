@@ -38,7 +38,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx jsrepo:*)",
       "Bash(curl:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "WebFetch(domain:www.npmjs.com)"
     ]
   }
 }

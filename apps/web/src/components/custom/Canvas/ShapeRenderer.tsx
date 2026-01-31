@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Rect,
   Circle,
@@ -12,6 +12,7 @@ import {
 } from "react-konva";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
+import { getFreehandPath } from "@/utils/freehandUtils";
 
 // Separate component for image shapes to avoid conditional hooks
 const ImageShape: React.FC<{
@@ -497,17 +498,68 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     );
   }
 
-  // Default to Line for pencil, line, eraser
+  // Default to Line for line, eraser
   const lineShape = shape as any;
   // Adjust stroke color for visibility in current theme
   const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, defaultStroke);
 
-  // For pencil shapes, determine if the shape is "naturally closed"
-  // by checking if the start and end points are close together
+  // For pencil shapes, use perfect-freehand for beautiful ink-like strokes
   const isPencil = shape.type === "pencil";
   const points = lineShape.points || [];
 
+  // Compute freehand path for pencil shapes
+  const freehandPathData = useMemo(() => {
+    if (!isPencil || points.length < 4) return null;
+
+    const pencilShape = shape as Extract<Shape, { type: "pencil" }>;
+    return getFreehandPath(points, {
+      size: pencilShape.size ?? (pencilShape.strokeWidth || 2) * 4,
+      thinning: pencilShape.thinning ?? 0.5,
+      smoothing: pencilShape.smoothing ?? 0.5,
+      streamline: pencilShape.streamline ?? 0.5,
+      simulatePressure: pencilShape.simulatePressure ?? true,
+    });
+  }, [isPencil, points, shape]);
+
+  // Render pencil shapes using freehand Path for beautiful variable-width strokes
+  if (isPencil && freehandPathData) {
+    return (
+      <Path
+        key={shape.id}
+        id={shape.id}
+        x={lineShape.x || 0}
+        y={lineShape.y || 0}
+        data={freehandPathData}
+        fill={lineStroke}
+        stroke={lineStroke}
+        strokeWidth={0.5}
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
+        onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
+        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+        onClick={handleClick}
+        onMouseEnter={() => {
+          if (
+            (activeTool === ACTIONS.SELECT ||
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
+            !isDraggingShape
+          ) {
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
+            setIsDraggingStage(false);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!isDraggingShape && !isDraggingStage) {
+            setStageCursor(cursor);
+          }
+        }}
+      />
+    );
+  }
+
   // Check if pencil shape is naturally closed (start and end points within 30px)
+  // This is used as fallback during drawing when freehand path isn't ready yet
   const isNaturallyClosed =
     isPencil &&
     points.length >= 4 &&
@@ -527,6 +579,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   // Use transparent fill for naturally closed shapes to enable interior click detection
   const fillColor = lineShape.fill || (isNaturallyClosed ? "transparent" : undefined);
 
+  // Fallback to Line for line, eraser, and pencil with too few points
   return (
     <Line
       key={shape.id}
