@@ -206,6 +206,7 @@ func (a *Agent) ProcessRequestStream(
 }
 
 // ProcessRequestStreamWithUsage processes a user message and returns both the response and token usage
+// canvasStateXML is an optional XML string describing the spatial state of the canvas (occupied regions, etc.)
 func (a *Agent) ProcessRequestStreamWithUsage(
 	ctx context.Context,
 	hub *libraries.Hub,
@@ -216,27 +217,36 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	activeTheme string,
 	selections interface{},
 	uploadedImages []UploadedImage,
-	enableThinking bool) (*llmHandlers.ResponseWithUsage, error) {
+	enableThinking bool,
+	canvasStateXML string) (*llmHandlers.ResponseWithUsage, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
+
+	// Prepend canvas state to user message if available
+	// This gives the LLM spatial awareness of existing shapes
+	effectiveMessage := message
+	if canvasStateXML != "" {
+		effectiveMessage = canvasStateXML + "\n\n" + message
+		log.Printf("Prepended canvas state to message (%d chars)", len(canvasStateXML))
+	}
 
 	// Build user message content - may include annotated images if selections provided
 	var userContent interface{}
 
 	// Check if we have annotated selections to include
 	if annotatedSelections, ok := selections.([]AnnotatedSelection); ok && len(annotatedSelections) > 0 {
-		userContent = buildMultimodalContentWithAnnotations(message, annotatedSelections, uploadedImages)
+		userContent = buildMultimodalContentWithAnnotations(effectiveMessage, annotatedSelections, uploadedImages)
 		log.Printf("Built multimodal content with %d annotated selections and %d uploaded images", len(annotatedSelections), len(uploadedImages))
 	} else if images, ok := selections.([]ShapeImage); ok && len(images) > 0 {
-		userContent = buildMultimodalContent(message, images)
+		userContent = buildMultimodalContent(effectiveMessage, images)
 		log.Printf("Built multimodal content with %d shape images (no annotation)", len(images))
 	} else if len(uploadedImages) > 0 {
-		userContent = buildMultimodalContentWithUploadedImages(message, uploadedImages)
+		userContent = buildMultimodalContentWithUploadedImages(effectiveMessage, uploadedImages)
 		log.Printf("Built multimodal content with %d uploaded images only (first image mimeType: %s, data length: %d)",
 			len(uploadedImages), uploadedImages[0].MimeType, len(uploadedImages[0].Base64Data))
 	} else {
-		userContent = message
+		userContent = effectiveMessage
 	}
 
 	messages := []llmHandlers.Message{}

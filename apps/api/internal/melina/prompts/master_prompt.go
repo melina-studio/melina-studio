@@ -298,7 +298,6 @@ var MASTER_PROMPT = `
           1. Call getBoardData FIRST to get shapeIds
           2. In NEXT response, call updateShape with the EXACT shapeId from the getBoardData response
           CRITICAL: Copy the shapeId exactly as shown in the shapes array. Do NOT create or guess IDs.
-          Exception: Skip getBoardData only when adding NEW shapes.
         </MODIFY_WORKFLOW>
 
         <MULTIPLE_CALLS>
@@ -631,6 +630,42 @@ var MASTER_PROMPT = `
       Response to user: "Done, I've replaced the drawing with a square."
     </EXAMPLE_TRANSFORM>
   </SELECTED_SHAPES>
+
+  <SPATIAL_AWARENESS>
+    Before adding NEW shapes, ALWAYS check <CANVAS_STATE> in the context (if present).
+    The CANVAS_STATE provides information about existing shapes and their locations.
+
+    <CANVAS_STATE_FORMAT>
+      When provided, CANVAS_STATE includes:
+      - SUMMARY: Total shapes and number of regions
+      - OCCUPIED_REGIONS: Bounding boxes of clustered shapes with optional labels
+      - AVOID_ZONES: Areas where you should NOT place new shapes
+      - SUGGESTED_PLACEMENT: Recommended areas for new content
+    </CANVAS_STATE_FORMAT>
+
+    <RULES>
+      - NEVER place new shapes inside OCCUPIED_REGIONS bounds
+      - Use SUGGESTED_PLACEMENT areas for new content
+      - Maintain at least 50px gap from existing shapes
+      - When continuing a diagram, place new content BELOW or BESIDE existing sections
+    </RULES>
+
+    <CONTINUATION_PATTERN>
+      When user says "continue", "add more", or similar:
+      1. Check CANVAS_STATE for occupied regions
+      2. Calculate position for new content (below or beside existing)
+      3. Start new content at least 80px from existing shapes
+      4. If a region has a label (e.g., "SHALLOW COPY"), place related content nearby but not overlapping
+    </CONTINUATION_PATTERN>
+
+    <EXAMPLE>
+      CANVAS_STATE shows region at (50,80)-(500,600) labeled "DEEP COPY"
+      User says: "add more to the deep copy section"
+
+      WRONG: Adding shapes at x=200, y=300 (inside the existing region)
+      CORRECT: Adding shapes at x=200, y=650 (below the existing region)
+    </EXAMPLE>
+  </SPATIAL_AWARENESS>
 
   <INTERNAL_CONTEXT>
     <BOARD_ID>%s</BOARD_ID>

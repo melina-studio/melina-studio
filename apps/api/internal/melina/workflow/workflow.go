@@ -13,6 +13,7 @@ import (
 	"melina-studio-backend/internal/libraries"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
 	"melina-studio-backend/internal/melina/agents"
+	"melina-studio-backend/internal/melina/tools"
 	"melina-studio-backend/internal/repo"
 	"melina-studio-backend/internal/service"
 )
@@ -52,6 +53,22 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	if err := w.boardRepo.ValidateBoardOwnership(userIdUUID, boardIdUUID); err != nil {
 		libraries.SendErrorMessage(hub, client, "Access denied: you don't own this board")
 		return
+	}
+
+	// Generate canvas state for spatial awareness
+	// This helps the LLM know where existing shapes are located
+	var canvasStateXML string
+	shapes, err := w.boardDataRepo.GetBoardData(boardIdUUID)
+	if err != nil {
+		log.Printf("Warning: Failed to get board data for canvas state: %v", err)
+		// Continue without canvas state - it's not critical
+	} else if len(shapes) > 0 {
+		// Generate canvas state with 50px padding and 100px cluster gap
+		canvasState := tools.GenerateCanvasState(shapes, 50.0, 100.0)
+		if canvasState != nil {
+			canvasStateXML = tools.FormatCanvasStateXML(canvasState)
+			log.Printf("Generated canvas state: %d shapes, %d regions", canvasState.TotalShapes, len(canvasState.OccupiedRegions))
+		}
 	}
 
 	// Check token limit before processing (block at 100%)
@@ -147,6 +164,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		annotatedSelections,
 		uploadedImages,
 		cfg.EnableThinking,
+		canvasStateXML,
 	)
 	if err != nil {
 		// Log the error for debugging
