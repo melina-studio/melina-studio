@@ -1,6 +1,179 @@
 import Konva from "konva";
 import { Shape } from "@/lib/konavaTypes";
 
+/**
+ * Convert a single backend shape to frontend format.
+ * Used for real-time WebSocket events where shapes arrive one at a time.
+ */
+export const convertBackendShape = (shape: any): Shape | null => {
+  if (!shape || !shape.type) {
+    return null;
+  }
+
+  // Get the ID - could be uuid (backend) or id (frontend/agent)
+  const id = shape.uuid || shape.id;
+  if (!id) {
+    return null;
+  }
+
+  const baseShape = {
+    id,
+    type: shape.type,
+    imageUrl: shape.image_url,
+  };
+
+  // Check if data is wrapped in .data field (backend format) or at top level (frontend format)
+  const data = shape.data || shape;
+
+  switch (shape.type) {
+    case "rect":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        w: data.w ?? 0,
+        h: data.h ?? 0,
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+      };
+
+    case "frame":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        w: data.w ?? 0,
+        h: data.h ?? 0,
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+        name: data.name,
+      };
+
+    case "circle":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        r: data.r ?? 0,
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+      };
+
+    case "ellipse":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        radiusX: data.radiusX ?? 0,
+        radiusY: data.radiusY ?? 0,
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+        rotation: data.rotation,
+      };
+
+    case "path":
+      return {
+        ...baseShape,
+        data: data.data ?? "",
+        x: data.x,
+        y: data.y,
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+        lineCap: data.lineCap,
+        lineJoin: data.lineJoin,
+      };
+
+    case "line":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        points: data.points ?? [],
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+      };
+
+    case "pencil":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        points: data.points ?? [],
+        fill: data.fill,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+        tension: data.tension,
+      };
+
+    case "arrow":
+      // Handle both new format (start, end, bend) and legacy format (points)
+      if (data.start && data.end) {
+        return {
+          ...baseShape,
+          start: data.start,
+          end: data.end,
+          bend: data.bend ?? 0,
+          stroke: data.stroke,
+          strokeWidth: data.strokeWidth,
+          arrowHeadSize: data.arrowHeadSize,
+        };
+      } else {
+        // Legacy format
+        return {
+          ...baseShape,
+          start: { x: 0, y: 0 },
+          end: { x: 0, y: 0 },
+          bend: 0,
+          x: data.x ?? 0,
+          y: data.y ?? 0,
+          points: data.points ?? [],
+          stroke: data.stroke,
+          strokeWidth: data.strokeWidth,
+        };
+      }
+
+    case "eraser":
+      return {
+        ...baseShape,
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        points: data.points ?? [],
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth,
+      };
+
+    case "text":
+      return {
+        ...baseShape,
+        text: data.text ?? "",
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        fontSize: data.fontSize,
+        fontFamily: data.fontFamily,
+        fill: data.fill,
+      };
+
+    case "image":
+      return {
+        ...baseShape,
+        src: data.src ?? "",
+        x: data.x ?? 0,
+        y: data.y ?? 0,
+        width: data.width,
+        height: data.height,
+      };
+
+    default:
+      console.warn(`convertBackendShape: Unknown shape type: ${shape.type}`);
+      return null;
+  }
+};
+
 export const buildShapes = (data: any): Shape[] => {
   if (!data || !Array.isArray(data)) {
     return [];

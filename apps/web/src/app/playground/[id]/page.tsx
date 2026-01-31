@@ -12,6 +12,7 @@ import { saveBoardData, getBoardData, clearBoardData } from "@/service/boardServ
 import { useDebouncedCallback } from "@/helpers/debounce";
 import {
   buildShapes,
+  convertBackendShape,
   exportCompositedImageWithBoth,
 } from "@/helpers/helpers";
 import { getShapeBounds, mergeBounds } from "@/utils/canvasUtils";
@@ -790,7 +791,14 @@ export default function BoardPage() {
     // listen for new shape created event
     const unsubscribeBoardUpdates = subscribe("shape_created", (data: ShapeCreatedEvent) => {
       console.log("Shape created:", data);
-      const { shape } = data.data;
+      const { shape: rawShape } = data.data;
+
+      // Convert backend shape format to frontend format
+      const shape = convertBackendShape(rawShape);
+      if (!shape) {
+        console.warn("Failed to convert shape:", rawShape);
+        return;
+      }
 
       // Update Melina status
       setMelinaStatus("editing");
@@ -832,7 +840,15 @@ export default function BoardPage() {
     // listen for shape updated event
     const unsubscribeShapeUpdated = subscribe("shape_updated", (data: ShapeUpdatedEvent) => {
       console.log("Shape updated:", data);
-      const { shape } = data.data;
+      const { shape: rawShape } = data.data;
+
+      // Convert backend shape format to frontend format
+      const shape = convertBackendShape(rawShape);
+      if (!shape) {
+        console.warn("Failed to convert updated shape:", rawShape);
+        return;
+      }
+
       setHistory((cur) => {
         const currentShapes = cloneShapes(cur.present);
 

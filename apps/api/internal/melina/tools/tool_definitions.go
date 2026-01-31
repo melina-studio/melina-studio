@@ -106,8 +106,32 @@ func GetAnthropicTools() []map[string]interface{} {
 						"type":        "string",
 						"description": "Label text for frame shapes (e.g., '👤 USER INTERACTION')",
 					},
+					"startX": map[string]interface{}{
+						"type":        "number",
+						"description": "Starting X coordinate for arrows",
+					},
+					"startY": map[string]interface{}{
+						"type":        "number",
+						"description": "Starting Y coordinate for arrows",
+					},
+					"endX": map[string]interface{}{
+						"type":        "number",
+						"description": "Ending X coordinate for arrows",
+					},
+					"endY": map[string]interface{}{
+						"type":        "number",
+						"description": "Ending Y coordinate for arrows",
+					},
+					"bend": map[string]interface{}{
+						"type":        "number",
+						"description": "Bend amount for arrows (0 = straight line, default: 0)",
+					},
+					"arrowHeadSize": map[string]interface{}{
+						"type":        "number",
+						"description": "Size of arrow head (default: 12)",
+					},
 				},
-				"required": []string{"boardId", "shapeType", "x", "y"},
+				"required": []string{"boardId", "shapeType"},
 			},
 		},
 		{
@@ -323,8 +347,32 @@ func GetOpenAITools() []map[string]interface{} {
 							"type":        "string",
 							"description": "SVG path data string (REQUIRED for path shapes). Must be a valid SVG path like 'M10 10 L90 90 L10 90 Z' (triangle) or 'M50 10 C20 40 80 40 50 10 Z' (heart). Without this, path shapes will not render.",
 						},
+						"startX": map[string]interface{}{
+							"type":        "number",
+							"description": "Starting X coordinate for arrows",
+						},
+						"startY": map[string]interface{}{
+							"type":        "number",
+							"description": "Starting Y coordinate for arrows",
+						},
+						"endX": map[string]interface{}{
+							"type":        "number",
+							"description": "Ending X coordinate for arrows",
+						},
+						"endY": map[string]interface{}{
+							"type":        "number",
+							"description": "Ending Y coordinate for arrows",
+						},
+						"bend": map[string]interface{}{
+							"type":        "number",
+							"description": "Bend amount for arrows (0 = straight line, default: 0)",
+						},
+						"arrowHeadSize": map[string]interface{}{
+							"type":        "number",
+							"description": "Size of arrow head (default: 12)",
+						},
 					},
-					"required": []string{"boardId", "shapeType", "x", "y"},
+					"required": []string{"boardId", "shapeType"},
 				},
 			},
 		},
@@ -652,7 +700,7 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		if radius, ok := input["radius"].(float64); ok {
 			shape["r"] = radius
 		}
-	case "line", "arrow", "polygon", "pencil":
+	case "line", "polygon", "pencil":
 		// Points come as []interface{} from JSON, need to convert to []float64
 		if pointsRaw, ok := input["points"].([]interface{}); ok && len(pointsRaw) > 0 {
 			points := make([]float64, 0, len(pointsRaw))
@@ -670,6 +718,41 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 				shape["points"] = points
 			}
 		}
+	case "arrow":
+		// Use new arrow format with start/end coordinates
+		// Get start coordinates (prefer startX/startY, fallback to x/y)
+		startX := x // default to x from required params
+		startY := y // default to y from required params
+		if sx, ok := input["startX"].(float64); ok {
+			startX = sx
+		}
+		if sy, ok := input["startY"].(float64); ok {
+			startY = sy
+		}
+		shape["start"] = map[string]interface{}{"x": startX, "y": startY}
+
+		// Get end coordinates (prefer endX/endY, fallback to offset from start)
+		endX := startX + 150 // default offset
+		endY := startY + 100
+		if ex, ok := input["endX"].(float64); ok {
+			endX = ex
+		}
+		if ey, ok := input["endY"].(float64); ok {
+			endY = ey
+		}
+		shape["end"] = map[string]interface{}{"x": endX, "y": endY}
+
+		if bend, ok := input["bend"].(float64); ok {
+			shape["bend"] = bend
+		} else {
+			shape["bend"] = 0.0 // Default to straight
+		}
+		if arrowHeadSize, ok := input["arrowHeadSize"].(float64); ok {
+			shape["arrowHeadSize"] = arrowHeadSize
+		}
+		// Remove x, y from shape since arrows use start/end
+		delete(shape, "x")
+		delete(shape, "y")
 	case "text":
 		if text, ok := input["text"].(string); ok && text != "" {
 			shape["text"] = text

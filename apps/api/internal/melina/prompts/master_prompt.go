@@ -223,7 +223,8 @@ var MASTER_PROMPT = `
 
           <PATH>
             line: points, stroke, strokeWidth
-            arrow: points, stroke, strokeWidth
+            arrow: startX, startY, endX, endY, stroke, strokeWidth, bend (optional, 0=straight)
+            EXAMPLE: startX=100, startY=50, endX=300, endY=150, bend=0
             path: x, y, data, fill, stroke, strokeWidth (SVG path - data is SVG path string like "M10 10 L90 90 Z")
             pencil: points, stroke, strokeWidth
           </PATH>
