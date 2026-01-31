@@ -2,7 +2,6 @@ import { Board, SortOption } from "@/lib/types";
 import {
   createBoard,
   getBoards,
-  getStarredBoards,
   deleteBoard,
   updateBoard,
   duplicateBoard,

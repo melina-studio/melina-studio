@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import { MODELS, DEFAULT_MODEL, type SubscriptionTier, type Model } from "@/lib/constants";
+import { DEFAULT_MODEL, type SubscriptionTier, type Model } from "@/lib/constants";
 import {
   getModelsWithStatus,
   getAvailableModels,

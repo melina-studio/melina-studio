@@ -1,6 +1,5 @@
 import { Check, ChevronDown, Lock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useModelAccess } from "@/hooks/useModelAccess";
 import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
 import { type ModelWithStatus } from "@/lib/modelUtils";
 

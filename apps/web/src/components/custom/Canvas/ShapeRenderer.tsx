@@ -8,7 +8,6 @@ import {
   Path,
   Image as KonvaImage,
   Group,
-  Arrow,
 } from "react-konva";
 import { ACTIONS } from "@/lib/konavaTypes";
 import { Shape } from "@/lib/konavaTypes";
@@ -203,6 +202,22 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   };
   // Default theme color for shapes without stored stroke
   const defaultStroke = isDarkMode ? "#fff" : "#111";
+
+  // Pre-compute freehand path for pencil shapes (must be before early returns)
+  const freehandPathData = useMemo(() => {
+    if (shape.type !== "pencil") return null;
+    const pencilShape = shape as Extract<Shape, { type: "pencil" }>;
+    const points = pencilShape.points || [];
+    if (points.length < 4) return null;
+
+    return getFreehandPath(points, {
+      size: pencilShape.size ?? (pencilShape.strokeWidth || 2) * 4,
+      thinning: pencilShape.thinning ?? 0.5,
+      smoothing: pencilShape.smoothing ?? 0.5,
+      streamline: pencilShape.streamline ?? 0.5,
+      simulatePressure: pencilShape.simulatePressure ?? true,
+    });
+  }, [shape]);
 
   if (shape.type === "rect") {
     // Use shape's own stroke if stored, otherwise fallback to theme default
@@ -684,26 +699,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   // Adjust stroke color for visibility in current theme
   const lineStroke = getThemeAwareColor(lineShape.stroke, isDarkMode, defaultStroke);
 
-  // For pencil shapes, use perfect-freehand for beautiful ink-like strokes
-  const isPencil = shape.type === "pencil";
-  const points = lineShape.points || [];
-
-  // Compute freehand path for pencil shapes
-  const freehandPathData = useMemo(() => {
-    if (!isPencil || points.length < 4) return null;
-
-    const pencilShape = shape as Extract<Shape, { type: "pencil" }>;
-    return getFreehandPath(points, {
-      size: pencilShape.size ?? (pencilShape.strokeWidth || 2) * 4,
-      thinning: pencilShape.thinning ?? 0.5,
-      smoothing: pencilShape.smoothing ?? 0.5,
-      streamline: pencilShape.streamline ?? 0.5,
-      simulatePressure: pencilShape.simulatePressure ?? true,
-    });
-  }, [isPencil, points, shape]);
-
   // Render pencil shapes using freehand Path for beautiful variable-width strokes
-  if (isPencil && freehandPathData) {
+  if (shape.type === "pencil" && freehandPathData) {
     return (
       <Path
         key={shape.id}
@@ -741,14 +738,15 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
   // Check if pencil shape is naturally closed (start and end points within 30px)
   // This is used as fallback during drawing when freehand path isn't ready yet
+  const linePoints = lineShape.points || [];
   const isNaturallyClosed =
-    isPencil &&
-    points.length >= 4 &&
+    shape.type === "pencil" &&
+    linePoints.length >= 4 &&
     (() => {
-      const startX = points[0];
-      const startY = points[1];
-      const endX = points[points.length - 2];
-      const endY = points[points.length - 1];
+      const startX = linePoints[0];
+      const startY = linePoints[1];
+      const endX = linePoints[linePoints.length - 2];
+      const endY = linePoints[linePoints.length - 1];
       const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
       return distance < 30; // Within 30 pixels = considered closed
     })();

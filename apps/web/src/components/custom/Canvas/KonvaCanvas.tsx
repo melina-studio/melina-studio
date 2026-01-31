@@ -536,8 +536,8 @@ function KonvaCanvas({
         const arrow = s as Extract<Shape, { type: "arrow" }>;
 
         // Handle legacy format
-        let start = arrow.start;
-        let end = arrow.end;
+        const start = arrow.start;
+        const end = arrow.end;
 
         if (!start || !end) {
           // Legacy arrow, skip control point updates

@@ -79,7 +79,7 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
     setRevealCount(0);
 
     let isCancelled = false;
-    let currentScramble = initial.split("");
+    const currentScramble = initial.split("");
 
     const update = (now: number) => {
       if (isCancelled) return;
