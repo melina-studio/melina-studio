@@ -1,0 +1,68 @@
+messages:
+  # Default thinking messages - shown immediately on chat_starting
+  thinking:
+    - "consulting the void"
+    - "decoding your artistic vision"
+    - "plotting something interesting"
+    - "gathering inspiration from the ether"
+    - "translating human to geometry"
+    - "pondering the mysteries of design"
+    - "having a philosophical moment"
+    - "channeling creative energy"
+    - "processing your brilliant idea"
+    - "warming up the imagination engine"
+
+  # Shape creation messages
+  addShape:
+    - "summoning shapes from the void"
+    - "convincing pixels to cooperate"
+    - "teaching geometry to the wind"
+    - "bribing the render engine"
+    - "creating something magical"
+    - "manifesting your vision into reality"
+    - "negotiating with the canvas"
+    - "whispering coordinates into existence"
+    - "the shapes are materializing"
+    - "sculpting digital matter"
+
+  # Shape update messages
+  updateShape:
+    - "tweaking the details"
+    - "adjusting coordinates with care"
+    - "negotiating with existing shapes"
+    - "refining the masterpiece"
+    - "fine-tuning the composition"
+    - "applying subtle improvements"
+    - "reshaping possibilities"
+    - "the shapes are being transformed"
+
+  # Shape deletion messages
+  deleteShape:
+    - "saying goodbye to shapes"
+    - "the shapes are being stubborn about leaving"
+    - "clearing the canvas of obstacles"
+    - "making room for new ideas"
+    - "sweeping away the unnecessary"
+    - "embracing minimalism"
+
+  # Board data retrieval messages
+  getBoardData:
+    - "scanning the canvas"
+    - "taking inventory of your art"
+    - "analyzing the current state"
+    - "reading the visual landscape"
+    - "surveying the creative territory"
+
+  # Shape details messages
+  getShapeDetails:
+    - "inspecting the fine details"
+    - "examining shape properties"
+    - "zooming in on specifics"
+    - "gathering shape intelligence"
+
+  # Board rename messages
+  renameBoard:
+    - "updating the title"
+    - "giving your board a new identity"
+    - "christening your creation"
+    - "applying the new name"

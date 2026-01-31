@@ -2,7 +2,6 @@ import { SendHorizontal, Paperclip, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
-import TypingLoader from "./TypingLoader";
 import ModelSelector from "./ModelSelector";
 import MentionCommandPopup from "./MentionCommandPopup";
 import { v4 as uuidv4 } from "uuid";
@@ -58,6 +57,8 @@ interface AIControllerProps {
   // Unified streaming state - associates thinking with specific message
   streamingMessageId?: string | null;
   streamingThinking?: StreamingThinking;
+  // Dynamic loader text from backend (shows what the agent is doing)
+  loaderText?: string | null;
 }
 
 function AIController({
@@ -77,6 +78,7 @@ function AIController({
   onClose,
   streamingMessageId = null,
   streamingThinking,
+  loaderText = null,
 }: AIControllerProps) {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [loading, setLoading] = useState(false);
@@ -894,26 +896,11 @@ function AIController({
                     isStreaming={isStreamingMessage && isAiResponding}
                     thought={msg.thought}
                     streamingThinking={isStreamingMessage ? streamingThinking : undefined}
+                    loaderText={isStreamingMessage ? loaderText : undefined}
                   />
                 </div>
               );
             })
-          )}
-          {/* Typing loader - only show when waiting for message to be created */}
-          {isAiResponding && !messages.some((m) => m.uuid === streamingMessageId) && (
-            <div className="flex justify-start gap-3 items-start mb-4">
-              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-600">
-                <span className="text-white font-medium text-xs">M</span>
-              </div>
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-gray-500 dark:text-gray-400 text-sm mb-1 font-medium">
-                  Melina
-                </span>
-                <div className="inline-flex items-center">
-                  <TypingLoader />
-                </div>
-              </div>
-            </div>
           )}
           {/* 👇 Auto-scroll anchor */}
           <div ref={bottomRef} />
@@ -1087,8 +1074,8 @@ function AIController({
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
                 className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
-                    ? "opacity-50 cursor-not-allowed"
-                    : "cursor-pointer"
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
                   }`}
               >
                 {loading ? (

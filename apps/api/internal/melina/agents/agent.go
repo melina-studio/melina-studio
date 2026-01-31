@@ -23,6 +23,7 @@ type UploadedImage struct {
 
 type Agent struct {
 	llmClient llmHandlers.Client
+	loaderGen *llmHandlers.LoaderGenerator
 }
 
 // ShapeImage represents a base64-encoded shape image with shape metadata
@@ -44,7 +45,7 @@ type AnnotatedSelection struct {
 
 // NewAgentWithModel creates an agent using the model registry info
 // This is the preferred method as it uses validated model configurations
-func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, maxTokens *int) *Agent {
+func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, maxTokens *int, loaderGen *llmHandlers.LoaderGenerator) *Agent {
 	var cfg llmHandlers.Config
 
 	switch modelInfo.Provider {
@@ -107,6 +108,7 @@ func NewAgentWithModel(modelInfo *llmHandlers.ModelInfo, temperature *float32, m
 
 	return &Agent{
 		llmClient: llmClient,
+		loaderGen: loaderGen,
 	}
 }
 
@@ -248,6 +250,11 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 		Content: userContent,
 	})
 
+	// Reset loader generator state for this new chat request
+	if a.loaderGen != nil {
+		a.loaderGen.Reset()
+	}
+
 	// Call the LLM with usage tracking
 	resp, err := a.llmClient.ChatStreamWithUsage(llmHandlers.ChatStreamRequest{
 		Ctx:            ctx,
@@ -257,6 +264,7 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 		SystemMessage:  systemMessage,
 		Messages:       messages,
 		EnableThinking: enableThinking,
+		LoaderGen:      a.loaderGen,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("LLM chat error: %w", err)

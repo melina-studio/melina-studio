@@ -130,6 +130,9 @@ export default function BoardPage() {
     thinking: { content: "", isActive: false, startTime: null, duration: null },
   });
 
+  // Dynamic loader text from backend (shows what the agent is doing)
+  const [loaderText, setLoaderText] = useState<string | null>(null);
+
   // Canvas transform state for background parallax effect
   const [canvasTransform, setCanvasTransform] = useState({
     position: { x: 0, y: 0 },
@@ -303,6 +306,7 @@ export default function BoardPage() {
     const unsubscribeChatStart = subscribe("chat_starting", () => {
       setMelinaStatus("thinking");
       setIsAiResponding(true);
+      setLoaderText(null); // Reset loader text for new chat
       // Create temporary AI message ID and reset streaming state
       const aiId = crypto.randomUUID();
       aiMessageIdRef.current = aiId;
@@ -352,6 +356,7 @@ export default function BoardPage() {
         setMelinaStatus("editing");
         setTimeout(() => setMelinaStatus("idle"), 2000);
         setIsAiResponding(false);
+        setLoaderText(null); // Clear loader text when chat completes
 
         const { ai_message_id, human_message_id } = data.data;
         if (ai_message_id && human_message_id) {
@@ -424,6 +429,14 @@ export default function BoardPage() {
       }));
     });
 
+    // Dynamic loader text subscription - shows what the agent is doing
+    const unsubscribeLoaderUpdate = subscribe(
+      "loader_update",
+      (data: { data: { board_id: string; message: string } }) => {
+        setLoaderText(data.data.message);
+      }
+    );
+
     const unsubscribeChatError = subscribe("error", (data: { data: { message: string } }) => {
       toast.error(data.data.message);
       setIsAiResponding(false);
@@ -458,6 +471,7 @@ export default function BoardPage() {
       unsubscribeThinkingStart();
       unsubscribeThinkingResponse();
       unsubscribeThinkingCompleted();
+      unsubscribeLoaderUpdate();
     };
   }, [subscribe]);
 
@@ -979,6 +993,7 @@ export default function BoardPage() {
                 onClose={() => setShowAiController(false)}
                 streamingMessageId={streamingState.messageId}
                 streamingThinking={streamingState.thinking}
+                loaderText={loaderText}
               />
             )}
           </div>
@@ -1023,6 +1038,7 @@ export default function BoardPage() {
                   }}
                   streamingMessageId={streamingState.messageId}
                   streamingThinking={streamingState.thinking}
+                  loaderText={loaderText}
                 />
               )}
             </div>

@@ -29,7 +29,15 @@
       "Bash(go get:*)",
       "Bash(go mod tidy:*)",
       "WebFetch(domain:openrouter.ai)",
-      "Bash(go list:*)"
+      "Bash(go list:*)",
+      "Bash(npm install:*)",
+      "Bash(npm search:*)",
+      "WebFetch(domain:reactbits.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx jsrepo:*)",
+      "Bash(curl:*)"
     ]
   }
 }

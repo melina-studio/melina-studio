@@ -665,10 +665,11 @@ func (v *GenaiGeminiClient) ChatStreamWithUsage(req ChatStreamRequest) (*Respons
 	var inputText string
 	if client != nil {
 		streamCtx = &StreamingContext{
-			Hub:     hub,
-			Client:  client,
-			BoardId: boardId,
-			UserID:  client.UserID,
+			Hub:       hub,
+			Client:    client,
+			BoardId:   boardId,
+			UserID:    client.UserID,
+			LoaderGen: req.LoaderGen,
 		}
 	}
 

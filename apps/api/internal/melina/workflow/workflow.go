@@ -86,8 +86,25 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
+	// Create loader generator for dynamic loader messages (before chat_starting so we can send thinking message)
+	loaderGen, err := llmHandlers.NewLoaderGenerator()
+	if err != nil {
+		log.Printf("Warning: Could not create loader generator: %v (loader messages will be disabled)", err)
+		// Continue without loader - it's not critical
+	} else {
+		log.Printf("[workflow] LoaderGenerator created successfully")
+	}
+
 	// send an event that the chat is starting
 	libraries.SendEventType(hub, client, libraries.WebSocketMessageTypeChatStarting)
+
+	// Immediately send a "thinking" loader message so user sees feedback right away
+	if loaderGen != nil {
+		log.Printf("[workflow] Sending thinking message for boardId=%s", cfg.BoardId)
+		loaderGen.SendThinkingMessage(hub, client, cfg.BoardId)
+	} else {
+		log.Printf("[workflow] loaderGen is nil, skipping thinking message")
+	}
 
 	// get chat history from the database
 	chatHistory, err := w.chatRepo.GetChatHistory(boardIdUUID, 20)
@@ -103,8 +120,8 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		return
 	}
 
-	// Create agent with validated model info
-	agent := agents.NewAgentWithModel(modelInfo, cfg.Temperature, cfg.MaxTokens)
+	// Create agent with validated model info and loader generator
+	agent := agents.NewAgentWithModel(modelInfo, cfg.Temperature, cfg.MaxTokens, loaderGen)
 
 	// Process selection images using the image processor service
 	annotatedSelections := w.imageProcessor.ProcessSelectionImages(cfg.Message.Metadata)

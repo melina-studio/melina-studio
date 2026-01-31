@@ -78,6 +78,11 @@ func ExecuteTools(ctx context.Context, toolCalls []ToolCall, streamCtx *Streamin
 	}
 
 	for _, tc := range toolCalls {
+		// Send dynamic loader update before executing tool
+		if streamCtx != nil && streamCtx.LoaderGen != nil {
+			streamCtx.LoaderGen.SendLoaderUpdate(streamCtx.Hub, streamCtx.Client, streamCtx.BoardId, tc.Name)
+		}
+
 		result := ToolExecutionResult{
 			ToolCallID: tc.ID,
 			ToolName:   tc.Name,

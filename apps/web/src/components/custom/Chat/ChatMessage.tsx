@@ -16,6 +16,7 @@ type MessageProps = {
   isStreaming?: boolean;
   thought?: string; // From database (history) - only for assistant messages
   streamingThinking?: StreamingThinking; // Live streaming thinking for current message
+  loaderText?: string | null; // Dynamic loader text from backend
 };
 
 function ChatMessage({
@@ -25,6 +26,7 @@ function ChatMessage({
   isStreaming = false,
   thought,
   streamingThinking,
+  loaderText,
 }: MessageProps) {
   if (role === "user") {
     return <HumanMessage content={content} />;
@@ -37,6 +39,7 @@ function ChatMessage({
       isStreaming={isStreaming}
       thought={thought}
       streamingThinking={streamingThinking}
+      loaderText={loaderText}
     />
   );
 }

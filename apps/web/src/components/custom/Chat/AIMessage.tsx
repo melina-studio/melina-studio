@@ -3,7 +3,8 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import type { Components } from "react-markdown";
 import ThinkingDropdown from "./ThinkingDropdown";
-import TypingLoader from "./TypingLoader";
+import TextAnimationLoader from "./TextAnimationLoader";
+import { useTheme } from "next-themes";
 
 // Type for streaming thinking state
 type StreamingThinking = {
@@ -19,6 +20,7 @@ type AIMessageProps = {
   isStreaming?: boolean;
   thought?: string; // From database (history) - only shown after message is complete
   streamingThinking?: StreamingThinking; // Live streaming thinking for current message
+  loaderText?: string | null; // Dynamic loader text from backend
 };
 
 function AIMessage({
@@ -27,10 +29,19 @@ function AIMessage({
   isStreaming = false,
   thought,
   streamingThinking,
+  loaderText,
 }: AIMessageProps) {
   const prevContentLengthRef = useRef(content.length);
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
 
   useEffect(() => {
     prevContentLengthRef.current = content.length;
@@ -195,7 +206,14 @@ function AIMessage({
             !content &&
             !(streamingThinking && (streamingThinking.isActive || streamingThinking.content)) && (
               <div className="inline-flex items-center">
-                <TypingLoader />
+                <TextAnimationLoader
+                  text={loaderText || "thinking..."}
+                  color={isDark ? "#9ca3af" : "#6b7280"}
+                  shineColor={isDark ? "#d1d5db" : "#9ca3af"}
+                  size={14}
+                  loading={true}
+                  className="font-semibold"
+                />
               </div>
             )}
 
@@ -204,9 +222,8 @@ function AIMessage({
             <div className="mt-2">
               <button
                 onClick={handleCopy}
-                className={`p-2 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer ${
-                  isLatest || isHovered ? "opacity-100" : "opacity-0"
-                }`}
+                className={`p-2 rounded-lg bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300/50 dark:hover:bg-gray-600/50 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer ${isLatest || isHovered ? "opacity-100" : "opacity-0"
+                  }`}
                 title={copied ? "Copied!" : "Copy message"}
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}

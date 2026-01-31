@@ -28,6 +28,7 @@ type ChatStreamRequest struct {
 	SystemMessage  string
 	Messages       []Message
 	EnableThinking bool
+	LoaderGen      *LoaderGenerator // Optional: for dynamic loader messages
 }
 
 type Client interface {

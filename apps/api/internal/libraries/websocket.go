@@ -35,6 +35,7 @@ const (
 	WebSocketMessageTypeThinkingStart     WebSocketMessageType = "thinking_start"
 	WebSocketMessageTypeThinkingResponse  WebSocketMessageType = "thinking_response"
 	WebSocketMessageTypeThinkingCompleted WebSocketMessageType = "thinking_completed"
+	WebSocketMessageTypeLoaderUpdate      WebSocketMessageType = "loader_update"
 )
 
 type Client struct {
@@ -132,6 +133,11 @@ type TokenUsagePayload struct {
 	TotalLimit     int     `json:"total_limit"`
 	Percentage     float64 `json:"percentage"`
 	ResetDate      string  `json:"reset_date"` // ISO 8601 format
+}
+
+type LoaderUpdatePayload struct {
+	BoardId string `json:"board_id"`
+	Message string `json:"message"`
 }
 
 func NewHub() *Hub {
@@ -342,6 +348,25 @@ func SendTokenBlocked(hub *Hub, client *Client, usage *TokenUsagePayload) {
 		return
 	}
 	hub.SendMessage(client, tokenBlockedBytes)
+}
+
+// SendLoaderUpdateMessage sends a dynamic loader text message to a client
+func SendLoaderUpdateMessage(hub *Hub, client *Client, boardId string, message string) {
+	log.Printf("[websocket] SendLoaderUpdateMessage: boardId=%s, message=%s", boardId, message)
+	loaderUpdateResp := WebSocketMessage{
+		Type: WebSocketMessageTypeLoaderUpdate,
+		Data: &LoaderUpdatePayload{
+			BoardId: boardId,
+			Message: message,
+		},
+	}
+	loaderUpdateBytes, err := json.Marshal(loaderUpdateResp)
+	if err != nil {
+		log.Println("failed to marshal loader update response:", err)
+		return
+	}
+	hub.SendMessage(client, loaderUpdateBytes)
+	log.Printf("[websocket] SendLoaderUpdateMessage: sent successfully")
 }
 
 // parseWebSocketMessage parses incoming websocket message and returns the message structure

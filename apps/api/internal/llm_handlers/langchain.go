@@ -32,6 +32,8 @@ type StreamingContext struct {
 	BufferedChunks []string
 	// ShouldStream indicates whether chunks should be streamed immediately or buffered
 	ShouldStream bool
+	// LoaderGen is the loader generator for dynamic loader messages (optional)
+	LoaderGen *LoaderGenerator
 }
 
 type LangChainConfig struct {
@@ -746,10 +748,11 @@ func (c *LangChainClient) ChatStreamWithUsage(req ChatStreamRequest) (*ResponseW
 	var inputText string
 	if client != nil {
 		streamCtx = &StreamingContext{
-			Hub:     hub,
-			Client:  client,
-			BoardId: boardId,
-			UserID:  client.UserID,
+			Hub:       hub,
+			Client:    client,
+			BoardId:   boardId,
+			UserID:    client.UserID,
+			LoaderGen: req.LoaderGen,
 		}
 	}
 
