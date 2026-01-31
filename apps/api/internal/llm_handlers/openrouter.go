@@ -29,6 +29,15 @@ type OpenRouterResponse struct {
 	ReasoningContent string // Accumulated thinking/reasoning content
 	FunctionCalls    []OpenRouterFunctionCall
 	RawResponse      *openrouter.ChatCompletionResponse
+	// StreamUsage holds usage data captured from streaming responses
+	StreamUsage *OpenRouterStreamUsage
+}
+
+// OpenRouterStreamUsage holds token usage from streaming responses
+type OpenRouterStreamUsage struct {
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
 }
 
 // OpenRouterFunctionCall represents a function call from OpenRouter
@@ -206,7 +215,7 @@ func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, syste
 	// Handle streaming - always use streaming when we have a client
 	// ShouldStream controls whether to send immediately or buffer
 	if streamCtx != nil && streamCtx.Client != nil {
-		return c.callWithStreaming(ctx, req, streamCtx)
+		return c.callWithStreaming(ctx, req, streamCtx, enableThinking)
 	}
 
 	// Non-streaming call
@@ -219,7 +228,8 @@ func (c *OpenRouterClient) callOpenRouterWithMessages(ctx context.Context, syste
 }
 
 // callWithStreaming handles streaming responses
-func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter.ChatCompletionRequest, streamCtx *StreamingContext) (*OpenRouterResponse, error) {
+// enableThinking controls whether to parse <think> tags from content
+func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter.ChatCompletionRequest, streamCtx *StreamingContext, enableThinking bool) (*OpenRouterResponse, error) {
 	req.Stream = true
 
 	stream, err := c.client.CreateChatCompletionStream(ctx, req)
@@ -234,7 +244,7 @@ func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter
 	var insideThinkTag bool            // Track if we're currently inside <think> tags
 	var pendingContent strings.Builder // Buffer content to check for tags
 	var toolCalls []OpenRouterFunctionCall
-	debugChunkCount := 0 // Debug counter
+	var streamUsage *OpenRouterStreamUsage // Capture usage from final chunk
 
 	toolCallsMap := make(map[int]*OpenRouterFunctionCall) // Track tool calls by index
 	toolArgsBuffer := make(map[int]*strings.Builder)      // Buffer arguments as they stream
@@ -249,54 +259,64 @@ func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter
 			return nil, fmt.Errorf("stream recv error: %w", err)
 		}
 
+		// Capture usage FIRST - the final chunk may have only usage data and no choices
+		// OpenRouter sends usage in the last SSE message (after finish_reason)
+		if chunk.Usage != nil && chunk.Usage.TotalTokens > 0 {
+			streamUsage = &OpenRouterStreamUsage{
+				PromptTokens:     chunk.Usage.PromptTokens,
+				CompletionTokens: chunk.Usage.CompletionTokens,
+				TotalTokens:      chunk.Usage.TotalTokens,
+			}
+		}
+
 		if len(chunk.Choices) == 0 {
 			continue
 		}
 
 		choice := chunk.Choices[0]
 		delta := choice.Delta
-		debugChunkCount++
 
-		// Handle reasoning/thinking content (check multiple fields for different model formats)
+		// Handle reasoning/thinking content (only when enableThinking is true)
 		reasoningText := ""
-		// Check delta.Reasoning pointer
-		if delta.Reasoning != nil && *delta.Reasoning != "" {
-			reasoningText = *delta.Reasoning
-		}
-		// Check delta.ReasoningContent (DeepSeek style)
-		if reasoningText == "" && delta.ReasoningContent != "" {
-			reasoningText = delta.ReasoningContent
-		}
-		// Check delta.ReasoningDetails array
-		if reasoningText == "" && len(delta.ReasoningDetails) > 0 {
-			for _, detail := range delta.ReasoningDetails {
-				if detail.Text != "" {
-					reasoningText += detail.Text
+		if enableThinking {
+			// Check delta.Reasoning pointer
+			if delta.Reasoning != nil && *delta.Reasoning != "" {
+				reasoningText = *delta.Reasoning
+			}
+			// Check delta.ReasoningContent (DeepSeek style)
+			if reasoningText == "" && delta.ReasoningContent != "" {
+				reasoningText = delta.ReasoningContent
+			}
+			// Check delta.ReasoningDetails array
+			if reasoningText == "" && len(delta.ReasoningDetails) > 0 {
+				for _, detail := range delta.ReasoningDetails {
+					if detail.Text != "" {
+						reasoningText += detail.Text
+					}
 				}
 			}
-		}
 
-		if reasoningText != "" {
-			if !thinkingStarted {
-				thinkingStarted = true
-				libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
-			}
-
-			accumulatedThinking.WriteString(reasoningText)
-
-			if streamCtx.ShouldStream {
-				payload := &libraries.ChatMessageResponsePayload{
-					Message: reasoningText,
+			if reasoningText != "" {
+				if !thinkingStarted {
+					thinkingStarted = true
+					libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
 				}
-				if streamCtx.BoardId != "" {
-					payload.BoardId = streamCtx.BoardId
+
+				accumulatedThinking.WriteString(reasoningText)
+
+				if streamCtx.ShouldStream {
+					payload := &libraries.ChatMessageResponsePayload{
+						Message: reasoningText,
+					}
+					if streamCtx.BoardId != "" {
+						payload.BoardId = streamCtx.BoardId
+					}
+					libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
 				}
-				libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
 			}
 		}
 
 		// Handle content chunks (delta.Content is a string in streaming)
-		// Parse <think> tags for models like Kimi K2 Thinking
 		if delta.Content != "" {
 			// If we were receiving structured reasoning and now getting content, thinking is complete
 			if thinkingStarted && !thinkingCompleted && reasoningText == "" {
@@ -304,91 +324,155 @@ func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter
 				libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
 			}
 
-			// Log potential tags for debugging (case-insensitive)
-			pendingContent.WriteString(delta.Content)
-			content := pendingContent.String()
+			// Only parse <think> tags when enableThinking is true
+			// Otherwise, stream content directly (stripping think tags)
+			if enableThinking {
+				// Parse <think> tags for models like Kimi K2 Thinking
+				pendingContent.WriteString(delta.Content)
+				content := pendingContent.String()
 
-			// Process content looking for <think> and </think> tags (case-insensitive)
-			for len(content) > 0 {
-				lowerContentLoop := strings.ToLower(content)
-				if insideThinkTag {
-					// Look for </think> closing tag (case-insensitive)
-					if idx := strings.Index(lowerContentLoop, "</think>"); idx != -1 {
-						// Everything before </think> is thinking content
-						thinkingChunk := content[:idx]
-						if thinkingChunk != "" {
-							accumulatedThinking.WriteString(thinkingChunk)
-							if streamCtx.ShouldStream {
-								payload := &libraries.ChatMessageResponsePayload{Message: thinkingChunk}
-								if streamCtx.BoardId != "" {
-									payload.BoardId = streamCtx.BoardId
+				// Process content looking for <think> and </think> tags (case-insensitive)
+				for len(content) > 0 {
+					lowerContentLoop := strings.ToLower(content)
+					if insideThinkTag {
+						// Look for </think> closing tag (case-insensitive)
+						if idx := strings.Index(lowerContentLoop, "</think>"); idx != -1 {
+							// Everything before </think> is thinking content
+							thinkingChunk := content[:idx]
+							if thinkingChunk != "" {
+								accumulatedThinking.WriteString(thinkingChunk)
+								if streamCtx.ShouldStream {
+									payload := &libraries.ChatMessageResponsePayload{Message: thinkingChunk}
+									if streamCtx.BoardId != "" {
+										payload.BoardId = streamCtx.BoardId
+									}
+									libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
 								}
-								libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
 							}
+							// End thinking
+							insideThinkTag = false
+							thinkingCompleted = true
+							libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
+							content = content[idx+8:] // Skip past </think>
+						} else {
+							// No closing tag yet, stream all as thinking (but keep last 8 chars in case tag is split)
+							if len(content) > 8 {
+								thinkingChunk := content[:len(content)-8]
+								accumulatedThinking.WriteString(thinkingChunk)
+								if streamCtx.ShouldStream {
+									payload := &libraries.ChatMessageResponsePayload{Message: thinkingChunk}
+									if streamCtx.BoardId != "" {
+										payload.BoardId = streamCtx.BoardId
+									}
+									libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
+								}
+								content = content[len(content)-8:]
+							}
+							break // Wait for more content
 						}
-						// End thinking
-						insideThinkTag = false
-						thinkingCompleted = true
-						libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingCompleted)
-						content = content[idx+8:] // Skip past </think>
 					} else {
-						// No closing tag yet, stream all as thinking (but keep last 8 chars in case tag is split)
-						if len(content) > 8 {
-							thinkingChunk := content[:len(content)-8]
-							accumulatedThinking.WriteString(thinkingChunk)
-							if streamCtx.ShouldStream {
-								payload := &libraries.ChatMessageResponsePayload{Message: thinkingChunk}
-								if streamCtx.BoardId != "" {
-									payload.BoardId = streamCtx.BoardId
+						// Look for <think> opening tag (case-insensitive)
+						if idx := strings.Index(lowerContentLoop, "<think>"); idx != -1 {
+							// Everything before <think> is regular content
+							regularChunk := content[:idx]
+							if regularChunk != "" {
+								fullContent.WriteString(regularChunk)
+								if streamCtx.ShouldStream {
+									payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
+									if streamCtx.BoardId != "" {
+										payload.BoardId = streamCtx.BoardId
+									}
+									libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 								}
-								libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingResponse, payload)
 							}
-							content = content[len(content)-8:]
-						}
-						break // Wait for more content
-					}
-				} else {
-					// Look for <think> opening tag (case-insensitive)
-					if idx := strings.Index(lowerContentLoop, "<think>"); idx != -1 {
-						// Everything before <think> is regular content
-						regularChunk := content[:idx]
-						if regularChunk != "" {
-							fullContent.WriteString(regularChunk)
-							if streamCtx.ShouldStream {
-								payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
-								if streamCtx.BoardId != "" {
-									payload.BoardId = streamCtx.BoardId
+							// Start thinking
+							insideThinkTag = true
+							if !thinkingStarted {
+								thinkingStarted = true
+								libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
+							}
+							content = content[idx+7:] // Skip past <think>
+						} else {
+							// No opening tag, stream as regular content (but keep last 7 chars in case tag is split)
+							if len(content) > 7 {
+								regularChunk := content[:len(content)-7]
+								fullContent.WriteString(regularChunk)
+								if streamCtx.ShouldStream {
+									payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
+									if streamCtx.BoardId != "" {
+										payload.BoardId = streamCtx.BoardId
+									}
+									libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
 								}
-								libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+								content = content[len(content)-7:]
 							}
+							break // Wait for more content
 						}
-						// Start thinking
-						insideThinkTag = true
-						if !thinkingStarted {
-							thinkingStarted = true
-							libraries.SendEventType(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeThinkingStart)
-						}
-						content = content[idx+7:] // Skip past <think>
-					} else {
-						// No opening tag, stream as regular content (but keep last 7 chars in case tag is split)
-						if len(content) > 7 {
-							regularChunk := content[:len(content)-7]
-							fullContent.WriteString(regularChunk)
-							if streamCtx.ShouldStream {
-								payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
-								if streamCtx.BoardId != "" {
-									payload.BoardId = streamCtx.BoardId
-								}
-								libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
-							}
-							content = content[len(content)-7:]
-						}
-						break // Wait for more content
 					}
 				}
+				pendingContent.Reset()
+				pendingContent.WriteString(content) // Keep remaining for next iteration
+			} else {
+				// enableThinking is false - strip <think> tags and stream only regular content
+				pendingContent.WriteString(delta.Content)
+				content := pendingContent.String()
+
+				// Remove <think>...</think> blocks entirely
+				for {
+					lowerContent := strings.ToLower(content)
+					startIdx := strings.Index(lowerContent, "<think>")
+					if startIdx == -1 {
+						break
+					}
+					endIdx := strings.Index(lowerContent, "</think>")
+					if endIdx == -1 {
+						// Opening tag found but no closing tag yet - buffer and wait
+						// Keep content before <think> and the <think> tag for next iteration
+						if startIdx > 0 {
+							// Stream content before <think>
+							regularChunk := content[:startIdx]
+							fullContent.WriteString(regularChunk)
+							if streamCtx.ShouldStream {
+								payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
+								if streamCtx.BoardId != "" {
+									payload.BoardId = streamCtx.BoardId
+								}
+								libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+							}
+						}
+						content = content[startIdx:] // Keep <think>... for next iteration
+						break
+					}
+					// Remove the entire <think>...</think> block
+					regularChunk := content[:startIdx]
+					if regularChunk != "" {
+						fullContent.WriteString(regularChunk)
+						if streamCtx.ShouldStream {
+							payload := &libraries.ChatMessageResponsePayload{Message: regularChunk}
+							if streamCtx.BoardId != "" {
+								payload.BoardId = streamCtx.BoardId
+							}
+							libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+						}
+					}
+					content = content[endIdx+8:] // Skip past </think>
+				}
+
+				// Stream any remaining content that's not inside tags
+				if !strings.Contains(strings.ToLower(content), "<think>") && content != "" {
+					fullContent.WriteString(content)
+					if streamCtx.ShouldStream {
+						payload := &libraries.ChatMessageResponsePayload{Message: content}
+						if streamCtx.BoardId != "" {
+							payload.BoardId = streamCtx.BoardId
+						}
+						libraries.SendChatMessageResponse(streamCtx.Hub, streamCtx.Client, libraries.WebSocketMessageTypeChatResponse, payload)
+					}
+					content = ""
+				}
+				pendingContent.Reset()
+				pendingContent.WriteString(content)
 			}
-			pendingContent.Reset()
-			pendingContent.WriteString(content) // Keep remaining for next iteration
 		}
 
 		// Handle tool call chunks
@@ -423,10 +507,8 @@ func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter
 			}
 		}
 
-		// Check for finish reason
-		if choice.FinishReason != "" {
-			break
-		}
+		// Don't break on finish_reason - usage comes in a subsequent chunk
+		// Let the stream end naturally with EOF to capture usage
 	}
 
 	// Flush any remaining pending content
@@ -474,6 +556,7 @@ func (c *OpenRouterClient) callWithStreaming(ctx context.Context, req openrouter
 	result := &OpenRouterResponse{
 		FunctionCalls:    toolCalls,
 		ReasoningContent: accumulatedThinking.String(),
+		StreamUsage:      streamUsage,
 	}
 
 	if fullContent.Len() > 0 {
@@ -555,10 +638,13 @@ func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage stri
 		}
 		lastResp = lr
 
-		// Accumulate token usage
+		// Accumulate token usage (from either RawResponse or StreamUsage)
 		if lr.RawResponse != nil {
 			totalPromptTokens += lr.RawResponse.Usage.PromptTokens
 			totalCompletionTokens += lr.RawResponse.Usage.CompletionTokens
+		} else if lr.StreamUsage != nil {
+			totalPromptTokens += lr.StreamUsage.PromptTokens
+			totalCompletionTokens += lr.StreamUsage.CompletionTokens
 		}
 
 		// If no function calls, this is the final iteration
@@ -806,24 +892,6 @@ func (c *OpenRouterClient) ChatStreamWithUsage(req ChatStreamRequest) (*Response
 		Thinking:   resp.ReasoningContent,
 		TokenUsage: tokenUsage,
 	}, nil
-}
-
-// ExtractOpenRouterUsage extracts token usage from OpenRouter response
-func ExtractOpenRouterUsage(response *OpenRouterResponse, inputText string) *TokenUsage {
-	if response.RawResponse != nil {
-		usage := response.RawResponse.Usage
-		if usage.TotalTokens > 0 {
-			return &TokenUsage{
-				InputTokens:    usage.PromptTokens,
-				OutputTokens:   usage.CompletionTokens,
-				TotalTokens:    usage.TotalTokens,
-				CountingMethod: "provider_api",
-			}
-		}
-	}
-
-	// Fallback to tiktoken estimation
-	return estimateWithTiktoken(inputText, response.TextContent, "openai")
 }
 
 /*

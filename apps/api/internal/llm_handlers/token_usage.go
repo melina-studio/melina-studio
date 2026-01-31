@@ -149,6 +149,40 @@ func ExtractLangChainUsage(response *LangChainResponse, inputText string) *Token
 	return estimateWithTiktoken(inputText, response.TextContent, "openai")
 }
 
+// ExtractOpenRouterUsage extracts token usage from OpenRouter response
+func ExtractOpenRouterUsage(response *OpenRouterResponse, inputText string) *TokenUsage {
+	// First try non-streaming response (RawResponse)
+	if response.RawResponse != nil {
+		usage := response.RawResponse.Usage
+		if usage.TotalTokens > 0 {
+			fmt.Printf("[openrouter] Token usage: prompt=%d, completion=%d, total=%d\n",
+				usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
+			return &TokenUsage{
+				InputTokens:    usage.PromptTokens,
+				OutputTokens:   usage.CompletionTokens,
+				TotalTokens:    usage.TotalTokens,
+				CountingMethod: "provider_api",
+			}
+		}
+	}
+
+	// Then try streaming response (StreamUsage captured from final chunk after finish_reason)
+	if response.StreamUsage != nil && response.StreamUsage.TotalTokens > 0 {
+		fmt.Printf("[openrouter] Token usage: prompt=%d, completion=%d, total=%d\n",
+			response.StreamUsage.PromptTokens, response.StreamUsage.CompletionTokens, response.StreamUsage.TotalTokens)
+		return &TokenUsage{
+			InputTokens:    response.StreamUsage.PromptTokens,
+			OutputTokens:   response.StreamUsage.CompletionTokens,
+			TotalTokens:    response.StreamUsage.TotalTokens,
+			CountingMethod: "provider_api",
+		}
+	}
+
+	// Fallback to tiktoken estimation
+	fmt.Printf("[openrouter] No usage data found, falling back to tiktoken estimation\n")
+	return estimateWithTiktoken(inputText, response.TextContent, "openai")
+}
+
 // Helper function to get map keys for debugging
 func getMapKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))

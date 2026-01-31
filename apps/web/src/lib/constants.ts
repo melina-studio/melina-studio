@@ -84,7 +84,7 @@ export const MODELS: Model[] = [
     dropdownName: "Moonshot (Kimi K2.5)",
     label: "OpenRouter",
     minimumTier: "pro",
-    supportsThinking: false,
+    supportsThinking: true,
   },
   {
     name: "moonshotai/kimi-k2-thinking",
