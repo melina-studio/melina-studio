@@ -71,3 +71,29 @@ export type TokenBlockedPayload = {
   percentage: number;
   reset_date: string;
 };
+
+export type ShapeRendererProps = {
+  shape: Shape;
+  activeTool: string;
+  isDraggingShape: boolean;
+  isDraggingStage: boolean;
+  cursor: string;
+  isDarkMode: boolean;
+  isSelected?: boolean;
+  onShapeClick: (e: any, id: string) => void;
+  onShapeDragStart: (e: any, id: string) => void;
+  onShapeDragEnd: (e: any, id: string) => void;
+  onShapeDragMove: (e: any, id: string) => void;
+  onRectTransform: (node: any, id: string) => void;
+  onEllipseTransform: (node: any, id: string) => void;
+  onImageTransform: (node: any, id: string) => void;
+  onTextDoubleClick: (id: string, pos: { x: number; y: number }) => void;
+  onColorClick: (e: any, id: string) => void;
+  onArrowControlPointDrag?: (
+    pointType: "start" | "end" | "bend",
+    newPos: { x: number; y: number }
+  ) => void;
+  onArrowControlPointDragEnd?: () => void;
+  setStageCursor: (c: string) => void;
+  setIsDraggingStage: (dragging: boolean) => void;
+};

@@ -19,6 +19,7 @@ import {
   convertLegacyArrow,
   getBendPoint,
 } from "@/utils/arrowUtils";
+import { ShapeRendererProps } from "@/lib/types";
 
 // Separate component for image shapes to avoid conditional hooks
 const ImageShape: React.FC<{
@@ -48,60 +49,60 @@ const ImageShape: React.FC<{
   setStageCursor,
   setIsDraggingStage,
 }) => {
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+    const [image, setImage] = useState<HTMLImageElement | null>(null);
 
-  useEffect(() => {
-    const imgElement = new window.Image();
-    imgElement.crossOrigin = "anonymous";
-    imgElement.onload = () => {
-      setImage(imgElement);
-    };
-    imgElement.onerror = () => {
-      console.error("Failed to load image:", shape.src);
-    };
-    imgElement.src = shape.src;
-  }, [shape.src]);
+    useEffect(() => {
+      const imgElement = new window.Image();
+      imgElement.crossOrigin = "anonymous";
+      imgElement.onload = () => {
+        setImage(imgElement);
+      };
+      imgElement.onerror = () => {
+        console.error("Failed to load image:", shape.src);
+      };
+      imgElement.src = shape.src;
+    }, [shape.src]);
 
-  if (!image) {
-    return null;
-  }
+    if (!image) {
+      return null;
+    }
 
-  return (
-    <KonvaImage
-      key={shape.id}
-      id={shape.id}
-      x={shape.x}
-      y={shape.y}
-      image={image}
-      width={shape.width || 150}
-      height={shape.height || 150}
-      draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
-      onDragStart={(e) => onShapeDragStart(e, shape.id)}
-      onDragMove={(e) => onShapeDragMove(e, shape.id)}
-      onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
-      onClick={handleClick}
-      onTransformEnd={(e) => {
-        onImageTransform(e.target, shape.id);
-      }}
-      onMouseEnter={() => {
-        if (
-          (activeTool === ACTIONS.SELECT ||
-            activeTool === ACTIONS.MARQUEE_SELECT ||
-            activeTool === ACTIONS.COLOR) &&
-          !isDraggingShape
-        ) {
-          setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
-          setIsDraggingStage(false);
-        }
-      }}
-      onMouseLeave={() => {
-        if (!isDraggingShape && !isDraggingStage) {
-          setStageCursor(cursor);
-        }
-      }}
-    />
-  );
-};
+    return (
+      <KonvaImage
+        key={shape.id}
+        id={shape.id}
+        x={shape.x}
+        y={shape.y}
+        image={image}
+        width={shape.width || 150}
+        height={shape.height || 150}
+        draggable={activeTool === ACTIONS.SELECT || activeTool === ACTIONS.MARQUEE_SELECT}
+        onDragStart={(e) => onShapeDragStart(e, shape.id)}
+        onDragMove={(e) => onShapeDragMove(e, shape.id)}
+        onDragEnd={(e) => onShapeDragEnd(e, shape.id)}
+        onClick={handleClick}
+        onTransformEnd={(e) => {
+          onImageTransform(e.target, shape.id);
+        }}
+        onMouseEnter={() => {
+          if (
+            (activeTool === ACTIONS.SELECT ||
+              activeTool === ACTIONS.MARQUEE_SELECT ||
+              activeTool === ACTIONS.COLOR) &&
+            !isDraggingShape
+          ) {
+            setStageCursor(activeTool === ACTIONS.COLOR ? cursor : "grab");
+            setIsDraggingStage(false);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!isDraggingShape && !isDraggingStage) {
+            setStageCursor(cursor);
+          }
+        }}
+      />
+    );
+  };
 
 // Helper to get brightness of a color (0-255)
 const getColorBrightness = (color: string): number => {
@@ -144,31 +145,6 @@ const getThemeAwareColor = (
   return color;
 };
 
-type ShapeRendererProps = {
-  shape: Shape;
-  activeTool: string;
-  isDraggingShape: boolean;
-  isDraggingStage: boolean;
-  cursor: string;
-  isDarkMode: boolean;
-  isSelected?: boolean;
-  onShapeClick: (e: any, id: string) => void;
-  onShapeDragStart: (e: any, id: string) => void;
-  onShapeDragEnd: (e: any, id: string) => void;
-  onShapeDragMove: (e: any, id: string) => void;
-  onRectTransform: (node: any, id: string) => void;
-  onEllipseTransform: (node: any, id: string) => void;
-  onImageTransform: (node: any, id: string) => void;
-  onTextDoubleClick: (id: string, pos: { x: number; y: number }) => void;
-  onColorClick: (e: any, id: string) => void;
-  onArrowControlPointDrag?: (
-    pointType: "start" | "end" | "bend",
-    newPos: { x: number; y: number }
-  ) => void;
-  onArrowControlPointDragEnd?: () => void;
-  setStageCursor: (c: string) => void;
-  setIsDraggingStage: (dragging: boolean) => void;
-};
 
 export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   shape,
