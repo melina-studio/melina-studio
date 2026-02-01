@@ -28,22 +28,7 @@ func NewServer() *fiber.App {
 	// Global middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
-
-	// Global rate limiting: 100 requests per minute per IP
-	app.Use(limiter.New(limiter.Config{
-		Max:        100,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"error": "Too many requests, please try again later",
-			})
-		},
-		SkipFailedRequests:     false,
-		SkipSuccessfulRequests: false,
-	}))
+	// Note: Global rate limiting is handled by nginx reverse proxy
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:3000, https://melina.studio , https://www.melina.studio",
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
