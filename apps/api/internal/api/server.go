@@ -11,7 +11,6 @@ import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -32,24 +31,10 @@ func NewServer() *fiber.App {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:3000, https://melina.studio , https://www.melina.studio",
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-CSRF-Token",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowCredentials: true,
 	}))
-
-	// CSRF Protection middleware
-	app.Use(csrf.New(csrf.Config{
-		KeyLookup:      "header:X-CSRF-Token",
-		CookieName:     "csrf_token",
-		CookieSameSite: "Lax",
-		CookieSecure:   os.Getenv("ENV") == "production",
-		CookieHTTPOnly: true,
-		Expiration:     1 * time.Hour,
-		// Exclude GET, HEAD, OPTIONS, TRACE as they should be safe methods
-		Next: func(c *fiber.Ctx) bool {
-			// Skip CSRF for WebSocket upgrade requests
-			return c.Path() == "/ws" || websocket.IsWebSocketUpgrade(c)
-		},
-	}))
+	// Note: CSRF protection not needed - using JWT auth with SameSite cookies + CORS
 
 	// Cache Control middleware - prevent caching of sensitive API responses
 	app.Use(func(c *fiber.Ctx) error {
