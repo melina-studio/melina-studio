@@ -669,22 +669,39 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		return nil, fmt.Errorf("invalid shape type: %s", shapeType)
 	}
 
-	// Extract and validate coordinates
-	x, ok := input["x"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("x coordinate is required and must be a number")
-	}
-	y, ok := input["y"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("y coordinate is required and must be a number")
+	// Extract coordinates based on shape type
+	var x, y float64
+	var hasXY bool
+
+	if shapeType == "arrow" {
+		// Arrows use startX/startY/endX/endY, x/y are optional fallback
+		x, hasXY = input["x"].(float64)
+		if hasXY {
+			y, hasXY = input["y"].(float64)
+		}
+		// Arrow validation happens in the switch case below
+	} else {
+		// All other shapes require x, y
+		var ok bool
+		x, ok = input["x"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("x coordinate is required and must be a number")
+		}
+		y, ok = input["y"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("y coordinate is required and must be a number")
+		}
+		hasXY = true
 	}
 
 	// build shape object
 	shape := map[string]interface{}{
 		"id":   uuid.New().String(),
 		"type": shapeType,
-		"x":    x,
-		"y":    y,
+	}
+	if hasXY {
+		shape["x"] = x
+		shape["y"] = y
 	}
 
 	// add shape-specific properties
@@ -720,14 +737,23 @@ func AddShapeHandler(ctx context.Context, input map[string]interface{}) (interfa
 		}
 	case "arrow":
 		// Use new arrow format with start/end coordinates
+		var startX, startY float64
+
 		// Get start coordinates (prefer startX/startY, fallback to x/y)
-		startX := x // default to x from required params
-		startY := y // default to y from required params
 		if sx, ok := input["startX"].(float64); ok {
 			startX = sx
+		} else if hasXY {
+			startX = x
+		} else {
+			return nil, fmt.Errorf("arrow requires startX or x coordinate")
 		}
+
 		if sy, ok := input["startY"].(float64); ok {
 			startY = sy
+		} else if hasXY {
+			startY = y
+		} else {
+			return nil, fmt.Errorf("arrow requires startY or y coordinate")
 		}
 		shape["start"] = map[string]interface{}{"x": startX, "y": startY}
 
