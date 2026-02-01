@@ -96,3 +96,25 @@ export const githubLogin = () => {
   // The callback will redirect back to the frontend after setting cookies
   window.location.href = `${BaseURL}/api/v1/auth/oauth/github`;
 };
+
+// save custom rules
+export const saveCustomRules = async (rules: string) => {
+  try {
+    const response = await api.post("/api/v1/auth/custom-rules", { rules: rules });
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error saving custom rules");
+    throw new Error(error?.error || "Error saving custom rules");
+  }
+};
+
+// fetch custom rules
+export const fetchCustomRules = async () => {
+  try {
+    const response = await api.get("/api/v1/auth/custom-rules");
+    return response.data;
+  } catch (error: any) {
+    console.log(error, "Error fetching custom rules");
+    throw new Error(error?.error || "Error fetching custom rules");
+  }
+};

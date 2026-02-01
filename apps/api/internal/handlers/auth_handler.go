@@ -80,14 +80,16 @@ type AuthHandler struct {
 	authService          *service.AuthService
 	subscriptionPlanRepo repo.SubscriptionPlanRepoInterface
 	geoService           *service.GeolocationService
+	customRulesRepo      repo.CustomRulesRepoInterface
 }
 
-func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService, subscriptionPlanRepo repo.SubscriptionPlanRepoInterface, geoService *service.GeolocationService) *AuthHandler {
+func NewAuthHandler(authRepo repo.AuthRepoInterface, authService *service.AuthService, subscriptionPlanRepo repo.SubscriptionPlanRepoInterface, geoService *service.GeolocationService, customRulesRepo repo.CustomRulesRepoInterface) *AuthHandler {
 	return &AuthHandler{
 		authRepo:             authRepo,
 		authService:          authService,
 		subscriptionPlanRepo: subscriptionPlanRepo,
 		geoService:           geoService,
+		customRulesRepo:      customRulesRepo,
 	}
 }
 
@@ -775,4 +777,62 @@ func (h *AuthHandler) GithubCallback(c *fiber.Ctx) error {
 
 	// Redirect to frontend after successful OAuth
 	return c.Redirect(frontendURL + "/playground/all")
+}
+
+// GetCustomRules fetches the custom rules for the user
+func (h *AuthHandler) GetCustomRules(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+	customRules, err := h.customRulesRepo.GetCustomRules(userUUID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "No custom rules found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get custom rules",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"rules": customRules.Rules,
+	})
+}
+
+// SaveCustomRules saves the custom rules for the user
+func (h *AuthHandler) SaveCustomRules(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID",
+		})
+	}
+
+	var dto struct {
+		Rules string `json:"rules"`
+	}
+	if err := c.BodyParser(&dto); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	err = h.customRulesRepo.SaveCustomRules(userUUID, dto.Rules)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save custom rules",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Custom rules saved successfully",
+	})
 }

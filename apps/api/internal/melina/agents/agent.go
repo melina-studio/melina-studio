@@ -218,7 +218,8 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	selections interface{},
 	uploadedImages []UploadedImage,
 	enableThinking bool,
-	canvasStateXML string) (*llmHandlers.ResponseWithUsage, error) {
+	canvasStateXML string,
+	customRules string) (*llmHandlers.ResponseWithUsage, error) {
 
 	// Build messages for the LLM
 	systemMessage := fmt.Sprintf(prompts.MASTER_PROMPT, boardId, activeTheme)
@@ -229,6 +230,11 @@ func (a *Agent) ProcessRequestStreamWithUsage(
 	if canvasStateXML != "" {
 		effectiveMessage = canvasStateXML + "\n\n" + message
 		log.Printf("Prepended canvas state to message (%d chars)", len(canvasStateXML))
+	}
+
+	if customRules != "" {
+		effectiveMessage = customRules + "\n\n" + effectiveMessage
+		log.Printf("Prepended custom rules to message (%d chars)", len(customRules))
 	}
 
 	// Build user message content - may include annotated images if selections provided

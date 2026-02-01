@@ -16,7 +16,8 @@ func registerAuthPublic(r fiber.Router) {
 	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
 	geoService := service.NewGeolocationService()
-	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService)
+	customRulesRepo := repo.NewCustomRulesRepository(config.DB)
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService, customRulesRepo)
 
 	// Auth rate limiter for sensitive endpoints (10 requests per minute)
 	authLimiter := api.AuthRateLimiter()
@@ -41,7 +42,8 @@ func registerAuthProtected(r fiber.Router) {
 	subscriptionPlanRepo := repo.NewSubscriptionPlanRepository(config.DB)
 	authService := service.NewAuthService(refreshTokenRepo)
 	geoService := service.NewGeolocationService()
-	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService)
+	customRulesRepo := repo.NewCustomRulesRepository(config.DB)
+	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService, customRulesRepo)
 
 	// Protected auth routes (requires auth)
 	r.Get("/me", authHandler.GetMe)
@@ -49,4 +51,7 @@ func registerAuthProtected(r fiber.Router) {
 	r.Post("/logout-all", authHandler.LogoutAll)
 	r.Get("/sessions", authHandler.GetActiveSessions)
 	r.Delete("/sessions/:sessionId", authHandler.RevokeSession)
+
+	r.Get("/custom-rules", authHandler.GetCustomRules)
+	r.Post("/custom-rules", authHandler.SaveCustomRules)
 }

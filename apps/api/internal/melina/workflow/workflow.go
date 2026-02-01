@@ -153,6 +153,13 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		log.Printf("No uploaded images in metadata (metadata nil: %v)", cfg.Message.Metadata == nil)
 	}
 
+	// check is the user has saved custom rules
+	customRulesRepo := repo.NewCustomRulesRepository(config.DB)
+	customRulesString, err := customRulesRepo.GetFormattedCustomRules(userIdUUID)
+	if err != nil {
+		log.Printf("Failed to get formatted custom rules: %v", err)
+	}
+
 	// process the chat message - pass client and boardId for streaming
 	responseWithUsage, err := agent.ProcessRequestStreamWithUsage(
 		context.Background(),
@@ -165,6 +172,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 		uploadedImages,
 		cfg.EnableThinking,
 		canvasStateXML,
+		customRulesString,
 	)
 	if err != nil {
 		// Log the error for debugging

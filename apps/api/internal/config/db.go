@@ -57,6 +57,7 @@ func MigrateAllModels(run bool) error {
 			&models.TokenConsumption{},
 			&models.SubscriptionTier{},
 			&models.Order{},
+			&models.CustomRules{},
 		)
 		if err != nil {
 			return fmt.Errorf("failed to migrate database: %w", err)

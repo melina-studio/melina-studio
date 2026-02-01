@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useModelAccess } from "@/hooks/useModelAccess";
 import { SUBSCRIPTION_TIER_DISPLAY_NAMES } from "@/lib/constants";
 import { getModelByName } from "@/lib/modelUtils";
+import { Button } from "@/components/ui/button";
+import { fetchCustomRules, saveCustomRules } from "@/service/auth";
+import { toast } from "sonner";
 
 interface Settings {
   modelName: string; // e.g., "claude-4.5-sonnet"
@@ -51,8 +54,16 @@ export function AIModelSettings() {
       console.error("Failed to load settings:", e);
     }
 
-    // TODO: Load customRules from backend
-    // fetchCustomRules().then(rules => setCustomRules(rules));
+    // Load customRules from backend
+    const loadCustomRules = async () => {
+      try {
+        const rules: any = await fetchCustomRules();
+        setCustomRules(rules.rules);
+      } catch (error) {
+        console.error("Failed to load custom rules:", error);
+      }
+    };
+    loadCustomRules();
   }, []);
 
   // Sync activeModel from hook with local state
@@ -82,11 +93,20 @@ export function AIModelSettings() {
     updateSettings({ modelName });
   };
 
-  const updateCustomRules = (rules: string) => {
+  const updateCustomRules = async (rules: string) => {
     setCustomRules(rules);
-    // TODO: Save customRules to backend
-    // saveCustomRules(rules);
+    try {
+      await saveCustomRules(rules);
+      toast.success("Custom rules updated");
+    } catch (error) {
+      console.error("Failed to save custom rules:", error);
+      toast.error("Failed to update custom rules");
+    }
   };
+
+  function shouldDisableSaveButton(): boolean {
+    return customRules.trim() === "";
+  }
 
   if (!mounted) {
     return (
@@ -201,7 +221,7 @@ export function AIModelSettings() {
           <Textarea
             value={customRules}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              updateCustomRules(e.target.value)
+              setCustomRules(e.target.value)
             }
             placeholder="e.g., Always respond in a formal tone. Focus on minimalist designs. Use pastel colors by default..."
             className="min-h-[120px] resize-y"
@@ -210,6 +230,17 @@ export function AIModelSettings() {
             These rules will be added to Melina&apos;s system prompt to customize how it generates
             designs and responds to your requests.
           </p>
+
+          {/* buttons to save and reset custom rules */}
+          <div className="flex gap-2 mt-2">
+            <Button variant="secondary" size="sm" className="cursor-pointer" disabled={shouldDisableSaveButton()} onClick={() => updateCustomRules("")}>
+              Reset
+            </Button>
+            <Button variant="default" size="sm" className="cursor-pointer" disabled={shouldDisableSaveButton()} onClick={() => updateCustomRules(customRules)}>
+              Save
+            </Button>
+          </div>
+
         </div>
       </SettingsRow>
     </SettingsSection>
