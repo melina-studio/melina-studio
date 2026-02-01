@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"melina-studio-backend/internal/api"
 	"melina-studio-backend/internal/config"
 	"melina-studio-backend/internal/handlers"
 	"melina-studio-backend/internal/repo"
@@ -17,17 +18,20 @@ func registerAuthPublic(r fiber.Router) {
 	geoService := service.NewGeolocationService()
 	authHandler := handlers.NewAuthHandler(authRepo, authService, subscriptionPlanRepo, geoService)
 
-	// Public auth routes (no auth required)
-	r.Post("/login", authHandler.Login)
-	r.Post("/register", authHandler.Register)
-	r.Post("/refresh", authHandler.RefreshToken)
+	// Auth rate limiter for sensitive endpoints (10 requests per minute)
+	authLimiter := api.AuthRateLimiter()
+
+	// Public auth routes (no auth required) - with stricter rate limiting
+	r.Post("/login", authLimiter, authHandler.Login)
+	r.Post("/register", authLimiter, authHandler.Register)
+	r.Post("/refresh", authLimiter, authHandler.RefreshToken)
 	r.Post("/logout", authHandler.Logout)
 
-	// OAuth routes
-	r.Get("/oauth/google", authHandler.GoogleLogin)
+	// OAuth routes - with stricter rate limiting
+	r.Get("/oauth/google", authLimiter, authHandler.GoogleLogin)
 	r.Get("/oauth/google/callback", authHandler.GoogleCallback)
 
-	r.Get("/oauth/github", authHandler.GithubLogin)
+	r.Get("/oauth/github", authLimiter, authHandler.GithubLogin)
 	r.Get("/oauth/github/callback", authHandler.GithubCallback)
 }
 
