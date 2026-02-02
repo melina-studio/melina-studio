@@ -76,16 +76,20 @@ export const convertBackendShape = (shape: any): Shape | null => {
       };
 
     case "path":
+      // For path shapes, shape.data is the path string itself, not a nested object
+      // So we need to use the original shape object to get all properties
+      const pathData = shape.data || data.data || "";
+      const pathSource = typeof shape.data === "string" ? shape : data;
       return {
         ...baseShape,
-        data: data.data ?? "",
-        x: data.x,
-        y: data.y,
-        fill: data.fill,
-        stroke: data.stroke,
-        strokeWidth: data.strokeWidth,
-        lineCap: data.lineCap,
-        lineJoin: data.lineJoin,
+        data: pathData,
+        x: pathSource.x,
+        y: pathSource.y,
+        fill: pathSource.fill,
+        stroke: pathSource.stroke,
+        strokeWidth: pathSource.strokeWidth,
+        lineCap: pathSource.lineCap,
+        lineJoin: pathSource.lineJoin,
       };
 
     case "line":
@@ -241,16 +245,20 @@ export const buildShapes = (data: any): Shape[] => {
         };
       }
       if (shape.type === "path") {
+        // For path shapes, shape.data is the path string itself, not a nested object
+        // The other properties are at the top level of the shape object
+        const pathData = typeof shape.data === "string" ? shape.data : shape.data?.data ?? "";
+        const pathSource = typeof shape.data === "string" ? shape : shape.data;
         return {
           ...baseShape,
-          data: shape.data?.data ?? "",
-          x: shape.data?.x,
-          y: shape.data?.y,
-          fill: shape.data?.fill,
-          stroke: shape.data?.stroke,
-          strokeWidth: shape.data?.strokeWidth,
-          lineCap: shape.data?.lineCap,
-          lineJoin: shape.data?.lineJoin,
+          data: pathData,
+          x: pathSource?.x,
+          y: pathSource?.y,
+          fill: pathSource?.fill,
+          stroke: pathSource?.stroke,
+          strokeWidth: pathSource?.strokeWidth,
+          lineCap: pathSource?.lineCap,
+          lineJoin: pathSource?.lineJoin,
         };
       }
       if (shape.type === "line") {
