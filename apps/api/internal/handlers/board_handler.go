@@ -492,14 +492,6 @@ func (h *BoardHandler) UploadSelectionImage(c *fiber.Ctx) error {
 		})
 	}
 
-	// save the url to board selection image
-	err = h.boardDataRepo.UpdateShapeImageUrl(body.SelectionShapeId, url)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to update board selection image",
-		})
-	}
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Selection image uploaded successfully",
 		"shapeId": body.SelectionShapeId,

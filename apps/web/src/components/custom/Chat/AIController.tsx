@@ -378,7 +378,6 @@ function AIController({
         height: number;
         padding: number;
       };
-      wasNewlyUploaded: boolean;
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
@@ -428,55 +427,33 @@ function AIController({
       }
     }
 
-    // Step 2: Upload selection images
+    // Step 2: Upload selection images (one per selection, shared across shapes)
     if (selections.length > 0) {
       try {
-        // Flatten all shapes from all selections and upload for each
-        const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(async (shape): Promise<ShapeImageData | null> => {
-            let url = shape.imageUrl;
-            const wasNewlyUploaded = !url;
+        const uploadPromises = selections.map(async (selection) => {
+          const response = await uploadSelectionImageToBackend(
+            boardId,
+            selection.id,
+            selection.image.dataURL
+          );
+          const url = response?.url;
+          if (!url) return [];
 
-            // Upload if shape doesn't already have an imageUrl
-            if (!url) {
-              const response = await uploadSelectionImageToBackend(
-                boardId,
-                shape.id,
-                selection.image.dataURL
-              );
-              url = response.url;
-            }
-
-            if (!url) return null; // Skip if still no URL
-
-            // Include selection bounds for image annotation on backend
-            return {
-              shapeId: shape.id,
-              url,
-              bounds: {
-                minX: selection.bounds.minX,
-                minY: selection.bounds.minY,
-                width: selection.bounds.width,
-                height: selection.bounds.height,
-                padding: selection.bounds.padding,
-              },
-              wasNewlyUploaded,
-            };
-          })
-        );
+          return selection.shapes.map((shape): ShapeImageData => ({
+            shapeId: shape.id,
+            url,
+            bounds: {
+              minX: selection.bounds.minX,
+              minY: selection.bounds.minY,
+              width: selection.bounds.width,
+              height: selection.bounds.height,
+              padding: selection.bounds.padding,
+            },
+          }));
+        });
 
         const results = await Promise.all(uploadPromises);
-        shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
-
-        // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
-        const newlyUploadedShapes = shapeImageUrls.filter((r) => r.wasNewlyUploaded);
-        if (newlyUploadedShapes.length > 0) {
-          const updates = newlyUploadedShapes.map((r) => ({
-            shapeId: r.shapeId,
-            imageUrl: r.url,
-          }));
-          onBatchShapeImageUrlUpdate?.(updates);
-        }
+        shapeImageUrls = results.flat();
       } catch (error) {
         console.error("Error uploading selection images:", error);
         toast.error(error instanceof Error ? error.message : "Failed to upload images");
@@ -551,58 +528,36 @@ function AIController({
         height: number;
         padding: number;
       };
-      wasNewlyUploaded: boolean;
     };
     let shapeImageUrls: ShapeImageData[] = [];
 
     setLoading(true);
     if (selections.length > 0) {
       try {
-        const uploadPromises = selections.flatMap((selection) =>
-          selection.shapes.map(async (shape): Promise<ShapeImageData | null> => {
-            let url = shape.imageUrl;
-            const wasNewlyUploaded = !url;
+        const uploadPromises = selections.map(async (selection) => {
+          const response = await uploadSelectionImageToBackend(
+            boardId,
+            selection.id,
+            selection.image.dataURL
+          );
+          const url = response?.url;
+          if (!url) return [];
 
-            // Upload if shape doesn't already have an imageUrl
-            if (!url) {
-              const response = await uploadSelectionImageToBackend(
-                boardId,
-                shape.id,
-                selection.image.dataURL
-              );
-              url = response.url;
-            }
-
-            if (!url) return null; // Skip if still no URL
-
-            // Include selection bounds for image annotation on backend
-            return {
-              shapeId: shape.id,
-              url,
-              bounds: {
-                minX: selection.bounds.minX,
-                minY: selection.bounds.minY,
-                width: selection.bounds.width,
-                height: selection.bounds.height,
-                padding: selection.bounds.padding,
-              },
-              wasNewlyUploaded,
-            };
-          })
-        );
+          return selection.shapes.map((shape): ShapeImageData => ({
+            shapeId: shape.id,
+            url,
+            bounds: {
+              minX: selection.bounds.minX,
+              minY: selection.bounds.minY,
+              width: selection.bounds.width,
+              height: selection.bounds.height,
+              padding: selection.bounds.padding,
+            },
+          }));
+        });
 
         const results = await Promise.all(uploadPromises);
-        shapeImageUrls = results.filter((r): r is ShapeImageData => r !== null);
-
-        // Batch update all newly uploaded shapes' imageUrls at once (avoids race conditions)
-        const newlyUploadedShapes = shapeImageUrls.filter((r) => r.wasNewlyUploaded);
-        if (newlyUploadedShapes.length > 0) {
-          const updates = newlyUploadedShapes.map((r) => ({
-            shapeId: r.shapeId,
-            imageUrl: r.url,
-          }));
-          onBatchShapeImageUrlUpdate?.(updates);
-        }
+        shapeImageUrls = results.flat();
       } catch (error) {
         console.error("Error uploading selection images:", error);
         toast.error(error instanceof Error ? error.message : "Failed to upload images");
