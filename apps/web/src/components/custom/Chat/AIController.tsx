@@ -966,11 +966,13 @@ function AIController({
                 placeholder={
                   tokenStatus?.type === "blocked"
                     ? "Token limit reached. Add credits to continue."
-                    : "Plan, type / for commands"
+                    : isAiResponding
+                      ? "Melina is working..."
+                      : "Plan, type / for commands"
                 }
                 className="w-full outline-none text-sm resize-none overflow-hidden bg-transparent max-h-[150px] placeholder:text-gray-500"
                 rows={1}
-                disabled={loading || tokenStatus?.type === "blocked"}
+                disabled={loading || isAiResponding || tokenStatus?.type === "blocked"}
                 onInput={(e) => {
                   const el = e.target as HTMLTextAreaElement;
                   el.style.height = "auto";
@@ -1029,7 +1031,7 @@ function AIController({
                   onClick={() => fileInputRef.current?.click()}
                   className="p-0.5 cursor-pointer rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Attach images"
-                  disabled={loading || tokenStatus?.type === "blocked"}
+                  disabled={loading || isAiResponding || tokenStatus?.type === "blocked"}
                 >
                   <Paperclip className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                 </button>
@@ -1070,15 +1072,15 @@ function AIController({
               </div>
               <div
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                  if (tokenStatus?.type === "blocked") return;
+                  if (tokenStatus?.type === "blocked" || isAiResponding) return;
                   handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
                 }}
-                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || tokenStatus?.type === "blocked"
+                className={`bg-gray-200/80 dark:bg-gray-500/20 rounded-md p-2 flex items-center justify-center ${loading || isAiResponding || tokenStatus?.type === "blocked"
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
                   }`}
               >
-                {loading ? (
+                {loading || isAiResponding ? (
                   <Spinner
                     className="w-4 h-4 shrink-0 hover:text-blue-500 transition-colors"
                     color="gray"

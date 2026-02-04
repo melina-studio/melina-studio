@@ -201,11 +201,10 @@ function AIMessage({
             </div>
           )}
 
-          {/* Typing indicator if streaming but no content yet and not showing thinking */}
+          {/* Typing indicator if streaming and not showing thinking - shows what the agent is doing */}
           {isStreaming &&
-            !content &&
             !(streamingThinking && (streamingThinking.isActive || streamingThinking.content)) && (
-              <div className="inline-flex items-center">
+              <div className="inline-flex items-center mt-1">
                 <TextAnimationLoader
                   text={loaderText || "thinking..."}
                   color={isDark ? "#9ca3af" : "#6b7280"}
