@@ -1,5 +1,6 @@
 import { SendHorizontal, Paperclip, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import pLimit from "p-limit";
 import { useTheme } from "next-themes";
 import ChatMessage from "./ChatMessage";
 import ModelSelector from "./ModelSelector";
@@ -388,19 +389,22 @@ function AIController({
     let uploadedImageUrls: string[] = [];
     if (attachments.length > 0) {
       try {
-        const uploadPromises = attachments.map(async (attachment) => {
-          updateAttachmentStatus(attachment.id, "uploading");
-          try {
-            const response = await uploadChatImage(boardId, attachment.file);
-            updateAttachmentStatus(attachment.id, "uploaded", response.url);
-            return response.url;
-          } catch (error) {
-            updateAttachmentStatus(attachment.id, "error");
-            throw error;
-          }
-        });
-
-        const results = await Promise.allSettled(uploadPromises);
+        const limit = pLimit(8);
+        const uploadPromises = attachments.map((attachment) =>
+          limit(async () => {
+            updateAttachmentStatus(attachment.id, "uploading");
+            try {
+              const response = await uploadChatImage(boardId, attachment.file);
+              updateAttachmentStatus(attachment.id, "uploaded", response.url);
+              return response.url;
+            } catch (error) {
+              updateAttachmentStatus(attachment.id, "error");
+              throw error;
+            }
+          })
+        );
+        
+        const results = await Promise.allSettled(uploadPromises);        
         uploadedImageUrls = results
           .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
           .map((r) => r.value);
