@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/constants"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"net/http"
@@ -773,7 +774,7 @@ func StreamClaudeWithMessages(
 
 // === Updated ExecuteToolFlow that uses dynamic dispatcher ===
 func ChatWithTools(ctx context.Context, systemMessage string, messages []Message, tools []map[string]interface{}, streamCtx *StreamingContext, temperature *float32, maxTokens *int, modelID string, enableThinking bool) (*ClaudeResponse, error) {
-	const maxIterations = 5 // safety guard - reduced to limit token consumption per message
+	maxIterations := constants.GetMaxIterations(ctx)
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

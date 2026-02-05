@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"melina-studio-backend/internal/libraries"
-	"melina-studio-backend/internal/melina/agents"
+	"melina-studio-backend/internal/melina/helpers"
 	"melina-studio-backend/internal/melina/tools"
 	"melina-studio-backend/internal/repo"
 )
@@ -34,7 +34,7 @@ type selectionGroup struct {
 }
 
 // ProcessSelectionImages processes shape selection images: fetches, annotates, and formats with gotoon
-func (p *ImageProcessor) ProcessSelectionImages(metadata *libraries.ChatMessageMetadata) []agents.AnnotatedSelection {
+func (p *ImageProcessor) ProcessSelectionImages(metadata *libraries.ChatMessageMetadata) []helpers.AnnotatedSelection {
 	if metadata == nil || len(metadata.ShapeImageUrls) == 0 {
 		return nil
 	}
@@ -112,8 +112,8 @@ func (p *ImageProcessor) fetchShapeDataFromDB(shapeUrls []libraries.ShapeImageUr
 }
 
 // annotateSelectionGroups processes each selection group and creates annotated selections
-func (p *ImageProcessor) annotateSelectionGroups(urlToGroup map[string]*selectionGroup, shapeDataMap map[string]map[string]any) []agents.AnnotatedSelection {
-	var annotatedSelections []agents.AnnotatedSelection
+func (p *ImageProcessor) annotateSelectionGroups(urlToGroup map[string]*selectionGroup, shapeDataMap map[string]map[string]any) []helpers.AnnotatedSelection {
+	var annotatedSelections []helpers.AnnotatedSelection
 	globalShapeNumber := 1
 
 	for _, group := range urlToGroup {
@@ -137,7 +137,7 @@ func (p *ImageProcessor) annotateSelectionGroups(urlToGroup map[string]*selectio
 		// Format with TOON using gotoon library
 		shapeMetadata := p.encodeShapesAsToon(shapesForToon)
 
-		annotatedSelections = append(annotatedSelections, agents.AnnotatedSelection{
+		annotatedSelections = append(annotatedSelections, helpers.AnnotatedSelection{
 			AnnotatedImage: annotatedImage,
 			MimeType:       "image/png",
 			Shapes:         shapeImages,
@@ -173,9 +173,9 @@ func (p *ImageProcessor) fetchImageAsBase64(url string) (string, error) {
 }
 
 // buildShapeArrays builds the various shape arrays needed for annotation and metadata
-func (p *ImageProcessor) buildShapeArrays(group *selectionGroup, shapeDataMap map[string]map[string]any, globalShapeNumber *int) ([]map[string]any, []agents.ShapeImage, []map[string]any) {
+func (p *ImageProcessor) buildShapeArrays(group *selectionGroup, shapeDataMap map[string]map[string]any, globalShapeNumber *int) ([]map[string]any, []helpers.ShapeImage, []map[string]any) {
 	var shapesForAnnotation []map[string]any
-	var shapeImages []agents.ShapeImage
+	var shapeImages []helpers.ShapeImage
 	var shapesForToon []map[string]any
 
 	for _, shapeUrl := range group.shapes {
@@ -205,7 +205,7 @@ func (p *ImageProcessor) buildShapeArrays(group *selectionGroup, shapeDataMap ma
 		shapesForAnnotation = append(shapesForAnnotation, translatedData)
 
 		// Build ShapeImage
-		shapeImages = append(shapeImages, agents.ShapeImage{
+		shapeImages = append(shapeImages, helpers.ShapeImage{
 			ShapeId:   shapeUrl.ShapeId,
 			MimeType:  "image/png",
 			ShapeData: shapeData,
@@ -237,14 +237,14 @@ func (p *ImageProcessor) encodeShapesAsToon(shapesForToon []map[string]any) stri
 }
 
 // ProcessUploadedImages fetches uploaded images and returns as base64 (no annotation)
-func (p *ImageProcessor) ProcessUploadedImages(urls []string) []agents.UploadedImage {
+func (p *ImageProcessor) ProcessUploadedImages(urls []string) []helpers.UploadedImage {
 	if len(urls) == 0 {
 		return nil
 	}
 
 	log.Printf("Processing %d uploaded images", len(urls))
 
-	var images []agents.UploadedImage
+	var images []helpers.UploadedImage
 	for _, url := range urls {
 		base64Data, err := p.fetchImageAsBase64(url)
 		if err != nil {
@@ -263,7 +263,7 @@ func (p *ImageProcessor) ProcessUploadedImages(urls []string) []agents.UploadedI
 			mimeType = "image/webp"
 		}
 
-		images = append(images, agents.UploadedImage{
+		images = append(images, helpers.UploadedImage{
 			Base64Data: base64Data,
 			MimeType:   mimeType,
 		})

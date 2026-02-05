@@ -3,6 +3,7 @@ package llmHandlers
 import (
 	"context"
 	"fmt"
+	"melina-studio-backend/internal/constants"
 	"melina-studio-backend/internal/libraries"
 	"os"
 	"strings"
@@ -311,7 +312,7 @@ func (c *OpenAIClient) callOpenAIWithMessages(ctx context.Context, systemMessage
 
 // ChatWithTools handles tool execution loop
 func (c *OpenAIClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*OpenAIResponse, error) {
-	const maxIterations = 5
+	maxIterations := constants.GetMaxIterations(ctx)
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

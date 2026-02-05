@@ -13,6 +13,7 @@ import (
 	"melina-studio-backend/internal/libraries"
 	llmHandlers "melina-studio-backend/internal/llm_handlers"
 	"melina-studio-backend/internal/melina/agents"
+	"melina-studio-backend/internal/melina/helpers"
 	"melina-studio-backend/internal/melina/tools"
 	"melina-studio-backend/internal/repo"
 	"melina-studio-backend/internal/service"
@@ -144,7 +145,7 @@ func (w *Workflow) ProcessChatMessage(hub *libraries.Hub, client *libraries.Clie
 	annotatedSelections := w.imageProcessor.ProcessSelectionImages(cfg.Message.Metadata)
 
 	// Process uploaded images (user-attached images, no annotation needed)
-	var uploadedImages []agents.UploadedImage
+	var uploadedImages []helpers.UploadedImage
 	if cfg.Message.Metadata != nil && len(cfg.Message.Metadata.UploadedImageUrls) > 0 {
 		log.Printf("Found %d uploaded image URLs in metadata: %v", len(cfg.Message.Metadata.UploadedImageUrls), cfg.Message.Metadata.UploadedImageUrls)
 		uploadedImages = w.imageProcessor.ProcessUploadedImages(cfg.Message.Metadata.UploadedImageUrls)

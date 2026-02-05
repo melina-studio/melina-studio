@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/constants"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"reflect"
@@ -419,7 +420,7 @@ func (c *LangChainClient) callLangChainWithMessages(ctx context.Context, systemM
 
 // ChatWithTools handles tool execution loop similar to Anthropic's and Gemini's implementation
 func (c *LangChainClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*LangChainResponse, error) {
-	const maxIterations = 5 // reduced to limit token consumption per message
+	maxIterations := constants.GetMaxIterations(ctx)
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

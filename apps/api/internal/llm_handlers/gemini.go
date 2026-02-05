@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"melina-studio-backend/internal/constants"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"os"
@@ -443,7 +444,7 @@ func (v *GenaiGeminiClient) callGeminiWithMessages(ctx context.Context, systemMe
 
 // ChatWithTools handles tool execution loop similar to Anthropic's implementation
 func (v *GenaiGeminiClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*GeminiResponse, error) {
-	const maxIterations = 5 // reduced to limit token consumption per message
+	maxIterations := constants.GetMaxIterations(ctx)
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)

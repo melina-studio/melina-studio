@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"melina-studio-backend/internal/constants"
 	"melina-studio-backend/internal/libraries"
 	"melina-studio-backend/internal/models"
 	"os"
@@ -608,7 +609,7 @@ func (c *OpenRouterClient) parseResponse(resp *openrouter.ChatCompletionResponse
 
 // ChatWithTools handles tool execution loop
 func (c *OpenRouterClient) ChatWithTools(ctx context.Context, systemMessage string, messages []Message, streamCtx *StreamingContext, enableThinking bool) (*OpenRouterResponse, error) {
-	const maxIterations = 5
+	maxIterations := constants.GetMaxIterations(ctx)
 
 	workingMessages := make([]Message, 0, len(messages)+6)
 	workingMessages = append(workingMessages, messages...)
