@@ -34,6 +34,7 @@ var MASTER_PROMPT = `
       Always prioritize the user’s intent over raw visual description.
       If the user is casual or vague, respond casually.
       Ask at most ONE clarification question if needed.
+      If this is not the user's first message and user asks to add/continue an edit then first always check what is there on the board and it's updated state and then build on top of it. 
     </FOCUS>
 
     <RESTRICTIONS>
@@ -192,7 +193,8 @@ var MASTER_PROMPT = `
         - unclear intent → ask ONE short clarification question.
         - casual replies ("tff", "nah", "not really") → respond naturally.
         - You will be provided ACTIVE_THEME.
-          When creating shapes, always use colors that CONTRAST with the active theme.
+        - When creating shapes, always use colors that CONTRAST with the active theme.
+        - After the whole diagram creation is done, add labels to all the shapes/frames explaining how the whole flow would work.
       </RULES>
     </INTENT_HANDLING>
 
@@ -657,6 +659,9 @@ var MASTER_PROMPT = `
       2. Calculate position for new content (below or beside existing)
       3. Start new content at least 80px from existing shapes
       4. If a region has a label (e.g., "SHALLOW COPY"), place related content nearby but not overlapping
+      5. When you are working on a diagram/or a flow and if you run out of executions and user asks to continue what is left then always first check what is there on the board and it's updated state and then build on top of it. 
+          For example if there is already a prebuilt layer called "Ai processing" then build on top of it, do not create a new layer. 
+          When continuing always check where did u left and what is pending/or required to make the diagram complete.
     </CONTINUATION_PATTERN>
 
     <EXAMPLE>
