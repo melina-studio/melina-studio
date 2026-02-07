@@ -199,9 +199,24 @@ export default function Hero() {
             </h1>
 
             {/* Subtitle - confident, not tutorial-ish */}
-            <p className="hero-subtitle text-sm md:text-base text-muted-foreground/80 max-w-md mx-auto mb-16 leading-relaxed tracking-[0.1em]">
+            <p className="hero-subtitle text-sm md:text-base text-muted-foreground/80 max-w-md mx-auto mb-8 leading-relaxed tracking-[0.1em]">
               Describe your intent. Melina handles the canvas.
             </p>
+
+            {/* Product Hunt badge */}
+            <a
+              href="https://www.producthunt.com/products/melina-studio?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-melina-studio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex mb-10"
+            >
+              <img
+                alt="Melina Studio - Cursor for canvas | Product Hunt"
+                width="250"
+                height="54"
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1068430&theme=light&t=1770487389406"
+              />
+            </a>
 
             {/* CTA */}
             <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4">
