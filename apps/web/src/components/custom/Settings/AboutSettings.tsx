@@ -69,7 +69,7 @@ export function AboutSettings() {
           Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" />
           by
           <a
-            href="https://aryan-shaw.vercel.app"
+            href="https://aryan-shaw.netlify.app"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1"

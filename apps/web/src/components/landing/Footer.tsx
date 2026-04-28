@@ -46,7 +46,7 @@ export default function Footer() {
               &copy; {new Date().getFullYear()} Melina Studio. All rights reserved.
             </p>
             <a
-              href="https://aryan-shaw.vercel.app"
+              href="https://aryan-shaw.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 max-w-fit"
